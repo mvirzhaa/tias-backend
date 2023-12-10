@@ -32,31 +32,10 @@ app.use(bodyParser.json());
 app.use(express.static("public"));
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: "*",
     credentials: true,
   })
 );
-
-// STATUS DATA
-// 0  Prosess
-// 1  Disetujui
-// 2  Ditolak
-
-// KODE STATUS MAHASISWA
-// 0 Aktif
-// 1 Non Aktif
-// 2 Alumni
-// null DOSEN/ADMIN
-
-// STATUS is_deleted
-// false - Non Delete
-// true - Deleted
-
-// POINT GAMIFIKASI
-// sertifikasi - kategori_sertifikasi
-// publikasi_karya - kategori_publikasi
-// penghargaan - Kategori_prestasi
-// HKI - Kategori_hki
 
 // Website API
 app.use("/auth", authRoutes);
@@ -83,13 +62,14 @@ app.get("/", (req, res) => {
   res.send("Server Oke");
 });
 
+
 // error handler
 app.use(errorHandler);
 
 const startServer = () => {
   const PORT = process.env.PORT || 5000;
   try {
-    app.listen(PORT, () => {
+    app.listen(PORT,  () => {
       console.log(`Server Running On Port: ${PORT}`);
     });
   } catch (error) {
