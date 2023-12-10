@@ -100,7 +100,7 @@ exports.register = asyncHandler(async (req, res) => {
       const subject = "Verify Your Account";
       const send_to = email;
       const send_from = process.env.EMAIL_USER;
-      const template = "verifyEMail";
+      const template = "verifyEmail";
       const link = verificationUrl;
 
       await sendMail(subject, send_to, send_from, template, link);
@@ -147,7 +147,7 @@ exports.register = asyncHandler(async (req, res) => {
       const subject = "Verify Your Account";
       const send_to = email;
       const send_from = process.env.EMAIL_USER;
-      const template = "verifyEMail";
+      const template = "verifyEmail";
       const link = verificationUrl;
 
       try {
@@ -230,7 +230,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
     const subject = "Verify Your Account";
     const send_to = user.rows[0].email;
     const send_from = process.env.EMAIL_USER;
-    const template = "verifyEMail";
+    const template = "verifyEmail";
     const link = verificationUrl;
 
     await sendMail(subject, send_to, send_from, template, link);
@@ -587,7 +587,7 @@ exports.sendVerificationEmail = asyncHandler(async (req, res) => {
   const subject = "Verify Your Account";
   const send_to = user.rows[0].email;
   const send_from = process.env.EMAIL_USER;
-  const template = "verifyEMail";
+  const template = "verifyEmail";
   const link = verificationUrl;
 
   try {
