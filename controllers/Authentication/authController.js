@@ -634,15 +634,6 @@ exports.verifyUser = asyncHandler(async (req, res) => {
   // Send HTTP-only Cookie
 
   if (verifyUser.rows[0].isverified === true) {
-    const token = generateToken(user.rows[0].user_id);
-    // Send HTTP-only Cookie
-    res.cookie("token", token, {
-      path: "/",
-      httpOnly: true,
-      expires: new Date(Date.now() + 1000 * 86400), // 1 day
-      sameSite: "none",
-      secure: true,
-    });
 
     res.status(200).json({
       message: "Account verification successfully",
@@ -655,7 +646,6 @@ exports.verifyUser = asyncHandler(async (req, res) => {
         role,
         isverified,
         created_at,
-        token,
       },
     });
   }
