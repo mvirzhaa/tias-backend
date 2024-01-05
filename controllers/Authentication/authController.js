@@ -28,34 +28,23 @@ exports.register = asyncHandler(async (req, res) => {
     return res.status(400).send({ message: error.details[0].message });
   }
 
-  const { npm_nidn, email, password } = req.body;
+  const { npm_nidn, nama_lengkap, email, password } = req.body;
 
-  const npmExists = await DB.query("SELECT * FROM tb_users WHERE npm = $1", [
-    npm_nidn,
-  ]);
-  if (npmExists.rows.length) {
-    res.status(400);
-    throw new Error("NPM already exists.");
-  }
-
-  const nidnExists = await DB.query("SELECT * FROM tb_users WHERE nidn = $1", [
-    npm_nidn,
-  ]);
-
-  if (nidnExists.rows.length) {
-    res.status(400);
-    throw new Error("NIDN already exists.");
-  }
-
-  const userExists = await DB.query("SELECT * FROM tb_users WHERE email = $1", [
-    email,
-  ]);
-
-  if (userExists.rows.length) {
-    res.status(400);
-    throw new Error("Email already exists.");
-  }
-
+  const checkIfExists = async (column, value, errorMessage) => {
+    const result = await DB.query(`SELECT * FROM tb_users WHERE ${column} = $1`, [
+      value,
+    ]);
+  
+    if (result.rows.length) {
+      res.status(400);
+      throw new Error(errorMessage);
+    }
+  };
+  
+  await checkIfExists("npm", npm_nidn, "NPM already exists.");
+  await checkIfExists("nidn", npm_nidn, "NIDN already exists.");
+  await checkIfExists("email", email, "Email already exists.");
+  
   // Get userAgent
   const ua = parser(req.headers["user-agent"]);
   const userAgent = [ua.ua];
@@ -74,7 +63,14 @@ exports.register = asyncHandler(async (req, res) => {
       [npm_nidn, email, hashedPassword, role, userAgent, convert]
     );
 
-    if (saveUser.rows.length) {
+    let kode_mhs = (saveUser.rows[0].role == "Mahasiswa") ? 0 : null;
+
+
+    const savePersonalData = await DB.query(
+      `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, created_at, kode_mhs) VALUES ($1, $2, $3, $4) returning *`, [saveUser.rows[0].user_id, nama_lengkap, convert, kode_mhs]
+    )
+
+    if (saveUser.rows.length && savePersonalData.rows.length) {
       const { user_id, npm, email } = saveUser.rows[0];
 
       // Create verification token
@@ -121,7 +117,11 @@ exports.register = asyncHandler(async (req, res) => {
       [npm_nidn, email, hashedPassword, role, userAgent, convert]
     );
 
-    if (saveUser.rows.length) {
+    const savePersonalData = await DB.query(
+      `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, created_at) VALUES ($1, $2, $3) returning *`, [saveUser.rows[0].user_id, nama_lengkap, convert]
+    )
+
+    if (saveUser.rows.length && savePersonalData.rows.length) {
       const { user_id, nidn, email } = saveUser.rows[0];
 
       // Create verification token
@@ -273,45 +273,46 @@ exports.loginUser = asyncHandler(async (req, res) => {
   // // Generate Token
   const token = generateToken(id);
 
-  const findDataPribadi = await DB.query(
-    "SELECT * FROM tb_data_pribadi WHERE user_id = $1",
-    [id]
-  );
+  // const findDataPribadi = await DB.query(
+  //   "SELECT * FROM tb_data_pribadi WHERE user_id = $1",
+  //   [id]
+  // );
 
-  if (!findDataPribadi.rows.length) {
-    const {
-      user_id,
-      npm,
-      nidn,
-      username,
-      email,
-      role,
-      isverified,
-      created_at,
-    } = user.rows[0];
-    // Send HTTP-only Cookie
-    res.cookie("token", token, {
-      path: "/",
-      httpOnly: true,
-      expires: new Date(Date.now() + 1000 * 86400), // 1 day
-      sameSite: "none",
-      secure: true,
-    });
-    res.status(200).json({
-      message: "Please complete the purchased personal data first.",
-      data: {
-        user_id,
-        npm,
-        nidn,
-        username,
-        email,
-        role,
-        isverified,
-        created_at,
-        token,
-      },
-    });
-  } else if (user.rows.length && passwordIsCorrect) {
+  // if (!findDataPribadi.rows.length) {
+  //   const {
+  //     user_id,
+  //     npm,
+  //     nidn,
+  //     username,
+  //     email,
+  //     role,
+  //     isverified,
+  //     created_at,
+  //   } = user.rows[0];
+  //   // Send HTTP-only Cookie
+  //   res.cookie("token", token, {
+  //     path: "/",
+  //     httpOnly: true,
+  //     expires: new Date(Date.now() + 1000 * 86400), // 1 day
+  //     sameSite: "none",
+  //     secure: true,
+  //   });
+  //   res.status(200).json({
+  //     message: "Please complete the purchased personal data first.",
+  //     data: {
+  //       user_id,
+  //       npm,
+  //       nidn,
+  //       username,
+  //       email,
+  //       role,
+  //       isverified,
+  //       created_at,
+  //       token,
+  //     },
+  //   });
+  // } else 
+  if (user.rows.length && passwordIsCorrect) {
     const {
       user_id,
       npm,
