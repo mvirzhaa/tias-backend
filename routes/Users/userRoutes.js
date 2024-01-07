@@ -10,6 +10,6 @@ const router = express.Router();
 
 router.get("/getMhs", protected, getUserMhs);
 router.get("/getDosen", protected, getUserDosen);
-router.get("/detailUser/:userId", protected, detailUser);
+router.get("/detail-user/:userId", protected, detailUser);
 
 module.exports = router;

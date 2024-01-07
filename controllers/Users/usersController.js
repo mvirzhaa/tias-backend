@@ -2,8 +2,16 @@ const asyncHandler = require("express-async-handler");
 const DB = require("../../database");
 
 exports.getUserMhs = asyncHandler(async (req, res) => {
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+
+  const offset = (page - 1) * limit;
+
+
   const user = await DB.query(
-    "SELECT tb_users.*, tb_data_pribadi.* FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id WHERE tb_users.role = 'Mahasiswa'"
+    "SELECT tb_users.*, tb_data_pribadi.*, kategori_mhs.* FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id JOIN kategori_mhs ON tb_data_pribadi.kode_mhs = kategori_mhs.kode WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true LIMIT $1 OFFSET $2", [limit, offset]
   );
 
   res.status(200).json({
@@ -13,8 +21,15 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
 });
 
 exports.getUserDosen = asyncHandler(async (req, res) => {
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+
+  const offset = (page - 1) * limit;
+
   const user = await DB.query(
-    "SELECT tb_users.*, tb_data_pribadi.* FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id WHERE tb_users.role = 'Dosen'"
+    "SELECT tb_users.*, tb_data_pribadi.*, tb_jabatan_dosen.jabatan_id, tb_jabatan_dosen.jabatan_fungsi FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id LEFT JOIN (SELECT user_id, jabatan_id, jabatan_fungsi FROM tb_jabatan_dosen WHERE (user_id, updated_at) IN (SELECT user_id, MAX(updated_at) AS max_updated_at FROM tb_jabatan_dosen GROUP BY user_id)) AS tb_jabatan_dosen ON tb_users.user_id = tb_jabatan_dosen.user_id WHERE tb_users.role = 'Dosen' LIMIT $1 OFFSET $2", [limit, offset]
   );
 
   res.status(200).json({
@@ -22,6 +37,7 @@ exports.getUserDosen = asyncHandler(async (req, res) => {
     data: user.rows,
   });
 });
+
 
 exports.detailUser = asyncHandler(async (req, res) => {
   const { userId } = req.params;
@@ -42,7 +58,7 @@ exports.detailUser = asyncHandler(async (req, res) => {
   }
 
   res.status(201).json({
-    dataMhs: findData.rows[0],
+    data: findData.rows[0],
     rekomendasiMhs: dataRekomendasi.rows,
   });
 });

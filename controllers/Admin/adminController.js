@@ -1,10 +1,10 @@
 const asyncHandler = require("express-async-handler");
 const DB = require("../../database");
 
-const fetchData = async (tb) => {
+const fetchData = async (tb, limit, offset) => {
   const data = await DB.query(
-    `SELECT * FROM ${tb} WHERE status = $1 and is_deleted = $2`,
-    [0, false]
+    `SELECT * FROM ${tb} WHERE status = $1 and is_deleted = $2 LIMIT $3 OFFSET $4`,
+    [0, false, limit, offset]
   );
 
   const jumlahData = await DB.query(
@@ -17,7 +17,14 @@ const fetchData = async (tb) => {
 
 // =====================  KUALIFIKASI  ====================
 exports.getDataRwytPekerjaanProses = asyncHandler(async (req, res) => {
-  const { data, jumlahData } = await fetchData("tb_riwayat_pekerjaan");
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+  
+  const offset = (page - 1) * limit;
+
+  const { data, jumlahData } = await fetchData("tb_riwayat_pekerjaan", limit, offset);
   const dataRwytPekerjaan = data.rows;
   const combinedData = [];
 
@@ -62,7 +69,14 @@ exports.getDataRwytPekerjaanProses = asyncHandler(async (req, res) => {
 });
 
 exports.getDataPendFormalProses = asyncHandler(async (req, res) => {
-  const { data, jumlahData } = await fetchData("tb_pend_formal");
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+  
+  const offset = (page - 1) * limit;
+
+  const { data, jumlahData } = await fetchData("tb_pend_formal", limit, offset);
   const dataPendFormal = data.rows;
   const combinedData = [];
 
@@ -109,7 +123,14 @@ exports.getDataPendFormalProses = asyncHandler(async (req, res) => {
 
 // =====================  KOMPETESI  ====================
 exports.getDataSertiProses = asyncHandler(async (req, res) => {
-  const { data, jumlahData } = await fetchData("tb_sertifikasi");
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+  
+  const offset = (page - 1) * limit;
+
+  const { data, jumlahData } = await fetchData("tb_sertifikasi", limit, offset);
 
   const dataSertifikat = data.rows;
   const combinedData = [];
@@ -158,7 +179,14 @@ exports.getDataSertiProses = asyncHandler(async (req, res) => {
 });
 
 exports.getDataTesProses = asyncHandler(async (req, res) => {
-  const { data, jumlahData } = await fetchData("tb_tes");
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+  
+  const offset = (page - 1) * limit;
+
+  const { data, jumlahData } = await fetchData("tb_tes", limit, offset);
 
   const dataTes = data.rows;
   const combinedData = [];
@@ -206,7 +234,13 @@ exports.getDataTesProses = asyncHandler(async (req, res) => {
 
 // =====================  PENUNJANG =======================
 exports.getDataAnggotaProfesiProses = asyncHandler(async (req, res) => {
-  const { data, jumlahData } = await fetchData("tb_anggota_prof");
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+  
+  const offset = (page - 1) * limit;
+  const { data, jumlahData } = await fetchData("tb_anggota_prof", limit, offset);
 
   const dataAnggotaProfesi = data.rows;
   const combinedData = [];
@@ -255,7 +289,14 @@ exports.getDataAnggotaProfesiProses = asyncHandler(async (req, res) => {
 });
 
 exports.getDataPenghargaanProses = asyncHandler(async (req, res) => {
-  const { data, jumlahData } = await fetchData("tb_penghargaan");
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+  
+  const offset = (page - 1) * limit;
+
+  const { data, jumlahData } = await fetchData("tb_penghargaan", limit, offset);
 
   const dataPenghargaan = data.rows;
   const combinedData = [];
@@ -306,7 +347,14 @@ exports.getDataPenghargaanProses = asyncHandler(async (req, res) => {
 
 // =====================  PELAKS-PENGABDIAN ======================
 exports.getDataPengabdianProses = asyncHandler(async (req, res) => {
-  const { data, jumlahData } = await fetchData("tb_pengabdian");
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+  
+  const offset = (page - 1) * limit;
+
+  const { data, jumlahData } = await fetchData("tb_pengabdian", limit, offset);
 
   const dataPengabdian = data.rows;
   const combinedData = [];
@@ -355,7 +403,13 @@ exports.getDataPengabdianProses = asyncHandler(async (req, res) => {
 });
 
 exports.getDataPembicaraProses = asyncHandler(async (req, res) => {
-  const { data, jumlahData } = await fetchData("tb_pembicara");
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+  
+  const offset = (page - 1) * limit;
+  const { data, jumlahData } = await fetchData("tb_pembicara", limit, offset);
 
   const dataPembicara = data.rows;
   const combinedData = [];
@@ -406,7 +460,14 @@ exports.getDataPembicaraProses = asyncHandler(async (req, res) => {
 
 // ==================== PELAKS-PENELITIAN ========================
 exports.getDataPenelitianProses = asyncHandler(async (req, res) => {
-  const { data, jumlahData } = await fetchData("tb_penelitian");
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+  
+  const offset = (page - 1) * limit;
+
+  const { data, jumlahData } = await fetchData("tb_penelitian", limit, offset);
 
   const dataPenelitina = data.rows;
   const combinedData = [];
@@ -455,7 +516,13 @@ exports.getDataPenelitianProses = asyncHandler(async (req, res) => {
 });
 
 exports.getDataPublikasiProses = asyncHandler(async (req, res) => {
-  const { data, jumlahData } = await fetchData("tb_publikasi_karya");
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+  
+  const offset = (page - 1) * limit;
+  const { data, jumlahData } = await fetchData("tb_publikasi_karya", limit, offset);
 
   const dataPublikasi = data.rows;
   const combinedData = [];
@@ -504,7 +571,14 @@ exports.getDataPublikasiProses = asyncHandler(async (req, res) => {
 });
 
 exports.getDataHkiProses = asyncHandler(async (req, res) => {
-  const { data, jumlahData } = await fetchData("tb_hki");
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+  
+  const offset = (page - 1) * limit;
+
+  const { data, jumlahData } = await fetchData("tb_hki", limit, offset);
 
   const dataHki = data.rows;
   const combinedData = [];
@@ -555,7 +629,13 @@ exports.getDataHkiProses = asyncHandler(async (req, res) => {
 
 // =================== PELAKS-PENDIDIKAN ========================
 exports.getDataIpProses = asyncHandler(async (req, res) => {
-  const { data, jumlahData } = await fetchData("tb_ip_mhs");
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+  
+  const offset = (page - 1) * limit;
+  const { data, jumlahData } = await fetchData("tb_ip_mhs", limit, offset);
 
   const dataIp = data.rows;
   const combinedData = [];
@@ -603,7 +683,13 @@ exports.getDataIpProses = asyncHandler(async (req, res) => {
 
 // =================== KEPANGKATAN ========================
 exports.getDataKepangkatanDosen = asyncHandler(async (req, res) => {
-  const { data, jumlahData } = await fetchData("tb_kepangkatan_dosen");
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+  
+  const offset = (page - 1) * limit;
+  const { data, jumlahData } = await fetchData("tb_kepangkatan_dosen", limit, offset);
 
   const dataPangkat = data.rows;
   const combinedData = [];
@@ -648,7 +734,13 @@ exports.getDataKepangkatanDosen = asyncHandler(async (req, res) => {
 
 // =================== JABATAN FUNGSIONAL ========================
 exports.getDataJafungDosen = asyncHandler(async (req, res) => {
-  const { data, jumlahData } = await fetchData("tb_jabatan_dosen");
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+  
+  const offset = (page - 1) * limit;
+  const { data, jumlahData } = await fetchData("tb_jabatan_dosen", limit, offset);
 
   const dataJafung = data.rows;
   const combinedData = [];
@@ -693,7 +785,13 @@ exports.getDataJafungDosen = asyncHandler(async (req, res) => {
 
 // =================== BAHAN AJAR DOSEN ========================
 exports.getDataBahanAjarDosen = asyncHandler(async (req, res) => {
-  const { data, jumlahData } = await fetchData("tb_bahan_ajar_dosen");
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+  
+  const offset = (page - 1) * limit;
+  const { data, jumlahData } = await fetchData("tb_bahan_ajar_dosen", limit, offset);
 
   const dataBahanAJar = data.rows;
   const combinedData = [];
@@ -738,7 +836,13 @@ exports.getDataBahanAjarDosen = asyncHandler(async (req, res) => {
 
 // =================== BIMBINGAN MAHASISWA ===========================
 exports.getDataBimbingan = asyncHandler(async (req, res) => {
-  const { data, jumlahData } = await fetchData("tb_bimbingan_mhs");
+  const dataQuery = req.query;
+
+  const page = dataQuery.page || 1;
+  const limit = dataQuery.limit || 10;
+  
+  const offset = (page - 1) * limit;
+  const { data, jumlahData } = await fetchData("tb_bimbingan_mhs", limit, offset);
 
   const dataBimbingan = data.rows;
   const combinedData = [];
