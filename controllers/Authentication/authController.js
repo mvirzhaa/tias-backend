@@ -20,6 +20,7 @@ const jwt = require("jsonwebtoken");
 // Triger 2FA
 const Cryptr = require("cryptr");
 const sendEmail = require("../../utils/sendMail");
+const { getInformaticsStudent, getDosen } = require("../../helper/informatics");
 const cryptr = new Cryptr(process.env.CRYPTR_KEY);
 
 exports.register = asyncHandler(async (req, res) => {
@@ -28,23 +29,26 @@ exports.register = asyncHandler(async (req, res) => {
     return res.status(400).send({ message: error.details[0].message });
   }
 
-  const { npm_nidn, nama_lengkap, email, password } = req.body;
+  const { npm_nidn, email, password } = req.body;
 
   const checkIfExists = async (column, value, errorMessage) => {
-    const result = await DB.query(`SELECT * FROM tb_users WHERE ${column} = $1`, [
-      value,
-    ]);
-  
+    const result = await DB.query(
+      `SELECT * FROM tb_users WHERE ${column} = $1`,
+      [value]
+    );
+
     if (result.rows.length) {
       res.status(400);
       throw new Error(errorMessage);
     }
   };
-  
+
   await checkIfExists("npm", npm_nidn, "NPM already exists.");
   await checkIfExists("nidn", npm_nidn, "NIDN already exists.");
   await checkIfExists("email", email, "Email already exists.");
-  
+
+  const departmentCode = "FT_TI";
+
   // Get userAgent
   const ua = parser(req.headers["user-agent"]);
   const userAgent = [ua.ua];
@@ -57,111 +61,180 @@ exports.register = asyncHandler(async (req, res) => {
     const role = "Mahasiswa";
     const created_at = unixTimestamp;
     const convert = convertDate(created_at);
-    // Save user to DB
-    const saveUser = await DB.query(
-      `INSERT INTO tb_users(npm, email, password, role, user_agent, created_at) VALUES ($1, $2, $3, $4, $5, $6) returning *`,
-      [npm_nidn, email, hashedPassword, role, userAgent, convert]
-    );
 
-    let kode_mhs = (saveUser.rows[0].role == "Mahasiswa") ? 0 : null;
+    const results = await getInformaticsStudent(departmentCode);
+    const studentWithNpm = results.find((student) => student.code === npm_nidn);
 
-
-    const savePersonalData = await DB.query(
-      `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, created_at, kode_mhs) VALUES ($1, $2, $3, $4) returning *`, [saveUser.rows[0].user_id, nama_lengkap, convert, kode_mhs]
-    )
-
-    if (saveUser.rows.length && savePersonalData.rows.length) {
-      const { user_id, npm, email } = saveUser.rows[0];
-
-      // Create verification token
-      const verificationToken =
-        crypto.randomBytes(32).toString("hex") + user_id;
-      console.log("verif token :", verificationToken);
-      const hashedToken = hashToken(verificationToken);
-
-      const unix = unixTimestamp;
-      const createdAt = await convertDate(unix);
-      const unixExpires = expires_at;
-      const expiresAt = await convertDate(unixExpires);
-
-      await DB.query(
-        "INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
-        [user_id, hashedToken, createdAt, expiresAt]
+    if (studentWithNpm) {
+      // Save user to DB
+      const saveUser = await DB.query(
+        `INSERT INTO tb_users(npm, email, password, role, user_agent, created_at) VALUES ($1, $2, $3, $4, $5, $6) returning *`,
+        [npm_nidn, email, hashedPassword, role, userAgent, convert]
       );
 
-      // Construct Verification Token
-      const verificationUrl = `${process.env.FRONTEND_URL}/verification/${verificationToken}`;
+      let kode_mhs = saveUser.rows[0].role == "Mahasiswa" ? 0 : null;
 
-      // Send verification email
-      const subject = "Verify Your Account";
-      const send_to = email;
-      const send_from = process.env.EMAIL_USER;
-      const template = "verifyEmail";
-      const link = verificationUrl;
+      const jenkelSiak =
+        studentWithNpm.sex === "LAKI_LAKI"
+          ? "L"
+          : studentWithNpm.sex === "PEREMPUAN"
+          ? "P"
+          : null;
 
-      await sendMail(subject, send_to, send_from, template, link);
+      const savePersonalData = await DB.query(
+        `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, jenkel, tanggal_lahir, tempat_lahir, ibu_kandung, agama, email, alamat, kota_kabupaten, no_hp, created_at, kode_mhs) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
+        RETURNING *`,
+        [
+          saveUser.rows[0].user_id,
+          studentWithNpm.name,
+          jenkelSiak,
+          studentWithNpm.birthdate,
+          studentWithNpm.birthplace,
+          studentWithNpm.mothers_maiden_name,
+          studentWithNpm.religion,
+          studentWithNpm.email,
+          studentWithNpm.address,
+          studentWithNpm.city,
+          studentWithNpm.mobile_phone,
+          convert,
+          kode_mhs,
+        ]
+      );
 
-      res.status(200).json({
-        message: `Verification Email Sent ${email}.`,
-      });
+      if (saveUser.rows.length && savePersonalData.rows.length) {
+        const { user_id, npm, email } = saveUser.rows[0];
+
+        // Create verification token
+        const verificationToken =
+          crypto.randomBytes(32).toString("hex") + user_id;
+        console.log("verif token :", verificationToken);
+        const hashedToken = hashToken(verificationToken);
+
+        const unix = unixTimestamp;
+        const createdAt = await convertDate(unix);
+        const unixExpires = expires_at;
+        const expiresAt = await convertDate(unixExpires);
+
+        await DB.query(
+          "INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
+          [user_id, hashedToken, createdAt, expiresAt]
+        );
+
+        // Construct Verification Token
+        const verificationUrl = `${process.env.FRONTEND_URL}/verification/${verificationToken}`;
+
+        // Send verification email
+        const subject = "Verify Your Account";
+        const send_to = email;
+        const send_from = process.env.EMAIL_USER;
+        const template = "verifyEmail";
+        const link = verificationUrl;
+
+        await sendMail(subject, send_to, send_from, template, link);
+
+        res.status(200).json({
+          message: `Verification Email Sent ${email}.`,
+        });
+      } else {
+        res.status(400);
+        throw new Error("Invalid User data");
+      }
     } else {
       res.status(400);
-      throw new Error("Invalid User data");
+      throw new Error("INVALID NPM. NPM NOT FOUND!!");
     }
   } else if (npm_nidn.length === 10) {
     const role = "Dosen";
     const convert = convertDate(unixTimestamp);
-    // Save user to DB
-    const saveUser = await DB.query(
-      `INSERT INTO tb_users(nidn, email, password, role, user_agent, created_at) VALUES ($1, $2, $3, $4, $5, $6) returning *`,
-      [npm_nidn, email, hashedPassword, role, userAgent, convert]
-    );
 
-    const savePersonalData = await DB.query(
-      `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, created_at) VALUES ($1, $2, $3) returning *`, [saveUser.rows[0].user_id, nama_lengkap, convert]
-    )
+    const resultsDosen = await getDosen(departmentCode);
+    const dosenWithNidn = resultsDosen.find((dosen) => dosen.nidn === npm_nidn);
 
-    if (saveUser.rows.length && savePersonalData.rows.length) {
-      const { user_id, nidn, email } = saveUser.rows[0];
-
-      // Create verification token
-      const verificationToken =
-        crypto.randomBytes(32).toString("hex") + user_id;
-      console.log(verificationToken);
-      const hashedToken = hashToken(verificationToken);
-
-      const unix = unixTimestamp;
-      const createdAt = convertDate(unix);
-      const unixExpires = expires_at;
-      const expiresAt = convertDate(unixExpires);
-
-      await DB.query(
-        "INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
-        [user_id, hashedToken, createdAt, expiresAt]
+    if (dosenWithNidn) {
+      // Save user to DB
+      const saveUser = await DB.query(
+        `INSERT INTO tb_users(nidn, email, password, role, user_agent, created_at) VALUES ($1, $2, $3, $4, $5, $6) returning *`,
+        [npm_nidn, email, hashedPassword, role, userAgent, convert]
       );
 
-      // Construct Verification Token
-      const verificationUrl = `${process.env.FRONTEND_URL}/verification/${verificationToken}`;
+      const jenkelSiak =
+        studentWithNpm.jenis_kelamin === "LAKI_LAKI"
+          ? "L"
+          : studentWithNpm.jenis_kelamin === "PEREMPUAN"
+          ? "P"
+          : null;
+      const statusKawin = dosenWithNidn.status_sipil !== "MENIKAH" ? 0 : 1;
 
-      // Send verification email
-      const subject = "Verify Your Account";
-      const send_to = email;
-      const send_from = process.env.EMAIL_USER;
-      const template = "verifyEmail";
-      const link = verificationUrl;
+      const savePersonalData = await DB.query(
+        `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, jenkel, tanggal_lahir, tempat_lahir, ibu_kandung, agama, email, alamat, kota_kabupaten, no_hp, provinsi, kode_pos, status_kawin, nik, created_at) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) 
+        RETURNING *`,
+        [
+          saveUser.rows[0].user_id,
+          dosenWithNidn.nama,
+          jenkelSiak,
+          dosenWithNidn.tanggal_lahir,
+          dosenWithNidn.tempat_lahir,
+          dosenWithNidn.nama_ibu_kandung,
+          dosenWithNidn.agama,
+          dosenWithNidn.email,
+          dosenWithNidn.alamat,
+          dosenWithNidn.kota,
+          dosenWithNidn.no_handphone,
+          dosenWithNidn.propinsi,
+          dosenWithNidn.kodepos,
+          statusKawin,
+          dosenWithNidn.no_ktp,
+          convert,
+        ]
+      );
 
-      try {
-        await sendMail(subject, send_to, send_from, template, link);
-      } catch (error) {
-        throw new Error("Email not send, please try again");
+      if (saveUser.rows.length && savePersonalData.rows.length) {
+        const { user_id, nidn, email } = saveUser.rows[0];
+
+        // Create verification token
+        const verificationToken =
+          crypto.randomBytes(32).toString("hex") + user_id;
+        console.log(verificationToken);
+        const hashedToken = hashToken(verificationToken);
+
+        const unix = unixTimestamp;
+        const createdAt = convertDate(unix);
+        const unixExpires = expires_at;
+        const expiresAt = convertDate(unixExpires);
+
+        await DB.query(
+          "INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
+          [user_id, hashedToken, createdAt, expiresAt]
+        );
+
+        // Construct Verification Token
+        const verificationUrl = `${process.env.FRONTEND_URL}/verification/${verificationToken}`;
+
+        // Send verification email
+        const subject = "Verify Your Account";
+        const send_to = email;
+        const send_from = process.env.EMAIL_USER;
+        const template = "verifyEmail";
+        const link = verificationUrl;
+
+        try {
+          await sendMail(subject, send_to, send_from, template, link);
+        } catch (error) {
+          throw new Error("Email not send, please try again");
+        }
+
+        res.status(200).json({
+          message: `Verification Email Sent ${email}.`,
+        });
+      } else {
+        res.status(400);
+        throw new Error("Invalid User data");
       }
-
-      res.status(200).json({
-        message: `Verification Email Sent ${email}.`,
-      });
     } else {
       res.status(400);
-      throw new Error("Invalid User data");
+      throw new Error("INVALID NIDN. NIDN NOT FOUND!!");
     }
   } else {
     res.status(400);
@@ -311,7 +384,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
   //       token,
   //     },
   //   });
-  // } else 
+  // } else
   if (user.rows.length && passwordIsCorrect) {
     const {
       user_id,
@@ -635,7 +708,6 @@ exports.verifyUser = asyncHandler(async (req, res) => {
   // Send HTTP-only Cookie
 
   if (verifyUser.rows[0].isverified === true) {
-
     res.status(200).json({
       message: "Account verification successfully",
       data: {
@@ -676,17 +748,36 @@ exports.getAllUsers = asyncHandler(async (req, res) => {
   }
 });
 
+exports.getUserLogin = asyncHandler(async (req, res) => {
+  const userLoginId = req.user.user_id;
+
+  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
+    userLoginId,
+  ]);
+
+  if (user.rows.length) {
+    res.status(200).json({
+      message: "Success get data.",
+      data: user.rows[0],
+    });
+  } else {
+    res.status(404);
+    throw new Error("User not found.");
+  }
+});
+
 exports.updateUserLogin = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
   const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
     userLoginId,
   ]);
 
-  const { npm_nidn, email } = req.body;
+  const { npm, nidn, email } = req.body;
+
   const oldData = user.rows[0];
   if (user.rows[0].role === "Mahasiswa") {
-    if (npm_nidn.length === 12) {
-      oldData.npm = npm_nidn || oldData.npm;
+    if (npm !== null) {
+      oldData.npm = npm || oldData.npm;
       oldData.email = email || oldData.email;
 
       const updateUser = await DB.query(
@@ -703,8 +794,8 @@ exports.updateUserLogin = asyncHandler(async (req, res) => {
       throw new Error("Invalid NPM or NIDN.");
     }
   } else if (user.rows[0].role === "Dosen") {
-    if (npm_nidn.length === 12) {
-      oldData.nidn = npm_nidn || oldData.nidn;
+    if (nidn !== null) {
+      oldData.nidn = nidn || oldData.nidn;
       oldData.email = email || oldData.email;
 
       const updateUser = await DB.query(
@@ -721,8 +812,8 @@ exports.updateUserLogin = asyncHandler(async (req, res) => {
       throw new Error("Invalid NPM or NIDN.");
     }
   } else if (user.rows[0].role === "Admin") {
-    oldData.npm = npm_nidn || oldData.npm;
-    oldData.nidn = npm_nidn || oldData.nidn;
+    oldData.npm = npm || oldData.npm;
+    oldData.nidn = nidn || oldData.nidn;
     oldData.email = email || oldData.email;
 
     const updateUser = await DB.query(

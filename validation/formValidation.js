@@ -5,7 +5,6 @@ const PasswordComplexity = require("joi-password-complexity");
 exports.formRegisterValidation = (data) => {
   const schema = Joi.object({
     npm_nidn: Joi.number().label("npm_nidn"),
-    nama_lengkap: Joi.string().required().label("nama_lengkap"),
     email: Joi.string().email().required().label("Email"),
     password: PasswordComplexity().required().label("Password"),
   });

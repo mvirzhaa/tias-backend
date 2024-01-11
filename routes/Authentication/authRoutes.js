@@ -17,6 +17,7 @@ const {
   getAllUsers,
   sendAutomatedEmail,
   cekDataPribadi,
+  getUserLogin,
 } = require("../../controllers/Authentication/authController");
 const { protected, adminOnly } = require("../../middleware/authMiddleware");
 
@@ -34,6 +35,7 @@ router.get("/loginStatus", getLoginStatus);
 router.get("/logout", logout);
 
 router.get("/getAllUsers", protected, adminOnly, getAllUsers);
+router.get("/get-user/:id", protected, getUserLogin);
 router.patch("/updateUserLogin", protected, updateUserLogin);
 router.delete("/:id", protected, adminOnly, deleteUser);
 router.post("/forgotPassword", forgotPassword);
