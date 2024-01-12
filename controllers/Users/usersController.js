@@ -2,18 +2,53 @@ const asyncHandler = require("express-async-handler");
 const DB = require("../../database");
 const { getInformaticsStudent, getDosen } = require("../../helper/informatics");
 
+// exports.getUserMhs = asyncHandler(async (req, res) => {
+//   const dataQuery = req.query;
+
+//   const page = dataQuery.page || 1;
+//   const limit = dataQuery.limit || 10;
+
+//   const offset = (page - 1) * limit;
+
+//   const user = await DB.query(
+//     "SELECT tb_users.*, tb_data_pribadi.*, kategori_mhs.* FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id JOIN kategori_mhs ON tb_data_pribadi.kode_mhs = kategori_mhs.kode WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true LIMIT $1 OFFSET $2",
+//     [limit, offset]
+//   );
+
+//   res.status(200).json({
+//     message: "Success get data.",
+//     data: user.rows,
+//   });
+// });
+
 exports.getUserMhs = asyncHandler(async (req, res) => {
-  const dataQuery = req.query;
+  const { page, limit, searchQuery } = req.query;
 
-  const page = dataQuery.page || 1;
-  const limit = dataQuery.limit || 10;
+  const pageNumber = page || 1;
+  const itemsPerPage = limit || 10;
+  const offset = (pageNumber - 1) * itemsPerPage;
 
-  const offset = (page - 1) * limit;
+  let searchFilter = "";
+  let searchParams = [];
 
-  const user = await DB.query(
-    "SELECT tb_users.*, tb_data_pribadi.*, kategori_mhs.* FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id JOIN kategori_mhs ON tb_data_pribadi.kode_mhs = kategori_mhs.kode WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true LIMIT $1 OFFSET $2",
-    [limit, offset]
-  );
+  if (searchQuery) {
+    searchFilter = `AND tb_data_pribadi.nama_lengkap ILIKE $${
+      searchParams.length + 1
+    }`;
+    searchParams = [...searchParams, `%${searchQuery}%`];
+  }
+
+  const query = `
+    SELECT tb_users.*, tb_data_pribadi.*, kategori_mhs.*
+    FROM tb_users
+    JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
+    JOIN kategori_mhs ON tb_data_pribadi.kode_mhs = kategori_mhs.kode
+    WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true
+    ${searchFilter}
+    LIMIT $${searchParams.length + 1} OFFSET $${searchParams.length + 2}
+  `;
+
+  const user = await DB.query(query, [...searchParams, itemsPerPage, offset]);
 
   res.status(200).json({
     message: "Success get data.",
@@ -22,17 +57,43 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
 });
 
 exports.getUserDosen = asyncHandler(async (req, res) => {
-  const dataQuery = req.query;
+  const { page, limit, searchQuery } = req.query;
 
-  const page = dataQuery.page || 1;
-  const limit = dataQuery.limit || 10;
+  // Pengaturan parameter paginasi
+  const pageNumber = page || 1;
+  const itemsPerPage = limit || 10;
+  const offset = (pageNumber - 1) * itemsPerPage;
 
-  const offset = (page - 1) * limit;
+  let searchFilter = "";
+  let searchParams = [];
 
-  const user = await DB.query(
-    "SELECT tb_users.*, tb_data_pribadi.*, tb_jabatan_dosen.jabatan_id, tb_jabatan_dosen.jabatan_fungsi FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id LEFT JOIN (SELECT user_id, jabatan_id, jabatan_fungsi FROM tb_jabatan_dosen WHERE (user_id, updated_at) IN (SELECT user_id, MAX(updated_at) AS max_updated_at FROM tb_jabatan_dosen GROUP BY user_id)) AS tb_jabatan_dosen ON tb_users.user_id = tb_jabatan_dosen.user_id WHERE tb_users.role = 'Dosen' LIMIT $1 OFFSET $2",
-    [limit, offset]
-  );
+  if (searchQuery) {
+    searchFilter = `AND tb_data_pribadi.nama_lengkap ILIKE $${
+      searchParams.length + 1
+    }`;
+    searchParams = [...searchParams, `%${searchQuery}%`];
+  }
+
+  const query = `
+    SELECT tb_users.*, tb_data_pribadi.*, tb_jabatan_dosen.jabatan_id, tb_jabatan_dosen.jabatan_fungsi
+    FROM tb_users
+    JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id
+    LEFT JOIN (
+      SELECT user_id, jabatan_id, jabatan_fungsi
+      FROM tb_jabatan_dosen
+      WHERE (user_id, updated_at) IN (
+        SELECT user_id, MAX(updated_at) AS max_updated_at
+        FROM tb_jabatan_dosen
+        GROUP BY user_id
+      )
+    ) AS tb_jabatan_dosen ON tb_users.user_id = tb_jabatan_dosen.user_id
+    WHERE tb_users.role = 'Dosen'
+    ${searchFilter}
+    LIMIT $${searchParams.length + 1} OFFSET $${searchParams.length + 2}
+  `;
+
+  // Menjalankan query dengan parameter
+  const user = await DB.query(query, [...searchParams, itemsPerPage, offset]);
 
   res.status(200).json({
     message: "Success get data.",
@@ -64,34 +125,34 @@ exports.detailUser = asyncHandler(async (req, res) => {
   });
 });
 
-exports.getInformaticsStudent = asyncHandler(async (req, res) => {
-  try {
-    const departmentCode = "FT_TI";
-    const results = await getInformaticsStudent(departmentCode);
+// exports.getInformaticsStudent = asyncHandler(async (req, res) => {
+//   try {
+//     const departmentCode = "FT_TI";
+//     const results = await getInformaticsStudent(departmentCode);
 
-    const npm = "201106040468";
+//     const npm = "201106040468";
 
-    const studentWithNpm = results.find((student) => student.code === npm);
+//     const studentWithNpm = results.find((student) => student.code === npm);
 
-    res.status(201).json({
-      data: results,
-    });
-  } catch (error) {
-    console.error("Error retrieving students by department:", error);
-    res.status(500).send("Internal Server Error");
-  }
-});
+//     res.status(201).json({
+//       data: results,
+//     });
+//   } catch (error) {
+//     console.error("Error retrieving students by department:", error);
+//     res.status(500).send("Internal Server Error");
+//   }
+// });
 
-exports.getDosenInfromatics = asyncHandler(async (req, res) => {
-  try {
-    const departmentCode = "FT_TI";
-    const results = await getDosen(departmentCode);
+// exports.getDosenInfromatics = asyncHandler(async (req, res) => {
+//   try {
+//     const departmentCode = "FT_TI";
+//     const results = await getDosen(departmentCode);
 
-    res.status(201).json({
-      data: results,
-    });
-  } catch (error) {
-    console.error("Error retrieving students by department:", error);
-    res.status(500).send("Internal Server Error");
-  }
-});
+//     res.status(201).json({
+//       data: results,
+//     });
+//   } catch (error) {
+//     console.error("Error retrieving students by department:", error);
+//     res.status(500).send("Internal Server Error");
+//   }
+// });
