@@ -14,5 +14,4 @@ router.get("/getDosen", protected, getUserDosen);
 router.get("/detail-user/:userId", protected, detailUser);
 router.patch("/change-password/:userId", protected, changePaswordUser);
 
-
 module.exports = router;
