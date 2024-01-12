@@ -16,7 +16,4 @@ router.get("/detail-user/:userId", protected, detailUser);
 router.get("/get-mhs-ti", getInformaticsStudent);
 router.get("/get-dosen-ti", getDosenInfromatics);
 
-router.get("/get-mhs-ti", getInformaticsStudent);
-router.get("/get-dosen-ti", getDosenInfromatics);
-
 module.exports = router;
