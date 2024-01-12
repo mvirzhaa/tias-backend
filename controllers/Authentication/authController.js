@@ -159,9 +159,9 @@ exports.register = asyncHandler(async (req, res) => {
       );
 
       const jenkelSiak =
-        studentWithNidn.jenis_kelamin === "LAKI_LAKI"
+        dosenWithNidn.jenis_kelamin === "LAKI_LAKI"
           ? "L"
-          : studentWithNidn.jenis_kelamin === "PEREMPUAN"
+          : dosenWithNidn.jenis_kelamin === "PEREMPUAN"
           ? "P"
           : null;
       const statusKawin = dosenWithNidn.status_sipil !== "MENIKAH" ? 0 : 1;
