@@ -125,34 +125,34 @@ exports.detailUser = asyncHandler(async (req, res) => {
   });
 });
 
-// exports.getInformaticsStudent = asyncHandler(async (req, res) => {
-//   try {
-//     const departmentCode = "FT_TI";
-//     const results = await getInformaticsStudent(departmentCode);
+exports.getInformaticsStudent = asyncHandler(async (req, res) => {
+  try {
+    const departmentCode = "FT_TI";
+    const results = await getInformaticsStudent(departmentCode);
 
-//     const npm = "201106040468";
+    const npm = "201106040468";
 
-//     const studentWithNpm = results.find((student) => student.code === npm);
+    const studentWithNpm = results.find((student) => student.code === npm);
 
-//     res.status(201).json({
-//       data: results,
-//     });
-//   } catch (error) {
-//     console.error("Error retrieving students by department:", error);
-//     res.status(500).send("Internal Server Error");
-//   }
-// });
+    res.status(201).json({
+      data: results,
+    });
+  } catch (error) {
+    console.error("Error retrieving students by department:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
 
-// exports.getDosenInfromatics = asyncHandler(async (req, res) => {
-//   try {
-//     const departmentCode = "FT_TI";
-//     const results = await getDosen(departmentCode);
+exports.getDosenInfromatics = asyncHandler(async (req, res) => {
+  try {
+    const departmentCode = "FT_TI";
+    const results = await getDosen(departmentCode);
 
-//     res.status(201).json({
-//       data: results,
-//     });
-//   } catch (error) {
-//     console.error("Error retrieving students by department:", error);
-//     res.status(500).send("Internal Server Error");
-//   }
-// });
+    res.status(201).json({
+      data: results,
+    });
+  } catch (error) {
+    console.error("Error retrieving students by department:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
