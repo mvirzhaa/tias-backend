@@ -75,13 +75,14 @@ exports.getAllDataProfesi = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
   const query = req.query;
 
-  if (query.peran || query.nama_organisasi) {
+  if (query.peran || query.nama_organisasi || query.status) {
     const nama_organisasi = query.nama_organisasi || null;
     const peran = query.peran || null;
+    const status = query.status || null;
 
     const findData = await DB.query(
-      `SELECT * FROM filter_anggota_profesi($1, $2, $3)`,
-      [nama_organisasi, peran, userLoginId]
+      `SELECT * FROM filter_anggota_profesi($1, $2, $3, $4)`,
+      [nama_organisasi, peran, userLoginId, status]
     );
 
     res.status(201).json({

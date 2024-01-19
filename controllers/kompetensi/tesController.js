@@ -96,16 +96,18 @@ exports.getDataTes = asyncHandler(async (req, res) => {
     dataQuery.nama_tes ||
     dataQuery.penyelenggara ||
     dataQuery.jenis_tes ||
-    dataQuery.tgl_tes
+    dataQuery.tgl_tes ||
+    dataQuery.status
   ) {
     const nama_tes = dataQuery.nama_tes || null;
     const jenis_tes = dataQuery.jenis_tes || null;
     const penyelenggara = dataQuery.penyelenggara || null;
     const tgl_tes = dataQuery.tgl_tes || null;
+    const status = dataQuery.status || null;
 
     const findData = await DB.query(
-      `SELECT * FROM filter_data_tes($1, $2, $3, $4, $5)`,
-      [nama_tes, jenis_tes, penyelenggara, tgl_tes, userLoginId]
+      `SELECT * FROM filter_data_tes($1, $2, $3, $4, $5, $6)`,
+      [nama_tes, jenis_tes, penyelenggara, tgl_tes, userLoginId, status]
     );
 
     res.status(201).json({

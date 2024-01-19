@@ -131,14 +131,15 @@ exports.getDataHki = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
   const dataQuery = req.query;
 
-  if (dataQuery.judul_hki || dataQuery.jenis_hki || dataQuery.tgl_terbit_hki) {
+  if (dataQuery.judul_hki || dataQuery.jenis_hki || dataQuery.tgl_terbit_hki || dataQuery.status) {
     const judul_hki = dataQuery.judul_hki || null;
     const jenis_hki = dataQuery.jenis_hki || null;
     const tgl_terbit_hki = dataQuery.tgl_terbit_hki || null;
+    const status = dataQuery.status || null;
 
     const findData = await DB.query(
-      `SELECT * FROM filter_data_hki($1, $2, $3, $4)`,
-      [judul_hki, jenis_hki, tgl_terbit_hki, userLoginId]
+      `SELECT * FROM filter_data_hki($1, $2, $3, $4, $5)`,
+      [judul_hki, jenis_hki, tgl_terbit_hki, userLoginId, status]
     );
 
     res.status(201).json({

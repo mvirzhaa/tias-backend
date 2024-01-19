@@ -147,13 +147,14 @@ exports.getDataPengabdian = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
   const dataQuery = req.query;
 
-  if (dataQuery.judul_kegiatan || dataQuery.lama_kegiatan) {
+  if (dataQuery.judul_kegiatan || dataQuery.lama_kegiatan || dataQuery.status) {
     const judul_kegiatan = dataQuery.judul_kegiatan || null;
     const lama_kegiatan = dataQuery.lama_kegiatan || null;
+    const status = dataQuery.status || null;
 
     const findData = await DB.query(
-      `SELECT * FROM filter_data_pengabdian($1, $2, $3)`,
-      [judul_kegiatan, lama_kegiatan, userLoginId]
+      `SELECT * FROM filter_data_pengabdian($1, $2, $3, $4)`,
+      [judul_kegiatan, lama_kegiatan, userLoginId, status]
     );
 
     res.status(201).json({

@@ -80,16 +80,18 @@ exports.getPenghargaan = asyncHandler(async (req, res) => {
     query.nama_peng ||
     query.jenis_peng ||
     query.instansi_pemberi ||
-    query.tahun_peng
+    query.tahun_peng ||
+    query.status
   ) {
     const nama_peng = query.nama_peng || null;
     const jenis_peng = query.jenis_peng || null;
     const instansi_pemberi = query.instansi_pemberi || null;
     const tahun_peng = query.tahun_peng || null;
+    const status = query.status || null;
 
     const findData = await DB.query(
-      `SELECT * FROM filter_penghargaan($1, $2, $3, $4, $5)`,
-      [nama_peng, jenis_peng, instansi_pemberi, tahun_peng, userLoginId]
+      `SELECT * FROM filter_penghargaan($1, $2, $3, $4, $5, $6)`,
+      [nama_peng, jenis_peng, instansi_pemberi, tahun_peng, userLoginId, status]
     );
 
     res.status(201).json({

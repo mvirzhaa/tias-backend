@@ -91,23 +91,26 @@ exports.createDataSerti = asyncHandler(async (req, res) => {
 exports.getDataSerti = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
   const dataQuery = req.query;
+  const role = req.user.role;
 
   if (
     dataQuery.nomor_sk ||
     dataQuery.nama_serti ||
     dataQuery.jenis_serti ||
     dataQuery.bidang_studi ||
-    dataQuery.tgl_serti
+    dataQuery.tgl_serti || 
+    dataQuery.status
   ) {
     const nomor_sk = dataQuery.nomor_sk || null;
     const nama_serti = dataQuery.nama_serti || null;
     const jenis_serti = dataQuery.jenis_serti || null;
     const bidang_studi = dataQuery.bidang_studi || null;
     const tgl_serti = dataQuery.tgl_serti || null;
+    const status = dataQuery.status || null;
 
     const findData = await DB.query(
-      `SELECT * FROM filter_data_sertifikasi($1, $2, $3, $4, $5, $6)`,
-      [nomor_sk, nama_serti, jenis_serti, bidang_studi, tgl_serti, userLoginId]
+      `SELECT * FROM filter_data_sertifikasi($1, $2, $3, $4, $5, $6, $7)`,
+      [nomor_sk, nama_serti, jenis_serti, bidang_studi, tgl_serti, userLoginId, status]
     );
 
     res.status(201).json({

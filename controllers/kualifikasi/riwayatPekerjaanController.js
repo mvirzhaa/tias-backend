@@ -122,16 +122,18 @@ exports.getDataRiwayatPekerjaan = asyncHandler(async (req, res) => {
     dataQuery.jenis_pekerjaan ||
     dataQuery.area_Kerja ||
     dataQuery.mulai_Kerja ||
-    dataQuery.selesai_Kerja
+    dataQuery.selesai_Kerja ||
+    dataQuery.status
   ) {
     const jenis_pekerjaan = dataQuery.jenis_pekerjaan || null;
     const area_kerja = dataQuery.area_kerja || null;
     const mulai_kerja = dataQuery.mulai_kerja || null;
     const selesai_Kerja = dataQuery.selesai_Kerja || null;
+    const status = dataQuery.status || null;
 
     const findData = await DB.query(
-      `SELECT * FROM filter_data_riwayat_pekerjaan($1, $2, $3, $4, $5)`,
-      [jenis_pekerjaan, area_kerja, mulai_kerja, selesai_Kerja, userLoginId]
+      `SELECT * FROM filter_data_riwayat_pekerjaan($1, $2, $3, $4, $5, $6)`,
+      [jenis_pekerjaan, area_kerja, mulai_kerja, selesai_Kerja, userLoginId, status]
     );
 
     res.status(201).json({

@@ -1,6 +1,9 @@
 const asyncHandler = require("express-async-handler");
 const DB = require("../../database");
 const { getInformaticsStudent, getDosen } = require("../../helper/informatics");
+const bcrypt = require("bcryptjs");
+const { changePasswordUsersValidation } = require("../../validation/formValidation");
+
 
 // exports.getUserMhs = asyncHandler(async (req, res) => {
 //   const dataQuery = req.query;
@@ -123,6 +126,37 @@ exports.detailUser = asyncHandler(async (req, res) => {
     data: findData.rows[0],
     rekomendasiMhs: dataRekomendasi.rows,
   });
+});
+
+exports.changePaswordUser = asyncHandler(async (req, res) => {
+  const { error } = changePasswordUsersValidation(req.body);
+  if (error) {
+    return res.status(400).send({ message: error.details[0].message });
+  }
+
+  const {userId} = req.params;
+  const { password } = req.body;
+
+  
+  const findUser = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [userId]);
+
+  if(findUser.rows.length){
+      // hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    await DB.query("UPDATE tb_users SET password = $1 WHERE user_id = $2", [
+      hashedPassword,
+      userId,
+    ]);
+
+    return res
+    .status(200)
+    .json({ message: "Password change successfull." });
+  } else {
+    res.status(404);
+    throw new Error("User not found.");
+  }
 });
 
 exports.getInformaticsStudent = asyncHandler(async (req, res) => {

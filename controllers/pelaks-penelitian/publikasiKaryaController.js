@@ -146,14 +146,15 @@ exports.getDataPublikasi = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
   const dataQuery = req.query;
 
-  if (dataQuery.judul_artikel || dataQuery.jenis || dataQuery.tgl_terbit) {
+  if (dataQuery.judul_artikel || dataQuery.jenis || dataQuery.tgl_terbit || dataQuery.status) {
     const judul_artikel = dataQuery.judul_artikel || null;
     const jenis = dataQuery.jenis || null;
     const tgl_terbit = dataQuery.tgl_terbit || null;
+    const status = dataQuery.status || null;
 
     const findData = await DB.query(
-      `SELECT * FROM filter_data_publikasi($1, $2, $3, $4)`,
-      [judul_artikel, jenis, tgl_terbit, userLoginId]
+      `SELECT * FROM filter_data_publikasi($1, $2, $3, $4, $5)`,
+      [judul_artikel, jenis, tgl_terbit, userLoginId, status]
     );
 
     res.status(201).json({

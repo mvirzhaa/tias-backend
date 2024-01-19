@@ -22,6 +22,8 @@ const pembicaraRoutes = require("./routes/pelaks-pengabdian/pembicaraRoutes");
 const rekomendasiRoutes = require("./routes/rekomendasi/rekomendasiRoutes");
 const kategoriRoutes = require("./routes/kategori/kategoriRoutes");
 const dashboardRoutes = require("./routes/dashboard/dashboardRoutes");
+const beritaRoutes = require("./routes/Admin/beritaRoutes");
+const achievmentsRoutes = require("./routes/Admin/achievementsRoutes");
 const errorHandler = require("./helper/errorHandler");
 
 const app = express();
@@ -57,6 +59,8 @@ app.use("/pengabdian/pembicara", pembicaraRoutes);
 app.use("/rekomendasi", rekomendasiRoutes);
 app.use("/kategori", kategoriRoutes);
 app.use("/dashboard", dashboardRoutes);
+app.use("/berita", beritaRoutes);
+app.use("/achievments", achievmentsRoutes);
 
 app.get("/", (req, res) => {
   res.send("Server Oke");

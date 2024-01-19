@@ -173,15 +173,18 @@ exports.getDataPenelitian = asyncHandler(async (req, res) => {
   if (
     dataQuery.judul_kegiatan ||
     dataQuery.tahun_pelaksanaan ||
-    dataQuery.lama_kegiatan
+    dataQuery.lama_kegiatan ||
+    dataQuery.status
   ) {
     const judul_kegiatan = dataQuery.judul_kegiatan || null;
     const tahun_pelaksanaan = dataQuery.tahun_pelaksanaan || null;
     const lama_kegiatan = dataQuery.lama_kegiatan || null;
+    const status = dataQuery.status || null
+
 
     const findData = await DB.query(
-      `SELECT * FROM filter_data_penelitian($1, $2, $3, $4)`,
-      [judul_kegiatan, tahun_pelaksanaan, lama_kegiatan, userLoginId]
+      `SELECT * FROM filter_data_penelitian($1, $2, $3, $4, $5)`,
+      [judul_kegiatan, tahun_pelaksanaan, lama_kegiatan, userLoginId, status]
     );
 
     res.status(201).json({

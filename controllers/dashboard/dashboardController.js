@@ -85,3 +85,54 @@ exports.dashboardData = asyncHandler(async (req, res) => {
 });
 
 
+const getCountPending = async (table) => {
+  try {
+    const result = await DB.query(
+      `SELECT COUNT(*) FROM ${table} WHERE status = $1 AND is_deleted = $2`,
+      [0, false]
+    );
+    return result.rows[0].count;
+  } catch (error) {
+    console.error(`Error in getCount for table ${table}:`, error);
+    throw error; // Re-throw the error to propagate it up the call stack
+  }
+};
+
+
+exports.dashboardDataAdmin = asyncHandler(async (req, res) => {
+  const userLoginId = req.user.user_id;
+
+  try {
+    const tes = await getCountPending("tb_tes");
+    const sertifikasi = await getCountPending("tb_sertifikasi");
+    const pembicara = await getCountPending("tb_pembicara");
+    const pengabdian = await getCountPending("tb_pengabdian");
+    const penghargaan = await getCountPending("tb_penghargaan");
+    const penelitian = await getCountPending("tb_penelitian");
+    const publikasi = await getCountPending("tb_publikasi_karya");
+    const hki = await getCountPending("tb_hki");
+
+
+    const userAdmin = await DB.query("SELECT tb_data_pribadi.*, tb_users.npm, tb_users.nidn, tb_users.role FROM tb_data_pribadi JOIN tb_users ON tb_data_pribadi.user_id = tb_users.user_id WHERE tb_data_pribadi.user_id = $1", [userLoginId])
+
+    const data = {
+        tes,
+        sertifikasi,
+        pembicara,
+        pengabdian,
+        penghargaan,
+        penelitian,
+        publikasi,
+        hki,
+        userData: userAdmin.rows[0],
+    }
+
+
+    res.status(200).json({
+      status: "success",
+      data: data,
+    });
+  } catch (error) {
+    res.status(500).json({ status: "error", message: "Internal Server Error" });
+  }
+});

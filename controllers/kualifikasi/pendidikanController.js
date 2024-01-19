@@ -146,14 +146,15 @@ exports.getDataPendidikan = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
   const dataQuery = req.query;
 
-  if (dataQuery.jenjang_studi || dataQuery.asal || dataQuery.tahun_lulus) {
+  if (dataQuery.jenjang_studi || dataQuery.asal || dataQuery.tahun_lulus || dataQuery.status) {
     const jenjang_studi = dataQuery.jenjang_studi || null;
     const asal = dataQuery.asal || null;
     const tahun_lulus = dataQuery.tahun_lulus || null;
+    const status = dataQuery.status || null;
 
     const findData = await DB.query(
-      `SELECT * FROM filter_data_pend_formal($1, $2, $3, $4)`,
-      [jenjang_studi, asal, tahun_lulus, userLoginId]
+      `SELECT * FROM filter_data_pend_formal($1, $2, $3, $4, $5)`,
+      [jenjang_studi, asal, tahun_lulus, userLoginId, status]
     );
 
     res.status(201).json({

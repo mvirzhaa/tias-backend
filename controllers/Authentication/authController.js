@@ -101,8 +101,24 @@ exports.register = asyncHandler(async (req, res) => {
           kode_mhs,
         ]
       );
+      
+      const achievementsData = await DB.query('SELECT id FROM achievements');
+      const achievementsDefault = achievementsData.rows.map(row => row.id);
+      
+      const userAchievementsInserts = [];
+      for (const achievementId of achievementsDefault) {
+        const userAchievementInsert = await DB.query(
+          "INSERT INTO user_achievements(user_id, achievement_id, status) VALUES ($1, $2, $3) RETURNING *",
+          [saveUser.rows[0].user_id, achievementId, 0]
+        );
+        userAchievementsInserts.push(userAchievementInsert);
+      }
+      
+      const allUserAchievementsInserted = userAchievementsInserts.every(
+        (result) => result.rows.length > 0
+      );
 
-      if (saveUser.rows.length && savePersonalData.rows.length) {
+      if (saveUser.rows.length && savePersonalData.rows.length && allUserAchievementsInserted) {
         const { user_id, npm, email } = saveUser.rows[0];
 
         // Create verification token

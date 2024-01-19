@@ -29,6 +29,14 @@ exports.changePasswordValidation = (data) => {
   return schema.validate(data);
 };
 
+// ChangePassword Users For Admin
+exports.changePasswordUsersValidation = (data) => {
+  const schema = Joi.object({
+    password: PasswordComplexity().required().label("Password"),
+  });
+  return schema.validate(data);
+};
+
 exports.formTesValidation = (data) => {
   console.log(data);
   const schema = Joi.object({

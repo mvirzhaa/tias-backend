@@ -131,15 +131,17 @@ exports.getDataPembicara = asyncHandler(async (req, res) => {
   if (
     dataQuery.judul_makalah ||
     dataQuery.penyelenggara ||
-    dataQuery.tgl_pelaksanaan
+    dataQuery.tgl_pelaksanaan ||
+    dataQuery.status
   ) {
     const judul_makalah = dataQuery.judul_makalah || null;
     const penyelenggara = dataQuery.penyelenggara || null;
     const tgl_pelaksanaan = dataQuery.tgl_pelaksanaan || null;
+    const status = dataQuery.status || null;
 
     const findData = await DB.query(
-      `SELECT * FROM filter_data_pembicara($1, $2, $3, $4)`,
-      [judul_makalah, penyelenggara, tgl_pelaksanaan, userLoginId]
+      `SELECT * FROM filter_data_pembicara($1, $2, $3, $4, $5)`,
+      [judul_makalah, penyelenggara, tgl_pelaksanaan, userLoginId, status]
     );
 
     res.status(201).json({
