@@ -78,7 +78,6 @@ exports.dashboardData = asyncHandler(async (req, res) => {
 });
 
 
-
 const getCountPending = async (table) => {
   try {
     const result = await DB.query(
