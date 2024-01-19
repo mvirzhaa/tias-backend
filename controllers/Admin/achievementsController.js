@@ -111,11 +111,12 @@ exports.getAchivementsByUserLoginId = asyncHandler(async (req, res) => {
     const totalPoints = totalPointsResult.rows[0].total_points;
 
     const findData = await DB.query(
-      'SELECT tb_users.npm, tb_data_pribadi.nama_lengkap, $2 AS total_points, achievements.name, achievements.id, user_achievements.status FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id JOIN user_achievements ON tb_users.user_id = user_achievements.user_id JOIN achievements ON user_achievements.achievement_id = achievements.id WHERE tb_users.user_id = $1',
+      'SELECT tb_users.npm, tb_users.user_id, tb_data_pribadi.nama_lengkap, $2 AS total_points, achievements.*, user_achievements.status FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id JOIN user_achievements ON tb_users.user_id = user_achievements.user_id JOIN achievements ON user_achievements.achievement_id = achievements.id WHERE tb_users.user_id = $1',
       [userLoginId, totalPoints]
     );
 
     const userData = {
+      user_id: findData.rows[0].user_id,
       npm: findData.rows[0].npm,
       nama_lengkap: findData.rows[0].nama_lengkap,
       total_points: findData.rows[0].total_points,
@@ -123,6 +124,7 @@ exports.getAchivementsByUserLoginId = asyncHandler(async (req, res) => {
         id: row.id, 
         name: row.name,
         status: row.status,
+        points: row.points,
       })),
     };
 
@@ -161,11 +163,12 @@ exports.getAchivementsByUserId = asyncHandler(async (req, res) => {
     );
 
     const findData = await DB.query(
-      'SELECT tb_users.npm, tb_data_pribadi.nama_lengkap, tb_data_pribadi.total_point, achievements.name, achievements.id, user_achievements.status FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id JOIN user_achievements ON tb_users.user_id = user_achievements.user_id JOIN achievements ON user_achievements.achievement_id = achievements.id WHERE tb_users.user_id = $1',
+      'SELECT tb_users.npm, tb_users.user_id, tb_data_pribadi.nama_lengkap, tb_data_pribadi.total_point, achievements.*, user_achievements.status FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id JOIN user_achievements ON tb_users.user_id = user_achievements.user_id JOIN achievements ON user_achievements.achievement_id = achievements.id WHERE tb_users.user_id = $1',
       [userId]
     );
 
     const userData = {
+      user_id: findData.rows[0].user_id,
       npm: findData.rows[0].npm,
       nama_lengkap: findData.rows[0].nama_lengkap,
       total_point: findData.rows[0].total_point,
@@ -173,6 +176,7 @@ exports.getAchivementsByUserId = asyncHandler(async (req, res) => {
         id: row.id, 
         name: row.name,
         status: row.status,
+        points: row.points,
       })),
     };
 

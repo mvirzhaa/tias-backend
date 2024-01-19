@@ -7,8 +7,8 @@ const router = express.Router();
 
 router.get("/tantangan", protected, adminOnly, getDataTantangan); 
 router.get("/event",protected, adminOnly, getDataEvent); 
-router.get("/active-event",protected, adminOnly, getActiveEvent); 
-router.get("/active-tantangan",protected, adminOnly, getActiveTantangan); 
+router.get("/active-event",protected,  getActiveEvent); 
+router.get("/active-tantangan",protected, getActiveTantangan); 
 router.post("/",protected, adminOnly, beritaUpload, create); 
 router.patch("/:id",protected, adminOnly, beritaUpload, update); 
 router.delete("/:id",protected, adminOnly, deleteBerita); 

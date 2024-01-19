@@ -72,18 +72,30 @@ exports.register = asyncHandler(async (req, res) => {
         [npm_nidn, email, hashedPassword, role, userAgent, convert]
       );
 
-      let kode_mhs = saveUser.rows[0].role == "Mahasiswa" ? 0 : null;
+      // let kode_mhs = saveUser.rows[0].role == "Mahasiswa" ? 0 : null;
+
+      let kode_mhs;
+
+      if(studentWithNpm.status === "ACTIVE"){
+        kode_mhs = 0;
+      } else if(studentWithNpm.status === "GRADUATED"){
+        kode_mhs = 2;
+      } else if(!studentWithNpm.status) {
+        kode_mhs = null;
+      } else {
+        kode_mhs = 1;
+      }
 
       const jenkelSiak =
-        studentWithNpm.sex === "LAKI_LAKI"
+        studentWithNpm.sex === "LAKI-LAKI"
           ? "L"
           : studentWithNpm.sex === "PEREMPUAN"
           ? "P"
           : null;
 
       const savePersonalData = await DB.query(
-        `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, jenkel, tanggal_lahir, tempat_lahir, ibu_kandung, agama, email, alamat, kota_kabupaten, no_hp, created_at, kode_mhs) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
+        `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, jenkel, tanggal_lahir, tempat_lahir, ibu_kandung, agama, email, alamat, kota_kabupaten, no_hp, nik, created_at, kode_mhs) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
         RETURNING *`,
         [
           saveUser.rows[0].user_id,
@@ -97,6 +109,7 @@ exports.register = asyncHandler(async (req, res) => {
           studentWithNpm.address,
           studentWithNpm.city,
           studentWithNpm.mobile_phone,
+          studentWithNpm.national_id_number,
           convert,
           kode_mhs,
         ]
@@ -175,7 +188,7 @@ exports.register = asyncHandler(async (req, res) => {
       );
 
       const jenkelSiak =
-        dosenWithNidn.jenis_kelamin === "LAKI_LAKI"
+        dosenWithNidn.jenis_kelamin === "LAKI-LAKI"
           ? "L"
           : dosenWithNidn.jenis_kelamin === "PEREMPUAN"
           ? "P"
