@@ -12,7 +12,7 @@ router.get("/active-tantangan",protected, getActiveTantangan);
 router.post("/",protected, adminOnly, beritaUpload, create); 
 router.patch("/:id",protected, adminOnly, beritaUpload, update); 
 router.delete("/:id",protected, adminOnly, deleteBerita); 
-router.get("/detail/:id",protected, adminOnly, detail); 
+router.get("/detail/:id",protected, detail); 
 
 router.post("/change-status", protected, adminOnly, editStatus); 
 

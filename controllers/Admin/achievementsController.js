@@ -1,11 +1,13 @@
 const asyncHandler = require("express-async-handler");
 const DB = require("../../database");
+const path = require("path");
+const fs = require("fs-extra");
 
 exports.getAchivements = asyncHandler(async (req, res) => {
-  const getData = await DB.query('SELECT * FROM achievements');
+  const getData = await DB.query('SELECT * FROM achievements ORDER BY start_point ASC');
 
   res.status(200).json({
-    message: "Successfull get Data",
+    message: "Successfully get Data",
     data: getData.rows,
   });
 });
@@ -13,9 +15,28 @@ exports.getAchivements = asyncHandler(async (req, res) => {
 exports.addAchievement = asyncHandler(async (req, res) => {
   const newData = req.body;
 
+  const file = req.file;
+
+  if(!file){
+    res.status(400);
+    throw new Error("Please fill in one file.")
+  }
+
+  if(!newData.name || !newData.gamify || !newData.start_point || !newData.points){
+    fs.unlink(file.path, (err) => {
+      if (err) {
+        console.log(err);
+      }
+      return;
+    });
+    res.status(400);
+    throw new Error("Pleas fill in all the required fields.");
+  }
+  
+
   const insertData = await DB.query(
-    'INSERT INTO achievements(name, gamify, points) VALUES ($1, $2, $3) RETURNING *',
-    [newData.name, newData.gamify, newData.points]
+    'INSERT INTO achievements(name, gamify, start_point, points, image) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+    [newData.name, newData.gamify, newData.start_point, newData.points, file.filename]
   );
 
   if (insertData.rows.length) {
@@ -44,14 +65,30 @@ exports.editAchievement = asyncHandler(async (req, res) => {
 
   const oldData = getOldData.rows[0];
 
+  const file = req.file;
+
+  if (file) {
+    if (oldData.image) {
+      const filePath = path.join('public/gamify', oldData.image);
+      fs.unlink(filePath, (err) => {
+        if (err) {
+          console.log(err);
+        }
+      });
+    }
+
+    await DB.query('UPDATE achievements SET image = $1 WHERE id = $2', [file.filename, achievementId]);
+  }
+
   const mergedData = {
     name: newData.name || oldData.name,
     gamify: newData.gamify || oldData.gamify,
     points: newData.points || oldData.points,
+    start_point: newData.start_point || oldData.start_point,
   };
 
-  const updateData = await DB.query('UPDATE achievements SET name = $1, gamify = $2, points = $3 WHERE id = $4 RETURNING *',
-    [mergedData.name, mergedData.gamify, mergedData.points, achievementId]);
+  const updateData = await DB.query('UPDATE achievements SET name = $1, gamify = $2, points = $3, start_point = $4 WHERE id = $5 RETURNING *',
+    [mergedData.name, mergedData.gamify, mergedData.points, mergedData.start_point, achievementId]);
 
   if (updateData.rows.length) {
     res.status(200).json({
@@ -67,6 +104,19 @@ exports.editAchievement = asyncHandler(async (req, res) => {
 
 exports.deleteAchievement = asyncHandler(async (req, res) => {
   const achievementId = req.params.id;
+
+  const findData = await DB.query("SELECT * FROM achievements WHERE id = $1", [achievementId]);
+
+  if(findData.rows.length === 0){
+    res.status(404);
+    throw new Error("data Not Found.");
+  }
+
+  const fileToDelete = findData.rows[0].image;
+
+  const filePath = path.join('public/gamify', fileToDelete);
+
+  fs.unlinkSync(filePath)
 
   const deleteData = await DB.query('DELETE FROM achievements WHERE id = $1 RETURNING *', [achievementId]);
 

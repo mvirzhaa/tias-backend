@@ -4,26 +4,6 @@ const { getInformaticsStudent, getDosen } = require("../../helper/informatics");
 const bcrypt = require("bcryptjs");
 const { changePasswordUsersValidation } = require("../../validation/formValidation");
 
-
-// exports.getUserMhs = asyncHandler(async (req, res) => {
-//   const dataQuery = req.query;
-
-//   const page = dataQuery.page || 1;
-//   const limit = dataQuery.limit || 10;
-
-//   const offset = (page - 1) * limit;
-
-//   const user = await DB.query(
-//     "SELECT tb_users.*, tb_data_pribadi.*, kategori_mhs.* FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id JOIN kategori_mhs ON tb_data_pribadi.kode_mhs = kategori_mhs.kode WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true LIMIT $1 OFFSET $2",
-//     [limit, offset]
-//   );
-
-//   res.status(200).json({
-//     message: "Success get data.",
-//     data: user.rows,
-//   });
-// });
-
 exports.getUserMhs = asyncHandler(async (req, res) => {
   const { page, limit, searchQuery } = req.query;
 
@@ -42,10 +22,9 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
   }
 
   const query = `
-    SELECT tb_users.*, tb_data_pribadi.*, kategori_mhs.*
+    SELECT tb_users.*, tb_data_pribadi.*,
     FROM tb_users
     JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
-    JOIN kategori_mhs ON tb_data_pribadi.kode_mhs = kategori_mhs.kode
     WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true
     ${searchFilter}
     LIMIT $${searchParams.length + 1} OFFSET $${searchParams.length + 2}
@@ -107,6 +86,18 @@ exports.getUserDosen = asyncHandler(async (req, res) => {
 exports.detailUser = asyncHandler(async (req, res) => {
   const { userId } = req.params;
 
+  const getTotalPoint = await DB.query(
+    "SELECT point_pendidikan + point_pengabdian + point_penelitian + point_kompetensi + point_penunjang + point_rekomendasi AS total_points FROM tb_data_pribadi WHERE user_id = $1",
+    [userId]
+  );
+
+  const total_points = getTotalPoint.rows[0].total_points;
+
+  await DB.query(
+    "UPDATE tb_data_pribadi SET total_point = $1 WHERE user_id = $2",
+    [total_points, userId]
+  );
+
   const findData = await DB.query(
     "SELECT tb_users.*, tb_data_pribadi.* FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id WHERE tb_users.user_id = $1",
     [userId]
@@ -117,6 +108,21 @@ exports.detailUser = asyncHandler(async (req, res) => {
     [userId]
   );
 
+  const jumlahDataSertifikasi = await DB.query(
+    "SELECT COUNT(*) FROM tb_sertifikasi WHERE user_id = $1  and is_deleted = $2",
+    [userId, false]
+  );
+
+  const ipAprove = await DB.query(
+    "SELECT * FROM tb_ip_mhs WHERE user_id = $1 and status = $2 and is_deleted = $3",
+    [userLoginId, 1, false]
+  );
+
+  const ipArr = ipAprove.rows.map((row) => row.ip);
+  const totalIp = ipArr.reduce((total, ip) => total + ip, 0);
+  const jumlahSemester = ipArr.length;
+  const ipk = totalIp / jumlahSemester;
+
   if (!findData.rows.length) {
     res.status(404);
     throw new Error("Data not found.");
@@ -125,6 +131,8 @@ exports.detailUser = asyncHandler(async (req, res) => {
   res.status(201).json({
     data: findData.rows[0],
     rekomendasiMhs: dataRekomendasi.rows,
+    totalDataSertifikasi: jumlahDataSertifikasi.rows[0].count,
+    ipk: ipk.toFixed(2),
   });
 });
 

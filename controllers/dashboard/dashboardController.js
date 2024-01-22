@@ -50,9 +50,8 @@ exports.dashboardData = asyncHandler(async (req, res) => {
       responseData = notMhs.rows[0];
     } else {
       const query = `
-        SELECT tb_data_pribadi.*, kategori_mhs.status_mhs, tb_users.npm, tb_users.nidn, tb_users.role
+        SELECT tb_data_pribadi.*, tb_users.npm, tb_users.nidn, tb_users.role
         FROM tb_data_pribadi
-        JOIN kategori_mhs ON tb_data_pribadi.kode_mhs = kategori_mhs.kode
         JOIN tb_users ON tb_data_pribadi.user_id = tb_users.user_id
         WHERE tb_data_pribadi.user_id = $1
       `;

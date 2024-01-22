@@ -57,7 +57,7 @@ exports.register = asyncHandler(async (req, res) => {
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  if (npm_nidn.length === 12) {
+  if (npm_nidn.length === 12 || npm_nidn.length === 11) {
     const role = "Mahasiswa";
     const created_at = unixTimestamp;
     const convert = convertDate(created_at);
@@ -71,20 +71,6 @@ exports.register = asyncHandler(async (req, res) => {
         `INSERT INTO tb_users(npm, email, password, role, user_agent, created_at) VALUES ($1, $2, $3, $4, $5, $6) returning *`,
         [npm_nidn, email, hashedPassword, role, userAgent, convert]
       );
-
-      // let kode_mhs = saveUser.rows[0].role == "Mahasiswa" ? 0 : null;
-
-      let kode_mhs;
-
-      if(studentWithNpm.status === "ACTIVE"){
-        kode_mhs = 0;
-      } else if(studentWithNpm.status === "GRADUATED"){
-        kode_mhs = 2;
-      } else if(!studentWithNpm.status) {
-        kode_mhs = null;
-      } else {
-        kode_mhs = 1;
-      }
 
       const jenkelSiak =
         studentWithNpm.sex === "LAKI-LAKI"
@@ -111,7 +97,7 @@ exports.register = asyncHandler(async (req, res) => {
           studentWithNpm.mobile_phone,
           studentWithNpm.national_id_number,
           convert,
-          kode_mhs,
+          studentWithNpm.status,
         ]
       );
       
@@ -173,7 +159,7 @@ exports.register = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error("INVALID NPM. NPM NOT FOUND!!");
     }
-  } else if (npm_nidn.length === 10) {
+  } else if (npm_nidn.length === 10 || npm_nidn.length === 9) {
     const role = "Dosen";
     const convert = convertDate(unixTimestamp);
 
@@ -196,8 +182,8 @@ exports.register = asyncHandler(async (req, res) => {
       const statusKawin = dosenWithNidn.status_sipil !== "MENIKAH" ? 0 : 1;
 
       const savePersonalData = await DB.query(
-        `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, jenkel, tanggal_lahir, tempat_lahir, ibu_kandung, agama, email, alamat, kota_kabupaten, no_hp, provinsi, kode_pos, status_kawin, nik, created_at) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) 
+        `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, jenkel, tanggal_lahir, tempat_lahir, ibu_kandung, agama, email, alamat, kota_kabupaten, no_hp, provinsi, kode_pos, status_kawin, nik, created_at, kode_mhs) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) 
         RETURNING *`,
         [
           saveUser.rows[0].user_id,
@@ -216,6 +202,7 @@ exports.register = asyncHandler(async (req, res) => {
           statusKawin,
           dosenWithNidn.no_ktp,
           convert,
+          dosenWithNidn.klasi_pegawai,
         ]
       );
 
