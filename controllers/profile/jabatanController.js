@@ -220,7 +220,7 @@ exports.deleteDataJabatan = asyncHandler(async (req, res) => {
   const convert = convertDate(created_at);
 
   await DB.query(
-    "UPDATE tb_jabatan_dosen SET is_deleted = $1, deleted_at = $2 WHERE pangkat_id = $3 returning *",
+    "UPDATE tb_jabatan_dosen SET is_deleted = $1, deleted_at = $2 WHERE jabatan_id = $3 returning *",
     [true, convert, findData.rows[0].jabatan_id]
   );
   res.status(200).json({ message: "Data deleted successfully." });

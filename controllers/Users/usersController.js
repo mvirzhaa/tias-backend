@@ -108,6 +108,8 @@ exports.detailUser = asyncHandler(async (req, res) => {
     [userId]
   );
 
+  const sertifikasiData = await DB.query("SELECT * FROM tb_sertifikasi WHERE user_id = $1  and is_deleted = $2", [userId, false]);
+
   const jumlahDataSertifikasi = await DB.query(
     "SELECT COUNT(*) FROM tb_sertifikasi WHERE user_id = $1  and is_deleted = $2",
     [userId, false]
@@ -115,7 +117,7 @@ exports.detailUser = asyncHandler(async (req, res) => {
 
   const ipAprove = await DB.query(
     "SELECT * FROM tb_ip_mhs WHERE user_id = $1 and status = $2 and is_deleted = $3",
-    [userLoginId, 1, false]
+    [userId, 1, false]
   );
 
   const ipArr = ipAprove.rows.map((row) => row.ip);
@@ -131,6 +133,7 @@ exports.detailUser = asyncHandler(async (req, res) => {
   res.status(201).json({
     data: findData.rows[0],
     rekomendasiMhs: dataRekomendasi.rows,
+    dataSertifikasi: sertifikasiData.rows,
     totalDataSertifikasi: jumlahDataSertifikasi.rows[0].count,
     ipk: ipk.toFixed(2),
   });
