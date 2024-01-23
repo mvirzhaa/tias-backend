@@ -145,7 +145,7 @@ exports.getDataTes = asyncHandler(async (req, res) => {
 exports.detailDataTes = asyncHandler(async (req, res) => {
   const { tesId } = req.params;
 
-  const findData = await DB.query("SELECT * FROM tb_tes WHERE tes_id = $1", [
+  const findData = await DB.query("SELECT tb_tes.*, kategori_sertifikasi.* FROM tb_tes JOIN kategori_sertifikasi ON kategori_sertifikasi.id = tb_tes.kategori_id WHERE tes_id = $1", [
     tesId,
   ]);
 

@@ -362,45 +362,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
   // // Generate Token
   const token = generateToken(id);
 
-  // const findDataPribadi = await DB.query(
-  //   "SELECT * FROM tb_data_pribadi WHERE user_id = $1",
-  //   [id]
-  // );
 
-  // if (!findDataPribadi.rows.length) {
-  //   const {
-  //     user_id,
-  //     npm,
-  //     nidn,
-  //     username,
-  //     email,
-  //     role,
-  //     isverified,
-  //     created_at,
-  //   } = user.rows[0];
-  //   // Send HTTP-only Cookie
-  //   res.cookie("token", token, {
-  //     path: "/",
-  //     httpOnly: true,
-  //     expires: new Date(Date.now() + 1000 * 86400), // 1 day
-  //     sameSite: "none",
-  //     secure: true,
-  //   });
-  //   res.status(200).json({
-  //     message: "Please complete the purchased personal data first.",
-  //     data: {
-  //       user_id,
-  //       npm,
-  //       nidn,
-  //       username,
-  //       email,
-  //       role,
-  //       isverified,
-  //       created_at,
-  //       token,
-  //     },
-  //   });
-  // } else
   if (user.rows.length && passwordIsCorrect) {
     const {
       user_id,
@@ -412,6 +374,17 @@ exports.loginUser = asyncHandler(async (req, res) => {
       isverified,
       created_at,
     } = user.rows[0];
+
+    const unix = unixTimestamp;
+    const createdAt = await convertDate(unix);
+    const unixExpires = expires_at;
+    const expiresAt = await convertDate(unixExpires);
+  
+    await DB.query(
+      "INSERT INTO token(user_id, login_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
+      [id, token, createdAt, expiresAt]
+    );
+
     // Send HTTP-only Cookie
     res.cookie("token", token, {
       path: "/",

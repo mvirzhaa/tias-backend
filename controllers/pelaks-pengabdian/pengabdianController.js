@@ -197,7 +197,7 @@ exports.detailDataPengabdian = asyncHandler(async (req, res) => {
   const { pengabdianId } = req.params;
 
   const findDataPengabdian = await DB.query(
-    "SELECT * FROM tb_pengabdian WHERE pengabdian_id = $1",
+    "SELECT tb_pengabdian.*, kategori_publikasi.* FROM tb_pengabdian JOIN kategori_publikasi ON kategori_publikasi.id = tb_pengabdian.kategori_id WHERE pengabdian_id = $1",
     [pengabdianId]
   );
 
@@ -439,7 +439,7 @@ exports.approveStatusPengabdian = asyncHandler(async (req, res) => {
     );
 
     const point = data.rows[0].point;
-    const userId = data.rows[0].user_id;
+    const userId = findData.rows[0].user_id;
 
     await DB.query(
       `UPDATE tb_data_pribadi SET point_pengabdian = point_pengabdian + ${point} WHERE user_id = '${userId}'`

@@ -121,7 +121,7 @@ exports.detailDataProfesi = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
 
   const findData = await DB.query(
-    "SELECT * FROM tb_anggota_prof WHERE prof_id = $1",
+    "SELECT tb_anggota_prof.*, kategori_profesi.* FROM tb_anggota_prof JOIN kategori_profesi ON tb_anggota_prof.kategori_id = kategori_profesi.id WHERE prof_id = $1",
     [profId]
   );
 

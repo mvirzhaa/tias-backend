@@ -288,7 +288,7 @@ exports.approveStatusPenghargaan = asyncHandler(async (req, res) => {
     );
 
     const point = data.rows[0].point;
-    const userId = data.rows[0].user_id;
+    const userId = findData.rows[0].user_id;
 
     await DB.query(
       "UPDATE tb_data_pribadi SET point_penunjang = point_penunjang + $1 WHERE user_id = $2",

@@ -223,7 +223,7 @@ exports.detailDataPenelitian = asyncHandler(async (req, res) => {
   const { penelitianId } = req.params;
 
   const findDataPenelitian = await DB.query(
-    "SELECT * FROM tb_penelitian WHERE penelitian_id = $1",
+    "SELECT tb_penelitian.*, kategori_publikasi.* FROM tb_penelitian JOIN kategori_publikasi ON kategori_publikasi.id = tb_penelitian.kategori_id WHERE penelitian_id = $1",
     [penelitianId]
   );
 
@@ -486,11 +486,14 @@ exports.approveStatusPenelitian = asyncHandler(async (req, res) => {
     );
 
     const point = data.rows[0].point;
-    const userId = data.rows[0].user_id;
+    const userId = findData.rows[0].user_id;
+
 
     await DB.query(
-      `UPDATE tb_data_pribadi SET point_penelitian = point_penelitian + ${point} WHERE user_id = '${userId}'`
-    );
+    'UPDATE tb_data_pribadi SET point_penelitian = point_penelitian + $1 WHERE user_id = $2',
+    [point, userId]
+  );
+
 
     res.status(201).json({
       message: "Data has been received.",

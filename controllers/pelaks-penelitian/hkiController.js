@@ -176,7 +176,7 @@ exports.getDataHki = asyncHandler(async (req, res) => {
 exports.detailDataHki = asyncHandler(async (req, res) => {
   const { hkiId } = req.params;
 
-  const query = `SELECT tb_hki.*, kategori_hki.nama_kategori, kategori_hki.point FROM tb_hki JOIN kategori_hki ON tb_hki.kategori_id=kategori_hki.id WHERE tb_hki.hki_id = '${hkiId}'`;
+  const query = `SELECT tb_hki.*, kategori_hki.* FROM tb_hki JOIN kategori_hki ON tb_hki.kategori_id=kategori_hki.id WHERE tb_hki.hki_id = '${hkiId}'`;
 
   const findDataHki = await DB.query(query);
 
@@ -426,7 +426,7 @@ exports.approveStatusHki = asyncHandler(async (req, res) => {
     );
 
     const point = data.rows[0].point;
-    const userId = data.rows[0].user_id;
+    const userId = findData.rows[0].user_id;
 
     await DB.query(
       `UPDATE tb_data_pribadi SET point_penelitian = point_penelitian + ${point} WHERE user_id = '${userId}'`
