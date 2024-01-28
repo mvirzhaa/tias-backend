@@ -21,6 +21,8 @@ const jwt = require("jsonwebtoken");
 const Cryptr = require("cryptr");
 const sendEmail = require("../../utils/sendMail");
 const { getInformaticsStudent, getDosen } = require("../../helper/informatics");
+const { getIp, deleteIp} = require("../../helper/ipk");
+const { updateGamifyKompetensi } = require("../../utils/gamifyKompetensi");
 const cryptr = new Cryptr(process.env.CRYPTR_KEY);
 
 exports.register = asyncHandler(async (req, res) => {
@@ -97,10 +99,17 @@ exports.register = asyncHandler(async (req, res) => {
           studentWithNpm.mobile_phone,
           studentWithNpm.national_id_number,
           convert,
-          studentWithNpm.status,
+          studentWithNpm.status
         ]
       );
-      
+
+      const reqInsertedIp = await getIp(saveUser.rows[0].user_id, npm_nidn);
+
+      if(reqInsertedIp != 200){
+        res.status(400);
+        throw new Error("failed to delete and add ip data.");
+      }
+ 
       const achievementsData = await DB.query('SELECT id FROM achievements');
       const achievementsDefault = achievementsData.rows.map(row => row.id);
       

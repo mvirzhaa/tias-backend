@@ -126,18 +126,6 @@ exports.createDataPribadi = asyncHandler(async (req, res) => {
 exports.getDataPribadi = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
 
-  const getTotalPoint = await DB.query(
-    "SELECT point_pendidikan + point_pengabdian + point_penelitian + point_kompetensi + point_penunjang + point_rekomendasi AS total_points FROM tb_data_pribadi WHERE user_id = $1",
-    [userLoginId]
-  );
-
-  const total_points = getTotalPoint.rows[0].total_points;
-
-  await DB.query(
-    "UPDATE tb_data_pribadi SET total_point = $1 WHERE user_id = $2",
-    [total_points, userLoginId]
-  );
-
   const cekKode = await DB.query(
     "SELECT * FROM tb_data_pribadi WHERE user_id = $1",
     [userLoginId]

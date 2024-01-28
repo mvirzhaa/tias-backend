@@ -3592,6 +3592,112 @@ exports.getDataHkiReject = asyncHandler(async (req, res) => {
 // ==================== END PELAKS-PENELITIAN ========================
 
 // =================== PELAKS-PENDIDIKAN ========================
+exports.getAllDataIp = asyncHandler(async (req, res) => {
+  const dataQuery = req.query;
+
+  if (dataQuery.semester || dataQuery.ip || dataQuery.tahun) {
+    const semester = dataQuery.semester || null;
+    const ip = dataQuery.ip || null;
+    const tahun = dataQuery.tahun || null;
+  
+    const data = await DB.query(
+      `SELECT * FROM filter_data_ip($1, $2, $3, $4, $5)`,
+      [semester, ip, tahun, null, null]
+    );
+  
+    const dataIp = data.rows;
+    const combinedData = [];
+  
+    for (const ip of dataIp) {
+      const user_id = ip.user_id;
+  
+      const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
+        user_id,
+      ]);
+  
+      const personalData = await DB.query(
+        "SELECT * FROM tb_data_pribadi WHERE user_id = $1",
+        [user_id]
+      );
+  
+      combinedData.push({
+        ip: ip,
+        user: user.rows,
+        personalData: personalData.rows,
+      });
+    }
+  
+    const dataGabungan = combinedData.map((item) => {
+      const npm = item.user[0].npm;
+      const role = item.user[0].role;
+      const nama_lengkap = item.personalData[0].nama_lengkap;
+  
+      return {
+        ...item.ip,
+        npm: npm,
+        role: role,
+        nama_lengkap: nama_lengkap,
+      };
+    });
+  
+    res.status(201).json({
+      data: dataGabungan,
+    });
+  } else {
+    const page = dataQuery.page || 1;
+    const limit = dataQuery.limit || 10;
+  
+    const offset = (page - 1) * limit;
+
+    const data = await DB.query(
+      `SELECT * FROM tb_ip_mhs WHERE is_deleted = $1 LIMIT $2 OFFSET $3`,
+      [false, limit, offset]
+    );
+  
+    const jumlahData = await DB.query(`SELECT COUNT(*) FROM tb_ip_mhs`);
+  
+    const dataIp = data.rows;
+    const combinedData = [];
+  
+    for (const ip of dataIp) {
+      const user_id = ip.user_id;
+  
+      const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
+        user_id,
+      ]);
+  
+      const personalData = await DB.query(
+        "SELECT * FROM tb_data_pribadi WHERE user_id = $1",
+        [user_id]
+      );
+  
+      combinedData.push({
+        ip: ip,
+        user: user.rows,
+        personalData: personalData.rows,
+      });
+    }
+  
+    // console.log(combinedData);
+    const dataGabungan = combinedData.map((item) => {
+      const npm = item.user[0].npm;
+      const role = item.user[0].role;
+      const nama_lengkap = item.personalData[0].nama_lengkap;
+  
+      return {
+        ...item.ip,
+        npm: npm,
+        role: role,
+        nama_lengkap: nama_lengkap,
+      };
+    });
+  
+    res.status(201).json({
+      data: dataGabungan,
+      totalData: jumlahData.rows[0].count,
+    });
+  }  
+});
 exports.getDataIpProses = asyncHandler(async (req, res) => {
   const dataQuery = req.query;
 

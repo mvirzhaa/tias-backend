@@ -14,8 +14,7 @@ router.patch("/:id",protected, adminOnly, beritaUpload, update);
 router.delete("/:id",protected, adminOnly, deleteBerita); 
 router.get("/detail/:id",protected, detail); 
 
-router.post("/change-status", protected, adminOnly, editStatus); 
-
+router.patch("/change-status/:id", protected, adminOnly, editStatus); 
 
 
 module.exports = router;

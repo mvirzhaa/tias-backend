@@ -17,6 +17,7 @@ const getCount = async (table, userLoginId) => {
 
 exports.dashboardData = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
+  const role = req.user.role;
 
   try {
     const tes = await getCount("tb_tes", userLoginId);
@@ -28,40 +29,22 @@ exports.dashboardData = asyncHandler(async (req, res) => {
     const publikasi = await getCount("tb_publikasi_karya", userLoginId);
     const hki = await getCount("tb_hki", userLoginId);
 
-    const updateTotalPointQuery = `
-      UPDATE tb_data_pribadi
-      SET total_point = point_pendidikan + point_pengabdian + point_penelitian + point_kompetensi + point_penunjang + point_rekomendasi
-      WHERE user_id = $1
-      RETURNING *
-    `;
-
-    const updatedUserData = await DB.query(updateTotalPointQuery, [userLoginId]);
-
-    const userData = updatedUserData.rows.length > 0 ? updatedUserData.rows[0] : null;
-
-    let responseData;
-
-
-    if (userData && userData.kode_mhs === null) {
-      const notMhs = await DB.query(`SELECT tb_data_pribadi.*, tb_users.nidn, tb_users.role
+    const responseData = await DB.query(`SELECT tb_data_pribadi.*, tb_users.nidn, tb_users.npm, tb_users.role
       FROM tb_data_pribadi
       JOIN tb_users ON tb_data_pribadi.user_id = tb_users.user_id
-      WHERE tb_data_pribadi.user_id = $1`, [userLoginId])
-      responseData = notMhs.rows[0];
-    } else {
-      const query = `
-        SELECT tb_data_pribadi.*, tb_users.npm, tb_users.nidn, tb_users.role
-        FROM tb_data_pribadi
-        JOIN tb_users ON tb_data_pribadi.user_id = tb_users.user_id
-        WHERE tb_data_pribadi.user_id = $1
-      `;
+      WHERE tb_data_pribadi.user_id = $1`, [userLoginId]);
 
-      const dataPribadi = await DB.query(query, [userLoginId]);
-      responseData = dataPribadi.rows[0];
-    }
+    const sks = 21;
+    const pertemuanPerkuliahan = 22;
+    const belum_kolo = 5;
+    const besum_sidang = 8;
+    const belum_revisi = 2;
+    const kp_selesai = 8;
 
+    let data;
 
-    const data = {
+    if (role === "Mahasiswa") {
+      data = {
         tes,
         sertifikasi,
         pembicara,
@@ -70,7 +53,18 @@ exports.dashboardData = asyncHandler(async (req, res) => {
         penelitian,
         publikasi,
         hki,
-        userData: responseData,
+        userData: responseData.rows[0],
+      };
+    } else {
+      data = {
+        sks,
+        pertemuanPerkuliahan,
+        belum_kolo,
+        besum_sidang,
+        belum_revisi,
+        kp_selesai,
+        userData: responseData.rows[0],
+      };
     }
 
     res.status(200).json({
@@ -82,6 +76,7 @@ exports.dashboardData = asyncHandler(async (req, res) => {
     res.status(500).json({ status: "error", message: "Internal Server Error" });
   }
 });
+
 
 
 const getCountPending = async (table) => {

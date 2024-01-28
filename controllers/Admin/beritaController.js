@@ -254,7 +254,8 @@ exports.deleteBerita = asyncHandler(async (req, res) => {
 });
 
 exports.editStatus = asyncHandler(async (req, res) => {
-    const {id, status} = req.body;
+    const {status} = req.body;
+    const {id} = req.params;
 
     const findData = await DB.query("SELECT * FROM tb_berita WHERE id = $1", [id]);
 

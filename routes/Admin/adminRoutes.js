@@ -53,6 +53,7 @@ const {
   getDataBimbinganProses,
   getDataBimbinganAprove,
   getDataBimbinganReject,
+  getAllDataIp,
 } = require("../../controllers/Admin/adminController");
 
 const router = express.Router();
@@ -159,6 +160,7 @@ router.get("/hkiReject", protected, adminOnly, getDataHkiReject);
 
 // Pelaks-pendidikan
 router.get("/ipPending", protected, adminOnly, getDataIpProses);
+router.get("/all-ip", protected, adminOnly, getAllDataIp);
 router.get("/ipAprove", protected, adminOnly, getDataIpAprove);
 router.get("/ipReject", protected, adminOnly, getDataIpReject);
 // End Pelaks-pendidikan

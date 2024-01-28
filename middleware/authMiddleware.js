@@ -1,6 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const DB = require("../database");
 const jwt = require("jsonwebtoken");
+const { GamifyPoints } = require("../utils/gamify");
 
 exports.protected = asyncHandler(async (req, res, next) => {
   try {
@@ -26,6 +27,15 @@ exports.protected = asyncHandler(async (req, res, next) => {
     if (!user.rows.length) {
       res.status(404);
       throw new Error("User not found.");
+    }
+
+    if(user.rows[0].role === "Mahasiswa"){
+      const gamify = await GamifyPoints(user.rows[0].user_id, user.rows[0].npm);
+
+      if(gamify != 200){
+        res.status(500);
+        throw new Error("Gamification Error.");
+      }
     }
 
     req.user = user.rows[0];
