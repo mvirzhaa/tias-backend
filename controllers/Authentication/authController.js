@@ -132,7 +132,7 @@ exports.register = asyncHandler(async (req, res) => {
         // Create verification token
         const verificationToken =
           crypto.randomBytes(32).toString("hex") + user_id;
-        console.log("verif token :", verificationToken);
+        // console.log("verif token :", verificationToken);
         const hashedToken = hashToken(verificationToken);
 
         const unix = unixTimestamp;
@@ -221,7 +221,7 @@ exports.register = asyncHandler(async (req, res) => {
         // Create verification token
         const verificationToken =
           crypto.randomBytes(32).toString("hex") + user_id;
-        console.log(verificationToken);
+        // console.log(verificationToken);
         const hashedToken = hashToken(verificationToken);
 
         const unix = unixTimestamp;
@@ -308,7 +308,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
     // Create verification token
     const verificationToken =
       crypto.randomBytes(32).toString("hex") + user.rows[0].user_id;
-    console.log(verificationToken);
+    // console.log(verificationToken);
     const hashedToken = hashToken(verificationToken);
 
     const unix = unixTimestamp;
@@ -523,7 +523,7 @@ exports.loginWithCode = asyncHandler(async (req, res) => {
 
   const decryptedLoginCode = cryptr.decrypt(userToken.rows[0].login_token);
 
-  console.log(decryptedLoginCode);
+  // console.log(decryptedLoginCode);
 
   if (loginCode !== decryptedLoginCode) {
     res.status(400);
@@ -639,7 +639,7 @@ exports.sendVerificationEmail = asyncHandler(async (req, res) => {
   // Create verification token
   const verificationToken =
     crypto.randomBytes(32).toString("hex") + user.rows[0].user_id;
-  console.log(verificationToken);
+  // console.log(verificationToken);
   const hashedToken = hashToken(verificationToken);
 
   const unix = unixTimestamp;

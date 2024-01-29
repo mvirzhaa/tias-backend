@@ -88,8 +88,8 @@ async function getIp(user_id, npm) {
     return status;
 
   } catch (error) {
-    console.error('Error fetching or inserting data:', error.message);
-    throw new Error('Failed to retrieve or insert data.');
+    console.error('Error fetching or inserting data IPS:', error.message);
+    throw new Error('Failed to retrieve or insert data IPS.');
   }
 }
 
