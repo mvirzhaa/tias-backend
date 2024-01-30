@@ -191,8 +191,8 @@ exports.register = asyncHandler(async (req, res) => {
       const statusKawin = dosenWithNidn.status_sipil !== "MENIKAH" ? 0 : 1;
 
       const savePersonalData = await DB.query(
-        `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, jenkel, tanggal_lahir, tempat_lahir, ibu_kandung, agama, email, alamat, kota_kabupaten, no_hp, provinsi, kode_pos, status_kawin, nik, created_at, kode_mhs) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) 
+        `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, jenkel, tanggal_lahir, tempat_lahir, ibu_kandung, agama, email, alamat, kota_kabupaten, no_hp, provinsi, kode_pos, status_kawin, nik, created_at, kode_mhs, nip) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) 
         RETURNING *`,
         [
           saveUser.rows[0].user_id,
@@ -212,6 +212,7 @@ exports.register = asyncHandler(async (req, res) => {
           dosenWithNidn.no_ktp,
           convert,
           dosenWithNidn.klasi_pegawai,
+          dosenWithNidn.nip,
         ]
       );
 

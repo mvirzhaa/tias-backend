@@ -1,10 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const DB = require("../../database");
-const { getInformaticsStudent, getDosen } = require("../../helper/informatics");
 const bcrypt = require("bcryptjs");
 const { changePasswordUsersValidation } = require("../../validation/formValidation");
-const { getIp, deleteIp } = require("../../helper/ipk");
-const { getKategoriIp } = require("../../helper/kategori_ip");
 const { GamifyPoints } = require("../../utils/gamify");
 
 exports.getUserMhs = asyncHandler(async (req, res) => {
@@ -178,66 +175,5 @@ exports.changePaswordUser = asyncHandler(async (req, res) => {
   } else {
     res.status(404);
     throw new Error("User not found.");
-  }
-});
-
-exports.getInformaticsStudent = asyncHandler(async (req, res) => {
-  try {
-    const departmentCode = "FT_TI";
-    const results = await getInformaticsStudent(departmentCode);
-
-    const npm = "201106040468";
-
-    const studentWithNpm = results.find((student) => student.code === npm);
-
-    res.status(201).json({
-      data: results,
-    });
-  } catch (error) {
-    console.error("Error retrieving students by department:", error);
-    res.status(500).send("Internal Server Error");
-  }
-});
-
-exports.getDosenInfromatics = asyncHandler(async (req, res) => {
-  try {
-    const departmentCode = "FT_TI";
-    const results = await getDosen(departmentCode);
-
-    res.status(201).json({
-      data: results,
-    });
-  } catch (error) {
-    console.error("Error retrieving students by department:", error);
-    res.status(500).send("Internal Server Error");
-  }
-});
-
-exports.getIpMhs = asyncHandler(async (req, res) => {
-  try {
-    const npm = "201106040468";
-    const userId = 'd486f7e1-9988-4804-a288-65e89bf868f9'
-    const results = await getIp(userId, npm);
-
-
-    res.status(201).json({
-      data: results,
-    });
-  } catch (error) {
-    console.error("Error retrieving students by department:", error);
-    res.status(500).send("Internal Server Error");
-  }
-});
-exports.getKategoriIp = asyncHandler(async (req, res) => {
-  try {
-    const results = await getKategoriIp();
-
-
-    res.status(201).json({
-      data: results,
-    });
-  } catch (error) {
-    console.error("Error retrieving students by department:", error);
-    res.status(500).send("Internal Server Error");
   }
 });

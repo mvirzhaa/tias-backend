@@ -2,18 +2,168 @@ const axios = require('axios');
 const DB = require('../database'); 
 const { unixTimestamp, convertDate } = require('../utils');
 const { getKategoriIp } = require('./kategori_ip');
+const { executeQuery } = require('./informatics');
 
-async function getIp(user_id, npm) {
-  const API_URL = `https://skpi.uika-bogor.ac.id/restApi/index.php?menu=nilai&code=${npm}`;
+
+async function queryIpByNpm(code) {
+  // const code = '201106040468';
+  const query = `
+    SELECT academic_year, semester, student_code
+    FROM siak_frs
+    WHERE 1 ${code ? `AND student_code='${code}'` : ''}
+    GROUP BY academic_year, semester;
+  `;
 
   try {
-    const response = await axios.get(API_URL);
+    const result = await executeQuery(query);
+    const response = { student_code: code, Total: result.length, Data: [] };
+
+    if (result.length > 0) {
+      for (const row of result) {
+        let totalsks = 0;
+        let totalnilaiakhir = 0;
+        let angka = 0;
+        let totalips = 0;
+        let totalipk = 0;
+
+        const sql1 = `
+          SELECT f.*, c.name AS course_name, c.credit
+          FROM siak_frs f
+          INNER JOIN siak_course c ON c.code=f.course_code AND f.curr_code=c.curr_code
+          WHERE c.department_code='FT_TI' AND f.academic_year='${row.academic_year}'
+            AND f.semester='${row.semester}' AND f.student_code='${row.student_code}';
+        `;
+
+        const result1 = await executeQuery(sql1);
+        for (const rows of result1) {
+          switch (rows.grade) {
+            case 'A':
+              angka = 4;
+              break;
+            case 'AB':
+              angka = 3.5;
+              break;
+            case 'B':
+              angka = 3;
+              break;
+            case 'BC':
+              angka = 2.5;
+              break;
+            case 'C':
+              angka = 2;
+              break;
+            case 'CD':
+              angka = 1.5;
+              break;
+            case 'D':
+              angka = 1;
+              break;
+            case 'DE':
+              angka = 0.5;
+              break;
+            case 'E':
+              angka = 0;
+              break;
+          }
+
+          totalsks += rows.credit;
+          const akhir = angka * rows.credit;
+          totalnilaiakhir += akhir;
+          const ips = totalnilaiakhir / totalsks;
+          totalips = parseFloat(ips.toFixed(2));
+        }
+
+        const sql2 = `
+          SELECT f.*, c.name AS course_name, c.credit
+          FROM siak_frs f
+          INNER JOIN siak_course c ON c.code=f.course_code AND f.curr_code=c.curr_code
+          WHERE c.department_code='FT_TI' AND f.student_code='${row.student_code}' AND f.grade IS NOT NULL;
+        `;
+
+        const result2 = await executeQuery(sql2);
+        let totalsksipk = 0;
+        let totalnilaiakhiripk = 0;
+        let angkaipk = 0;
+
+        for (const rows2 of result2) {
+          switch (rows2.grade) {
+            case 'A':
+              angkaipk = 4;
+              break;
+            case 'AB':
+              angkaipk = 3.5;
+              break;
+            case 'B':
+              angkaipk = 3;
+              break;
+            case 'BC':
+              angkaipk = 2.5;
+              break;
+            case 'C':
+              angkaipk = 2;
+              break;
+            case 'CD':
+              angkaipk = 1.5;
+              break;
+            case 'D':
+              angkaipk = 1;
+              break;
+            case 'DE':
+              angkaipk = 0.5;
+              break;
+            case 'E':
+              angkaipk = 0;
+              break;
+          }
+
+          totalsksipk += rows2.credit;
+          const akhiripk = angkaipk * rows2.credit;
+          totalnilaiakhiripk += akhiripk;
+          const ipk = totalnilaiakhiripk / totalsksipk;
+          totalipk = parseFloat(ipk.toFixed(2));
+        }
+
+        response.Data.push({
+          academic_year: row.academic_year,
+          semester: row.semester,
+          ips: totalips,
+          sks: totalsks,
+        });
+
+        let predikat = '';
+        if (totalipk >= 3.5) {
+          predikat = 'Dengan Pujian';
+        } else if (totalipk >= 3.0) {
+          predikat = 'Sangat Memuaskan';
+        } else if (totalipk >= 2.75) {
+          predikat = 'Memuaskan';
+        } else {
+          predikat = 'Cukup Memuaskan';
+        }
+
+        response.ipk = totalipk;
+        response.predikat = predikat;
+      }
+
+      return response; 
+    } else {
+      return response; 
+    }
+  } catch (error) {
+    console.error(error);
+    return { error: 'An error occurred' };
+  }
+}
+
+async function getIp(user_id, npm) {
+  try {
+    const response = await queryIpByNpm(npm);
 
     const data = {
-      npm: response.data.student_code,
-      ipk: response.data.ipk,
-      total: response.data.Total,
-      data_ips: response.data.Data,
+      npm: response.student_code,
+      ipk: response.ipk,
+      total: response.Total,
+      data_ips: response.Data,
     };
 
     const ipCode = await getKategoriIp();
@@ -107,6 +257,7 @@ async function deleteIp(user_id){
 }
 
 module.exports = {
+  queryIpByNpm,
   getIp,
-  deleteIp
+  deleteIp,
 };
