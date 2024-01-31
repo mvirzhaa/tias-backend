@@ -11,7 +11,7 @@ async function getMatkul(year, semester, nip){
     const uniqueResults = {};
     
     result.forEach(item => {
-      const key = `${item.class}-${item.on_day}-${item.from_time}-${item.until_time}-${item.classroom}-${item.name}`;
+      const key = `${item.name}`;
       if (!uniqueResults[key]) {
         uniqueResults[key] = item;
       }

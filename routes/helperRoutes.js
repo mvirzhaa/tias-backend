@@ -9,7 +9,7 @@ router.get("/get-mhs-ti", protected, getInformaticsStudent);
 router.get("/get-dosen-ti", protected, getDosenInfromatics);
 router.get("/get-ip",  protected, getIpMhs);
 router.get("/get-ip-kategori", protected, getKategoriIp);
-router.get("/get-matkul", protected, getMatkulHelp);
+router.post("/get-matkul", getMatkulHelp);
 router.get("/query-ip", protected, queryIp);
 
 module.exports = router;

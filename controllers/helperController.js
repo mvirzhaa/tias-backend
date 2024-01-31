@@ -69,9 +69,7 @@ exports.getKategoriIp = asyncHandler(async (req, res) => {
 exports.getMatkulHelp = asyncHandler(async (req, res) => {
   try {
 
-    const year = '2023/2024';
-    const semester = 'GASAL';
-    const nip = '410100405';
+    const {year, semester, nip} =req.body;
 
     const result = await getMatkul(year, semester, nip);
 
@@ -79,7 +77,7 @@ exports.getMatkulHelp = asyncHandler(async (req, res) => {
       data: result
     })
   } catch (error) {
-    
+    console.log(error);
   }
 })
 
