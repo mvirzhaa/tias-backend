@@ -6,7 +6,7 @@ const { getInformaticsStudent, getDosenInfromatics, getIpMhs, getKategoriIp, get
 const router = express.Router();
 
 router.get("/get-mhs-ti", protected, getInformaticsStudent);
-router.get("/get-dosen-ti", protected, getDosenInfromatics);
+router.get("/get-dosen-ti",  getDosenInfromatics);
 router.get("/get-ip",  protected, getIpMhs);
 router.get("/get-ip-kategori", protected, getKategoriIp);
 router.post("/get-matkul", getMatkulHelp);

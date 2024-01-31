@@ -24,6 +24,7 @@ const kategoriRoutes = require("./routes/kategori/kategoriRoutes");
 const dashboardRoutes = require("./routes/dashboard/dashboardRoutes");
 const beritaRoutes = require("./routes/Admin/beritaRoutes");
 const achievmentsRoutes = require("./routes/Admin/achievementsRoutes");
+const absensiRoutes = require("./routes/absensi/absensiRoutes");
 const helpRoutes = require("./routes/helperRoutes");
 const errorHandler = require("./helper/errorHandler");
 
@@ -61,6 +62,7 @@ app.use("/rekomendasi", rekomendasiRoutes);
 app.use("/kategori", kategoriRoutes);
 app.use("/dashboard", dashboardRoutes);
 app.use("/berita", beritaRoutes);
+app.use("/absensi", absensiRoutes);
 app.use("/achievments", achievmentsRoutes);
 
 
