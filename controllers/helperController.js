@@ -2,7 +2,7 @@ const asyncHandler = require("express-async-handler");
 const { getInformaticsStudent, getDosen } = require("../helper/informatics");
 const { getIp, deleteIp, queryIpByNpm } = require("../helper/ipk");
 const { getKategoriIp } = require("../helper/kategori_ip");
-const {getMatkul} = require('../utils/matkul');
+const {getMatkul, getClass} = require('../utils/matkul');
 
 exports.getInformaticsStudent = asyncHandler(async (req, res) => {
   try {
@@ -72,6 +72,19 @@ exports.getMatkulHelp = asyncHandler(async (req, res) => {
     const {year, semester, nip} =req.body;
 
     const result = await getMatkul(year, semester, nip);
+
+    res.status(201).json({
+      data: result
+    })
+  } catch (error) {
+    console.log(error);
+  }
+})
+
+exports.getClassControler = asyncHandler(async (req, res) => {
+  try {
+
+    const result = await getClass();
 
     res.status(201).json({
       data: result

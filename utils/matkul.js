@@ -26,7 +26,22 @@ async function getMatkul(year, semester, nip){
   }
 }
 
+async function getClass(){
+  const code = 'FT';
+  const query = 'SELECT feeder_class_name FROM siak_class WHERE faculty_code = ?';
+
+  try {
+    const result = await executeQuery(query, [code]);
+
+    return result;
+  } catch (error) {
+    console.error('Error fetching or inserting data kelas:', error);
+    throw new Error('Failed to retrieve or insert data kelas.');
+  }
+}
+
 
 module.exports = {
   getMatkul,
+  getClass
 };

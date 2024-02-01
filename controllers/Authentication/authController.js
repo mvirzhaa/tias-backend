@@ -395,6 +395,8 @@ exports.loginUser = asyncHandler(async (req, res) => {
       [id, token, createdAt, expiresAt]
     );
 
+    const getNip = await DB.query("SELECT nip FROM tb_data_pribadi WHERE user_id = $1", [user_id])
+
     // Send HTTP-only Cookie
     res.cookie("token", token, {
       path: "/",
@@ -413,6 +415,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
         username,
         email,
         role,
+        nip: getNip.rows[0].nip,
         isverified,
         created_at,
         token,
