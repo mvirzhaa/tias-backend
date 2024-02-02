@@ -8,6 +8,8 @@ async function getMatkul(year, semester, nip){
   try {
     const result = await executeQuery(query, [year, semester, nip]);
 
+    return result;
+
     const uniqueResults = {};
     
     result.forEach(item => {
@@ -28,7 +30,7 @@ async function getMatkul(year, semester, nip){
 
 async function getClass(){
   const code = 'FT';
-  const query = 'SELECT feeder_class_name FROM siak_class WHERE faculty_code = ?';
+  const query = 'SELECT name FROM siak_class WHERE faculty_code = ?';
 
   try {
     const result = await executeQuery(query, [code]);
