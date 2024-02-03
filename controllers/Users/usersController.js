@@ -38,6 +38,20 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
   });
 });
 
+exports.getTotalUsers = asyncHandler(async (req, res) => {
+  const [resultMhs] = await connection.execute(`SELECT COUNT(*) AS total_data FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true`);
+
+  const [resultDosen] = await connection.execute(`SELECT COUNT(*) AS total_data FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id WHERE tb_users.role = 'Dosen' AND tb_users.isverified = true`);
+
+  const totalMhs = resultMhs[0].total_data;
+  const totalDosen = resultDosen[0].total_data;
+
+  res.status(200).json({
+    total_mahasiswa: totalMhs,
+    total_dosen: totalDosen,
+  });
+});
+
 exports.getUserDosen = asyncHandler(async (req, res) => {
   const { page, limit, searchQuery } = req.query;
 
