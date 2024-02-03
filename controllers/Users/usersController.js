@@ -39,12 +39,12 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
 });
 
 exports.getTotalUsers = asyncHandler(async (req, res) => {
-  const [resultMhs] = await connection.execute(`SELECT COUNT(*) AS total_data FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true`);
+  const resultMhs = await DB.query(`SELECT COUNT(*) AS total_data FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true`);
 
-  const [resultDosen] = await connection.execute(`SELECT COUNT(*) AS total_data FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id WHERE tb_users.role = 'Dosen' AND tb_users.isverified = true`);
+  const resultDosen = await DB.query(`SELECT COUNT(*) AS total_data FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id WHERE tb_users.role = 'Dosen' AND tb_users.isverified = true`);
 
-  const totalMhs = resultMhs[0].total_data;
-  const totalDosen = resultDosen[0].total_data;
+  const totalMhs = resultMhs.rows[0].total_data;
+  const totalDosen = resultDosen.rows[0].total_data;
 
   res.status(200).json({
     total_mahasiswa: totalMhs,
