@@ -142,6 +142,8 @@ exports.getDataPribadi = asyncHandler(async (req, res) => {
 
     res.status(201).json({
       data: dataPribadi.rows[0],
+      p_pendidikan: dataPribadi.rows[0]['point_pendidikan'].toString(),
+      total_point: dataPribadi.rows[0]['total_point'].toString(),
     });
   }
 });
