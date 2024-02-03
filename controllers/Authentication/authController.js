@@ -49,6 +49,12 @@ exports.register = asyncHandler(async (req, res) => {
   await checkIfExists("nidn", npm_nidn, "NIDN already exists.");
   await checkIfExists("email", email, "Email already exists.");
 
+  
+  if (!npm_nidn || !email || !password) {
+    res.status(400);
+    throw new Error("Pleas fill in all the required fields.");
+  }
+
   const departmentCode = "FT_TI";
 
   // Get userAgent
