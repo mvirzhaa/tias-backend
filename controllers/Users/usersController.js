@@ -22,7 +22,7 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
   }
 
   const query = `
-    SELECT tb_users.*, tb_data_pribadi.no_hp, tb_data_pribadi.nama_lengkap
+    SELECT tb_users.*, tb_data_pribadi.no_hp, tb_data_pribadi.nama_lengkap, tb_data_pribadi.kode_mhs
     FROM tb_users
     JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
     WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true
@@ -57,7 +57,7 @@ exports.getUserDosen = asyncHandler(async (req, res) => {
   }
 
   const query = `
-    SELECT tb_users.*, tb_data_pribadi.no_hp, tb_data_pribadi.nama_lengkap, tb_jabatan_dosen.jabatan_id, tb_jabatan_dosen.jabatan_fungsi
+    SELECT tb_users.*, tb_data_pribadi.no_hp, tb_data_pribadi.nama_lengkap, tb_jabatan_dosen.jabatan_id, tb_data_pribadi.kode_mhs, tb_jabatan_dosen.jabatan_fungsi
     FROM tb_users
     JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id
     LEFT JOIN (
