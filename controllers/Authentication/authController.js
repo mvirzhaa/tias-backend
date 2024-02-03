@@ -395,7 +395,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
       [id, token, createdAt, expiresAt]
     );
 
-    const getPersonalData = await DB.query("SELECT nip, nama_lengkap, image FROM tb_data_pribadi WHERE user_id = $1", [user_id])
+    const getPersonalData = await DB.query("SELECT nip, nama_lengkap, image, total_point FROM tb_data_pribadi WHERE user_id = $1", [user_id])
 
     // Send HTTP-only Cookie
     res.cookie("token", token, {
@@ -418,6 +418,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
         nip: getPersonalData.rows[0].nip,
         nama_lengkap: getPersonalData.rows[0].nama_lengkap,
         image: getPersonalData.rows[0].image,
+        total_point: getPersonalData.rows[0].total_point,
         isverified,
         created_at,
         token,
