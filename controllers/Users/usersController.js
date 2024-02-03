@@ -22,7 +22,7 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
   }
 
   const query = `
-    SELECT tb_users.*, tb_data_pribadi.*
+    SELECT tb_users.*, tb_data_pribadi.no_hp, tb_data_pribadi.nama_lengkap
     FROM tb_users
     JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
     WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true
@@ -57,7 +57,7 @@ exports.getUserDosen = asyncHandler(async (req, res) => {
   }
 
   const query = `
-    SELECT tb_users.*, tb_data_pribadi.*, tb_jabatan_dosen.jabatan_id, tb_jabatan_dosen.jabatan_fungsi
+    SELECT tb_users.*, tb_data_pribadi.no_hp, tb_data_pribadi.nama_lengkap, tb_jabatan_dosen.jabatan_id, tb_jabatan_dosen.jabatan_fungsi
     FROM tb_users
     JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id
     LEFT JOIN (
@@ -87,12 +87,15 @@ exports.detailUser = asyncHandler(async (req, res) => {
   const { userId } = req.params;
 
   const findUser = await DB.query('SELECT * FROM tb_users WHERE user_id = $1', [userId]);
-  const gamify = GamifyPoints(userId, findUser.rows[0].npm);
 
-  if(gamify != 200){
-    res.status(500);
-    throw new Error("Gamification Error!.");
-  }
+  // if(findUser.rows[0].role === "Mahasiswa" && findUser.rows[0].npm !== null){
+  //   const gamify = GamifyPoints(userId, findUser.rows[0].npm);
+
+  //   if(gamify != 200){
+  //     res.status(500);
+  //     throw new Error("Gamification Error!.");
+  //   }
+  // }
 
   const getTotalPoint = await DB.query(
     "SELECT point_pendidikan + point_pengabdian + point_penelitian + point_kompetensi + point_penunjang + point_rekomendasi AS total_points FROM tb_data_pribadi WHERE user_id = $1",
