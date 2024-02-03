@@ -22,7 +22,7 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
   }
 
   const query = `
-    SELECT tb_users.*, tb_data_pribadi.* FROM tb_users
+    SELECT tb_users.*, tb_data_pribadi.nama_lengkap, tb_data_pribadi.image, tb_data_pribadi.point_kompetensi, tb_data_pribadi.point_pengabdian, tb_data_pribadi.point_pendidikan, tb_data_pribadi.point_penelitian, tb_data_pribadi.point_penunjang, tb_data_pribadi.point_rekomendasi, tb_data_pribadi.total_point FROM tb_users
     JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
     WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true
     ${searchFilter}
