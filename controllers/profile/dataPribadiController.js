@@ -126,16 +126,6 @@ exports.createDataPribadi = asyncHandler(async (req, res) => {
 exports.getDataPribadi = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
 
-  const cekKode = await DB.query(
-    "SELECT * FROM tb_data_pribadi WHERE user_id = $1",
-    [userLoginId]
-  );
-
-  if (cekKode.rows[0].kode_mhs === null) {
-    res.status(201).json({
-      data: cekKode.rows[0],
-    });
-  } else {
     const query = `SELECT tb_data_pribadi.*, tb_users.npm, tb_users.nidn, tb_users.role FROM tb_data_pribadi JOIN tb_users ON tb_data_pribadi.user_id = tb_users.user_id WHERE tb_data_pribadi.user_id = '${userLoginId}'`;
 
     const dataPribadi = await DB.query(query);
@@ -145,7 +135,6 @@ exports.getDataPribadi = asyncHandler(async (req, res) => {
       p_pendidikan: dataPribadi.rows[0]['point_pendidikan'].toString(),
       total_point: dataPribadi.rows[0]['total_point'].toString(),
     });
-  }
 });
 
 exports.editDataPribadi = asyncHandler(async (req, res) => {
