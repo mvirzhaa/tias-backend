@@ -21,7 +21,17 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
     searchParams = [...searchParams, `%${searchQuery}%`];
   }
 
-  const query = `
+  const countQuery = `
+    SELECT COUNT(*) FROM tb_users
+    JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
+    WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true
+    ${searchFilter}
+  `;
+
+  const totalCount = await DB.query(countQuery, searchParams);
+  const totalData = totalCount.rows[0].count;
+
+  const dataQuery = `
     SELECT tb_users.*, tb_data_pribadi.nama_lengkap, tb_data_pribadi.image, tb_data_pribadi.point_kompetensi, tb_data_pribadi.point_pengabdian, tb_data_pribadi.point_pendidikan, tb_data_pribadi.point_penelitian, tb_data_pribadi.point_penunjang, tb_data_pribadi.point_rekomendasi, tb_data_pribadi.total_point, tb_data_pribadi.no_hp, tb_data_pribadi.kode_mhs FROM tb_users
     JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
     WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true
@@ -29,13 +39,15 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
     LIMIT $${searchParams.length + 1} OFFSET $${searchParams.length + 2}
   `;
 
-  const user = await DB.query(query, [...searchParams, itemsPerPage, offset]);
+  const user = await DB.query(dataQuery, [...searchParams, itemsPerPage, offset]);
 
   res.status(200).json({
     message: "Success get data.",
     data: user.rows,
+    totalData: totalData
   });
 });
+
 
 exports.getTotalUsers = asyncHandler(async (req, res) => {
   const resultMhs = await DB.query(`SELECT COUNT(*) AS total_data FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true`);
