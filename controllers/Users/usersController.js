@@ -36,6 +36,7 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
     JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
     WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true
     ${searchFilter}
+    ORDER BY tb_users.created_at DESC
     LIMIT $${searchParams.length + 1} OFFSET $${searchParams.length + 2}
   `;
 
@@ -47,7 +48,6 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
     totalData: totalData
   });
 });
-
 
 exports.getTotalUsers = asyncHandler(async (req, res) => {
   const resultMhs = await DB.query(`SELECT COUNT(*) AS total_data FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true`);
@@ -106,6 +106,7 @@ exports.getUserDosen = asyncHandler(async (req, res) => {
     ) AS tb_jabatan_dosen ON tb_users.user_id = tb_jabatan_dosen.user_id
     WHERE tb_users.role = 'Dosen'
     ${searchFilter}
+    ORDER BY tb_users.created_at DESC
     LIMIT $${searchParams.length + 1} OFFSET $${searchParams.length + 2}
   `;
 
@@ -122,28 +123,17 @@ exports.getUserDosen = asyncHandler(async (req, res) => {
 exports.detailUser = asyncHandler(async (req, res) => {
   const { userId } = req.params;
 
-  const findUser = await DB.query('SELECT * FROM tb_users WHERE user_id = $1', [userId]);
+  // const getTotalPoint = await DB.query(
+  //   "SELECT point_pendidikan + point_pengabdian + point_penelitian + point_kompetensi + point_penunjang + point_rekomendasi AS total_points FROM tb_data_pribadi WHERE user_id = $1",
+  //   [userId]
+  // );
 
-  // if(findUser.rows[0].role === "Mahasiswa" && findUser.rows[0].npm !== null){
-  //   const gamify = GamifyPoints(userId, findUser.rows[0].npm);
+  // const total_points = getTotalPoint.rows[0].total_points;
 
-  //   if(gamify != 200){
-  //     res.status(500);
-  //     throw new Error("Gamification Error!.");
-  //   }
-  // }
-
-  const getTotalPoint = await DB.query(
-    "SELECT point_pendidikan + point_pengabdian + point_penelitian + point_kompetensi + point_penunjang + point_rekomendasi AS total_points FROM tb_data_pribadi WHERE user_id = $1",
-    [userId]
-  );
-
-  const total_points = getTotalPoint.rows[0].total_points;
-
-  await DB.query(
-    "UPDATE tb_data_pribadi SET total_point = $1 WHERE user_id = $2",
-    [total_points, userId]
-  );
+  // await DB.query(
+  //   "UPDATE tb_data_pribadi SET total_point = $1 WHERE user_id = $2",
+  //   [total_points, userId]
+  // );
 
   const findData = await DB.query(
     "SELECT tb_users.*, tb_data_pribadi.* FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id WHERE tb_users.user_id = $1",
@@ -162,16 +152,6 @@ exports.detailUser = asyncHandler(async (req, res) => {
     [userId, false]
   );
 
-  const ipAprove = await DB.query(
-    "SELECT * FROM tb_ip_mhs WHERE user_id = $1 and status = $2 and is_deleted = $3",
-    [userId, 1, false]
-  );
-
-  const ipArr = ipAprove.rows.map((row) => row.ip);
-  const totalIp = ipArr.reduce((total, ip) => total + ip, 0);
-  const jumlahSemester = ipArr.length;
-  const ipk = totalIp / jumlahSemester;
-
   if (!findData.rows.length) {
     res.status(404);
     throw new Error("Data not found.");
@@ -182,7 +162,6 @@ exports.detailUser = asyncHandler(async (req, res) => {
     rekomendasiMhs: dataRekomendasi.rows,
     dataSertifikasi: sertifikasiData.rows,
     totalDataSertifikasi: jumlahDataSertifikasi.rows[0].count,
-    ipk: ipk.toFixed(2),
   });
 });
 
@@ -216,3 +195,63 @@ exports.changePaswordUser = asyncHandler(async (req, res) => {
     throw new Error("User not found.");
   }
 });
+
+exports.papanPeringkat = asyncHandler(async (req, res) => {
+  const { page, limit, searchQuery, nama_lengkap, npm } = req.query;
+
+  if(nama_lengkap || npm){
+    const dataName = nama_lengkap || null;
+    const dataNpm = npm || null;
+
+    const findData = await DB.query(
+      `SELECT * FROM filter_users($1, $2, $3, $4, $5)`,
+      [dataName, dataNpm, null, null, null]
+    );
+
+    res.status(201).json({
+      data: findData.rows,
+    });
+
+  } else {
+    const pageNumber = page || 1;
+    const itemsPerPage = limit || 10;
+    const offset = (pageNumber - 1) * itemsPerPage;
+  
+    let searchFilter = "";
+    let searchParams = [];
+  
+    if (searchQuery) {
+      searchFilter = `AND tb_data_pribadi.nama_lengkap ILIKE $${
+        searchParams.length + 1
+      }`;
+      searchParams = [...searchParams, `%${searchQuery}%`];
+    }
+  
+    const countQuery = `
+      SELECT COUNT(*) FROM tb_users
+      JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
+      WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true
+      ${searchFilter}
+    `;
+  
+    const totalCount = await DB.query(countQuery, searchParams);
+    const totalData = totalCount.rows[0].count;
+  
+    const dataQuery = `
+      SELECT tb_users.*, tb_data_pribadi.nama_lengkap, tb_data_pribadi.image, tb_data_pribadi.point_kompetensi, tb_data_pribadi.point_pengabdian, tb_data_pribadi.point_pendidikan, tb_data_pribadi.point_penelitian, tb_data_pribadi.point_penunjang, tb_data_pribadi.point_rekomendasi, tb_data_pribadi.total_point, tb_data_pribadi.no_hp, tb_data_pribadi.kode_mhs, tb_data_pribadi.rank FROM tb_users
+      JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
+      WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true AND tb_data_pribadi.kode_mhs = 'ACTIVE'
+      ${searchFilter}
+      ORDER BY tb_data_pribadi.total_point DESC
+      LIMIT $${searchParams.length + 1} OFFSET $${searchParams.length + 2}
+    `;
+  
+    const user = await DB.query(dataQuery, [...searchParams, itemsPerPage, offset]);
+  
+    res.status(200).json({
+      message: "Success get data.",
+      data: user.rows,
+      totalData: totalData
+    }); 
+  }
+})

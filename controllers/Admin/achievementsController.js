@@ -22,7 +22,7 @@ exports.addAchievement = asyncHandler(async (req, res) => {
     throw new Error("Please fill in one file.")
   }
 
-  if(!newData.name || !newData.gamify || !newData.start_point || !newData.points){
+  if(!newData.name || !newData.gamify || !newData.start_point || !newData.points || !newData.kode){
     fs.unlink(file.path, (err) => {
       if (err) {
         console.log(err);
@@ -35,8 +35,8 @@ exports.addAchievement = asyncHandler(async (req, res) => {
   
 
   const insertData = await DB.query(
-    'INSERT INTO achievements(name, gamify, start_point, points, image) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-    [newData.name, newData.gamify, newData.start_point, newData.points, file.filename]
+    'INSERT INTO achievements(name, gamify, start_point, points, image, kode) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+    [newData.name, newData.gamify, newData.start_point, newData.points, file.filename, kode]
   );
 
   if (insertData.rows.length) {
@@ -85,10 +85,11 @@ exports.editAchievement = asyncHandler(async (req, res) => {
     gamify: newData.gamify || oldData.gamify,
     points: newData.points || oldData.points,
     start_point: newData.start_point || oldData.start_point,
+    kode: newData.kode || oldData.kode,
   };
 
-  const updateData = await DB.query('UPDATE achievements SET name = $1, gamify = $2, points = $3, start_point = $4 WHERE id = $5 RETURNING *',
-    [mergedData.name, mergedData.gamify, mergedData.points, mergedData.start_point, achievementId]);
+  const updateData = await DB.query('UPDATE achievements SET name = $1, gamify = $2, points = $3, start_point = $4, kode = $5 WHERE id = $6 RETURNING *',
+    [mergedData.name, mergedData.gamify, mergedData.points, mergedData.start_point, mergedData.kode, achievementId]);
 
   if (updateData.rows.length) {
     res.status(200).json({

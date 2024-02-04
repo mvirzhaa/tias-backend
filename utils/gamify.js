@@ -1,4 +1,5 @@
 const DB = require("../database");
+const { gamifyAchievements } = require("../helper/gamifyAchievements");
 const { deleteIp, getIp } = require("../helper/ipk");
 const { updateGamifyKompetensi } = require("./gamifyKompetensi");
 const { updateGamifyPenelitian } = require("./gamifyPenelitian");
@@ -40,10 +41,29 @@ async function GamifyPoints(user_id, npm){
 
     const Total = pointKompetensi + pointPenelitian + pointPengabdian + pointPenunjang + pointRekomendasi + pointPendidikan;
 
+    const gamify = await gamifyAchievements();
+
+
+    let rank;
+    if(Total == 1100 && Total <= 2300){
+      rank = gamify.gm1.gamify
+    } else if(Total >= 2400 && Total <= 3800){
+      rank = gamify.gm2.gamify
+    } else if(Total >= 3900 && Total <= 5300){
+      rank = gamify.gm3.gamify
+    } else if(Total >= 5400 && Total <= 7400){
+      rank = gamify.gm4.gamify
+    } else if(Total >= 7500 && Total <= 9999){
+      rank = gamify.gm5.gamify
+    } else if(Total === 10000 && Total >= 10000){
+      rank = gamify.gm6.gamify
+    }
+
     const update = await DB.query(
-      "UPDATE tb_data_pribadi SET total_point = $1 WHERE user_id = $2 RETURNING *",
-      [Total, user_id]
+      "UPDATE tb_data_pribadi SET total_point = $1, rank = $2 WHERE user_id = $3 RETURNING *",
+      [Total, rank, user_id]
     );
+
 
     if(!update.rows.length){
       res.status(400);
