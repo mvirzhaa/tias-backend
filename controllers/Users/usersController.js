@@ -81,6 +81,16 @@ exports.getUserDosen = asyncHandler(async (req, res) => {
     searchParams = [...searchParams, `%${searchQuery}%`];
   }
 
+    const countQuery = `
+    SELECT COUNT(*) FROM tb_users
+    JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
+    WHERE tb_users.role = 'Dosen' AND tb_users.isverified = true
+    ${searchFilter}
+  `;
+
+  const totalCount = await DB.query(countQuery, searchParams);
+  const totalData = totalCount.rows[0].count;
+
   const query = `
     SELECT tb_users.*, tb_data_pribadi.no_hp, tb_data_pribadi.nama_lengkap, tb_jabatan_dosen.jabatan_id, tb_data_pribadi.kode_mhs, tb_jabatan_dosen.jabatan_fungsi
     FROM tb_users
@@ -105,6 +115,7 @@ exports.getUserDosen = asyncHandler(async (req, res) => {
   res.status(200).json({
     message: "Success get data.",
     data: user.rows,
+    totalData: totalData
   });
 });
 
