@@ -47,7 +47,11 @@ exports.addRekomendasi = asyncHandler(async (req, res) => {
         [data.mahasiswa_id]
       );
 
-      const totalData = jumlahDataRekomen.rows[0].count * 100;
+      const findUsePoint = await DB.query("SELECT point FROM point_rekomendasi WHERE status = $1", [1]);
+  
+      const pointUse = Number(findUsePoint.rows[0].point)
+
+      const totalData = jumlahDataRekomen.rows[0].count * pointUse;
 
       await DB.query(
         "UPDATE tb_data_pribadi SET point_rekomendasi = $1 WHERE user_id = $2",
