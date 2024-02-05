@@ -184,6 +184,11 @@ exports.editDataSerti = asyncHandler(async (req, res) => {
     const file = req.files;
     const data = req.body;
 
+    if (data.status) {
+      res.status(400);
+      throw new Error("Access Danied.");
+    }
+
     if (Object.keys(file).length === 0) {
       const updated_at = unixTimestamp;
       const convert = convertDate(updated_at);

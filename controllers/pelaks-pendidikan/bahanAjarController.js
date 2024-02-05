@@ -197,6 +197,11 @@ exports.editDataBahanAjar = asyncHandler(async (req, res) => {
   const data = req.body;
   const file = req.file;
 
+  if (data.status) {
+    res.status(400);
+    throw new Error("Access Danied.");
+  }
+
   const findData = await DB.query(
     "SELECT * FROM tb_bahan_ajar_dosen WHERE bahan_ajar_id = $1",
     [bahanAjarId]

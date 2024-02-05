@@ -225,6 +225,11 @@ exports.editDataPublikasi = asyncHandler(async (req, res) => {
   const data = req.body;
   const file = req.file;
 
+  if (data.status) {
+    res.status(400);
+    throw new Error("Access Danied.");
+  }
+
   const findDataPublikasi = await DB.query(
     "SELECT * FROM tb_publikasi_karya WHERE publikasi_id = $1",
     [publikasiId]

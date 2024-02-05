@@ -3,76 +3,76 @@ const DB = require("../../database");
 const { unixTimestamp, convertDate } = require("../../utils");
 const { deleteIp, getIp } = require("../../helper/ipk");
 
-exports.addDataIp = asyncHandler(async (req, res) => {
-  const userLoginId = req.user.user_id;
+// exports.addDataIp = asyncHandler(async (req, res) => {
+//   const userLoginId = req.user.user_id;
 
-  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
-    userLoginId,
-  ]);
+//   const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
+//     userLoginId,
+//   ]);
 
-  if (user.rows.length) {
-    const data = req.body;
+//   if (user.rows.length) {
+//     const data = req.body;
 
-    if (!data.semester || !data.tahun || !data.ip) {
-      res.status(400);
-      throw new Error("Pleas fill in all the required fields.");
-    }
+//     if (!data.semester || !data.tahun || !data.ip) {
+//       res.status(400);
+//       throw new Error("Pleas fill in all the required fields.");
+//     }
 
-    const ip = data.ip;
-    let pointIp;
-    if (ip == 0 || ip < 1.0) {
-      pointIp = 175;
-    } else if (ip >= 1.0 && ip <= 1.49) {
-      pointIp = 240;
-    } else if (ip >= 1.5 && ip <= 1.99) {
-      pointIp = 300;
-    } else if (ip >= 2.0 && ip <= 2.49) {
-      pointIp = 355;
-    } else if (ip >= 2.5 && ip <= 2.99) {
-      pointIp = 405;
-    } else if (ip >= 3.0 && ip <= 3.49) {
-      pointIp = 450;
-    } else if (ip >= 3.5 && ip <= 3.6) {
-      pointIp = 490;
-    } else if (ip > 3.6 && ip <= 3.7) {
-      pointIp = 525;
-    } else if (ip > 3.7 && ip <= 3.8) {
-      pointIp = 555;
-    } else if (ip > 3.8 && ip <= 3.9) {
-      pointIp = 580;
-    } else if (ip > 3.9 && ip <= 4.0) {
-      pointIp = 600;
-    }
+//     const ip = data.ip;
+//     let pointIp;
+//     if (ip == 0 || ip < 1.0) {
+//       pointIp = 175;
+//     } else if (ip >= 1.0 && ip <= 1.49) {
+//       pointIp = 240;
+//     } else if (ip >= 1.5 && ip <= 1.99) {
+//       pointIp = 300;
+//     } else if (ip >= 2.0 && ip <= 2.49) {
+//       pointIp = 355;
+//     } else if (ip >= 2.5 && ip <= 2.99) {
+//       pointIp = 405;
+//     } else if (ip >= 3.0 && ip <= 3.49) {
+//       pointIp = 450;
+//     } else if (ip >= 3.5 && ip <= 3.6) {
+//       pointIp = 490;
+//     } else if (ip > 3.6 && ip <= 3.7) {
+//       pointIp = 525;
+//     } else if (ip > 3.7 && ip <= 3.8) {
+//       pointIp = 555;
+//     } else if (ip > 3.8 && ip <= 3.9) {
+//       pointIp = 580;
+//     } else if (ip > 3.9 && ip <= 4.0) {
+//       pointIp = 600;
+//     }
 
-    const created_at = unixTimestamp;
-    const convert = convertDate(created_at);
+//     const created_at = unixTimestamp;
+//     const convert = convertDate(created_at);
 
-    const keys = ["user_id", ...Object.keys(data), "created_at", "point"];
-    const values = [userLoginId, ...Object.values(data), convert, pointIp];
-    const placeholders = keys.map((key, index) => `$${index + 1}`);
+//     const keys = ["user_id", ...Object.keys(data), "created_at", "point"];
+//     const values = [userLoginId, ...Object.values(data), convert, pointIp];
+//     const placeholders = keys.map((key, index) => `$${index + 1}`);
 
-    // save data
-    const saveData = await DB.query(
-      `INSERT INTO tb_ip_mhs(${keys.join(", ")}) VALUES (${placeholders.join(
-        ", "
-      )}) returning *`,
-      values
-    );
+//     // save data
+//     const saveData = await DB.query(
+//       `INSERT INTO tb_ip_mhs(${keys.join(", ")}) VALUES (${placeholders.join(
+//         ", "
+//       )}) returning *`,
+//       values
+//     );
 
-    if (saveData.rows) {
-      res.status(200).json({
-        message: "Successfull created data.",
-        data: saveData.rows[0],
-      });
-    } else {
-      res.status(400);
-      throw new Error("Invalid data.");
-    }
-  } else {
-    res.status(404);
-    throw new Error("User not found.");
-  }
-});
+//     if (saveData.rows) {
+//       res.status(200).json({
+//         message: "Successfull created data.",
+//         data: saveData.rows[0],
+//       });
+//     } else {
+//       res.status(400);
+//       throw new Error("Invalid data.");
+//     }
+//   } else {
+//     res.status(404);
+//     throw new Error("User not found.");
+//   }
+// });
 
 exports.getDataIP = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
@@ -144,96 +144,96 @@ exports.getDataIP = asyncHandler(async (req, res) => {
   }
 });
 
-exports.detailDataIp = asyncHandler(async (req, res) => {
-  const { ipId } = req.params;
+// exports.detailDataIp = asyncHandler(async (req, res) => {
+//   const { ipId } = req.params;
 
-  const findData = await DB.query("SELECT * FROM tb_ip_mhs WHERE ip_id = $1", [
-    ipId,
-  ]);
+//   const findData = await DB.query("SELECT * FROM tb_ip_mhs WHERE ip_id = $1", [
+//     ipId,
+//   ]);
 
-  if (!findData.rows.length) {
-    res.status(404);
-    throw new Error("Data not found.");
-  }
+//   if (!findData.rows.length) {
+//     res.status(404);
+//     throw new Error("Data not found.");
+//   }
 
-  res.status(201).json({
-    data: findData.rows[0],
-  });
-});
+//   res.status(201).json({
+//     data: findData.rows[0],
+//   });
+// });
 
-exports.editDataIp = asyncHandler(async (req, res) => {
-  const { ipId } = req.params;
+// exports.editDataIp = asyncHandler(async (req, res) => {
+//   const { ipId } = req.params;
 
-  const findData = await DB.query("SELECT * FROM tb_ip_mhs WHERE ip_id = $1", [
-    ipId,
-  ]);
+//   const findData = await DB.query("SELECT * FROM tb_ip_mhs WHERE ip_id = $1", [
+//     ipId,
+//   ]);
 
-  if (findData.rows[0].status == 1) {
-    res.status(400);
-    throw new Error("Your data already approved.");
-  }
+//   if (findData.rows[0].status == 1) {
+//     res.status(400);
+//     throw new Error("Your data already approved.");
+//   }
 
-  if (findData.rows.length) {
-    const data = req.body;
+//   if (findData.rows.length) {
+//     const data = req.body;
 
-    const updated_at = unixTimestamp;
-    const convert = convertDate(updated_at);
-    const statusValue =
-      findData.rows[0].status === 2 ? 0 : findData.rows[0].status;
+//     const updated_at = unixTimestamp;
+//     const convert = convertDate(updated_at);
+//     const statusValue =
+//       findData.rows[0].status === 2 ? 0 : findData.rows[0].status;
 
-    const entries = Object.entries({
-      ...data,
-      status: statusValue,
-      updated_at: convert,
-    });
-    const setQuery = entries
-      .map(([key, _], index) => `${key} = $${index + 1}`)
-      .join(", ");
+//     const entries = Object.entries({
+//       ...data,
+//       status: statusValue,
+//       updated_at: convert,
+//     });
+//     const setQuery = entries
+//       .map(([key, _], index) => `${key} = $${index + 1}`)
+//       .join(", ");
 
-    const saveData = await DB.query(
-      `UPDATE tb_ip_mhs SET ${setQuery} WHERE ip_id = '${findData.rows[0].ip_id}' `,
-      entries.map(([_, value]) => value)
-    );
+//     const saveData = await DB.query(
+//       `UPDATE tb_ip_mhs SET ${setQuery} WHERE ip_id = '${findData.rows[0].ip_id}' `,
+//       entries.map(([_, value]) => value)
+//     );
 
-    res.status(201).json({
-      message: "Successfully update data.",
-      data: saveData.rows[0],
-    });
-  } else {
-    res.status(404);
-    throw new Error("Data not found.");
-  }
-});
+//     res.status(201).json({
+//       message: "Successfully update data.",
+//       data: saveData.rows[0],
+//     });
+//   } else {
+//     res.status(404);
+//     throw new Error("Data not found.");
+//   }
+// });
 
-exports.deleteDataIp = asyncHandler(async (req, res) => {
-  const { ipId } = req.params;
+// exports.deleteDataIp = asyncHandler(async (req, res) => {
+//   const { ipId } = req.params;
 
-  const findData = await DB.query("SELECT * FROM tb_ip_mhs WHERE ip_id = $1", [
-    ipId,
-  ]);
+//   const findData = await DB.query("SELECT * FROM tb_ip_mhs WHERE ip_id = $1", [
+//     ipId,
+//   ]);
 
-  if (!findData.rows.length) {
-    res.status(400);
-    throw new Error("Data not found.");
-  }
+//   if (!findData.rows.length) {
+//     res.status(400);
+//     throw new Error("Data not found.");
+//   }
 
-  const created_at = unixTimestamp;
-  const convert = convertDate(created_at);
+//   const created_at = unixTimestamp;
+//   const convert = convertDate(created_at);
 
-  const deleteData = await DB.query(
-    "UPDATE tb_ip_mhs SET is_deleted = $1, deleted_at = $2 WHERE ip_id = $3 returning *",
-    [true, convert, findData.rows[0].ip_id]
-  );
+//   const deleteData = await DB.query(
+//     "UPDATE tb_ip_mhs SET is_deleted = $1, deleted_at = $2 WHERE ip_id = $3 returning *",
+//     [true, convert, findData.rows[0].ip_id]
+//   );
 
-  if (deleteData.rows[0].status == 0 || deleteData.rows[0].status == 2) {
-    res.status(200).json({ message: "Data deleted successfully." });
-  } else {
-    await DB.query(
-      `UPDATE tb_data_pribadi SET point_pendidikan = point_pendidikan - ${deleteData.rows[0].point} WHERE user_id = '${deleteData.rows[0].user_id}'`
-    );
-    res.status(200).json({ message: "Data deleted successfully." });
-  }
-});
+//   if (deleteData.rows[0].status == 0 || deleteData.rows[0].status == 2) {
+//     res.status(200).json({ message: "Data deleted successfully." });
+//   } else {
+//     await DB.query(
+//       `UPDATE tb_data_pribadi SET point_pendidikan = point_pendidikan - ${deleteData.rows[0].point} WHERE user_id = '${deleteData.rows[0].user_id}'`
+//     );
+//     res.status(200).json({ message: "Data deleted successfully." });
+//   }
+// });
 
 exports.approveStatusIp = asyncHandler(async (req, res) => {
   const { ipId } = req.params;

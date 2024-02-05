@@ -170,6 +170,11 @@ exports.editDataBimbingan = asyncHandler(async (req, res) => {
   const { bimbinganId } = req.params;
   const data = req.body;
 
+  if (data.status) {
+    res.status(400);
+    throw new Error("Access Danied.");
+  }
+
   const findDataBimbingan = await DB.query(
     "SELECT * FROM tb_bimbingan_mhs WHERE bimbingan_id = $1",
     [bimbinganId]

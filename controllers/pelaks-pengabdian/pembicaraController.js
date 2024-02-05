@@ -249,6 +249,11 @@ exports.editDataPembicara = asyncHandler(async (req, res) => {
   const data = req.body;
   const file = req.file;
 
+  if (data.status) {
+    res.status(400);
+    throw new Error("Access Danied.");
+  }
+
   const findDataPembicara = await DB.query(
     "SELECT * FROM tb_pembicara WHERE pembicara_id = $1",
     [pembicaraId]

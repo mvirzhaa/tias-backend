@@ -183,6 +183,11 @@ exports.detailDataRiwayatPekerjaan = asyncHandler(async (req, res) => {
 exports.editDataRiwayatPekerjaan = asyncHandler(async (req, res) => {
   const { rwytId } = req.params;
 
+  if (req.body.status) {
+    res.status(400);
+    throw new Error("Access Danied.");
+  }
+
   const findData = await DB.query(
     "SELECT * FROM tb_riwayat_pekerjaan WHERE rwyt_pekerjaan_id = $1",
     [rwytId]

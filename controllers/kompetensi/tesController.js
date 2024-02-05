@@ -176,6 +176,11 @@ exports.editDataTes = asyncHandler(async (req, res) => {
     const data = req.body;
     const file = req.files;
 
+    if (data.status) {
+      res.status(400);
+      throw new Error("Access Danied.");
+    }
+
     if (Object.keys(file).length === 0) {
       const updated_at = unixTimestamp;
       const convert = convertDate(updated_at);

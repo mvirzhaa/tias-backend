@@ -6,15 +6,19 @@ exports.getKategoriHki = asyncHandler(async (req, res) => {
 
   const page = dataQuery.page || 1;
   const limit = dataQuery.limit || 10;
-  
   const offset = (page - 1) * limit;
 
-  const data = await DB.query("SELECT * FROM kategori_hki LIMIT $1 OFFSET $2", [limit, offset]);
+  const data = await DB.query("SELECT * FROM kategori_hki ORDER BY point ASC LIMIT $1 OFFSET $2", [limit, offset]);
+  
+  const totalDataQuery = await DB.query("SELECT COUNT(*) FROM kategori_hki");
+  const totalData = totalDataQuery.rows[0].count;
 
   res.status(201).json({
     data: data.rows,
+    totalData: totalData
   });
 });
+
 
 
 async function validateUnique(db, column, value, fieldName) {

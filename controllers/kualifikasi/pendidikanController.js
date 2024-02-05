@@ -219,6 +219,11 @@ exports.editDataPendidikan = asyncHandler(async (req, res) => {
     const file = req.files;
     const data = req.body;
 
+    if (data.status) {
+      res.status(400);
+      throw new Error("Access Danied.");
+    }
+
     if (data.tgl_sk_penyetaraan == "") {
       data.tgl_sk_penyetaraan = null;
     }

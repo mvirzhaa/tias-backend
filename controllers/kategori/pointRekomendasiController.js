@@ -9,10 +9,14 @@ exports.getKategoriRekomendasi = asyncHandler(async (req, res) => {
   
   const offset = (page - 1) * limit;
 
-  const data = await DB.query("SELECT * FROM point_rekomendasi LIMIT $1 OFFSET $2", [limit, offset]);
+  const data = await DB.query("SELECT * FROM point_rekomendasi ORDER BY point ASC LIMIT $1 OFFSET $2", [limit, offset]);
+
+  const totalDataQuery = await DB.query("SELECT COUNT(*) FROM kategori_rekomendasi");
+  const totalData = totalDataQuery.rows[0].count;
 
   res.status(201).json({
     data: data.rows,
+    totalData
   });
 });
 
