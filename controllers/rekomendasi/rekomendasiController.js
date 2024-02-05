@@ -9,13 +9,21 @@ exports.addRekomendasi = asyncHandler(async (req, res) => {
   if (!data.body || !data.mahasiswa_id) {
     res.status(400);
     throw new Error("Pleas fill in all the required fields.");
-  }
+  };
 
   const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
     userLoginId,
   ]);
 
   if (user.rows.length) {
+    const findRekomendasi = await DB.query("SELECT * FROM rekomendasi_mhs WHERE user_id = $1 AND mahasiswa_id = $2", [userLoginId, data.mahasiswa_id]);
+
+    if(findRekomendasi.rows.length){
+      res.status(400);
+      throw new Error("you have made the recommendation.");
+    }
+
+
     const findMhs = await DB.query(
       "SELECT * FROM tb_users WHERE user_id = $1 and role = $2",
       [data.mahasiswa_id, "Mahasiswa"]
