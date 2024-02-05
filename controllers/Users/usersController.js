@@ -5,48 +5,78 @@ const { changePasswordUsersValidation } = require("../../validation/formValidati
 const { GamifyPoints } = require("../../utils/gamify");
 
 exports.getUserMhs = asyncHandler(async (req, res) => {
-  const { page, limit, searchQuery } = req.query;
+  const { page, limit, searchQuery, nama_lengkap, npm, nidn, kode_mhs } = req.query;
 
-  const pageNumber = page || 1;
-  const itemsPerPage = limit || 10;
-  const offset = (pageNumber - 1) * itemsPerPage;
+  if(nama_lengkap || npm || nidn || kode_mhs){
+    const dataName = nama_lengkap || null;
+    const dataNpm = npm || null;
+    const dataNidn = nidn || null;
+    const dataKodeMhs = kode_mhs || null;
+    
+    const pageNumber = page || 1;
+    const itemsPerPage = limit || 10;
+    const offset = (pageNumber - 1) * itemsPerPage;
+    
+    const findData = await DB.query(
+      `SELECT * FROM filter_users($1, $2, $3, $4, $5, $6, $7) AS result`,
+      [dataName, dataNpm, null, dataKodeMhs, dataNidn, itemsPerPage, offset]
+    );
+    
+    const totalDataQuery = await DB.query(
+      `SELECT COUNT(*) FROM filter_users($1, $2, $3, $4, $5, $6, $7) AS count`,
+      [dataName, dataNpm, null, dataKodeMhs, dataNidn, null, null]
+    );
+    
+    const totalData = totalDataQuery.rows[0].count;
+    
+    res.status(201).json({
+      data: findData.rows,
+      totalData: totalData
+    });
+    
 
-  let searchFilter = "";
-  let searchParams = [];
-
-  if (searchQuery) {
-    searchFilter = `AND tb_data_pribadi.nama_lengkap ILIKE $${
-      searchParams.length + 1
-    }`;
-    searchParams = [...searchParams, `%${searchQuery}%`];
+  } else { 
+    const pageNumber = page || 1;
+    const itemsPerPage = limit || 10;
+    const offset = (pageNumber - 1) * itemsPerPage;
+  
+    let searchFilter = "";
+    let searchParams = [];
+  
+    if (searchQuery) {
+      searchFilter = `AND tb_data_pribadi.nama_lengkap ILIKE $${
+        searchParams.length + 1
+      }`;
+      searchParams = [...searchParams, `%${searchQuery}%`];
+    }
+  
+    const countQuery = `
+      SELECT COUNT(*) FROM tb_users
+      JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
+      WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true
+      ${searchFilter}
+    `;
+  
+    const totalCount = await DB.query(countQuery, searchParams);
+    const totalData = totalCount.rows[0].count;
+  
+    const dataQuery = `
+      SELECT tb_users.*, tb_data_pribadi.nama_lengkap, tb_data_pribadi.image, tb_data_pribadi.point_kompetensi, tb_data_pribadi.point_pengabdian, tb_data_pribadi.point_pendidikan, tb_data_pribadi.point_penelitian, tb_data_pribadi.point_penunjang, tb_data_pribadi.point_rekomendasi, tb_data_pribadi.total_point, tb_data_pribadi.no_hp, tb_data_pribadi.kode_mhs FROM tb_users
+      JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
+      WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true
+      ${searchFilter}
+      ORDER BY tb_users.created_at DESC
+      LIMIT $${searchParams.length + 1} OFFSET $${searchParams.length + 2}
+    `;
+  
+    const user = await DB.query(dataQuery, [...searchParams, itemsPerPage, offset]);
+  
+    res.status(200).json({
+      message: "Success get data.",
+      data: user.rows,
+      totalData: totalData
+    });
   }
-
-  const countQuery = `
-    SELECT COUNT(*) FROM tb_users
-    JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
-    WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true
-    ${searchFilter}
-  `;
-
-  const totalCount = await DB.query(countQuery, searchParams);
-  const totalData = totalCount.rows[0].count;
-
-  const dataQuery = `
-    SELECT tb_users.*, tb_data_pribadi.nama_lengkap, tb_data_pribadi.image, tb_data_pribadi.point_kompetensi, tb_data_pribadi.point_pengabdian, tb_data_pribadi.point_pendidikan, tb_data_pribadi.point_penelitian, tb_data_pribadi.point_penunjang, tb_data_pribadi.point_rekomendasi, tb_data_pribadi.total_point, tb_data_pribadi.no_hp, tb_data_pribadi.kode_mhs FROM tb_users
-    JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
-    WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true
-    ${searchFilter}
-    ORDER BY tb_users.created_at DESC
-    LIMIT $${searchParams.length + 1} OFFSET $${searchParams.length + 2}
-  `;
-
-  const user = await DB.query(dataQuery, [...searchParams, itemsPerPage, offset]);
-
-  res.status(200).json({
-    message: "Success get data.",
-    data: user.rows,
-    totalData: totalData
-  });
 });
 
 exports.getTotalUsers = asyncHandler(async (req, res) => {
@@ -200,17 +230,44 @@ exports.papanPeringkat = asyncHandler(async (req, res) => {
   const { page, limit, searchQuery, nama_lengkap, npm } = req.query;
 
   if(nama_lengkap || npm){
+
     const dataName = nama_lengkap || null;
     const dataNpm = npm || null;
-
+    // const dataNidn = nidn || null;
+    // const dataKodeMhs = kode_mhs || null;
+    
+    const pageNumber = page || 1;
+    const itemsPerPage = limit || 10;
+    const offset = (pageNumber - 1) * itemsPerPage;
+    
     const findData = await DB.query(
-      `SELECT * FROM filter_users($1, $2, $3, $4, $5)`,
-      [dataName, dataNpm, null, null, null]
+      `SELECT * FROM filter_users($1, $2, $3, $4, $5, $6, $7) AS result`,
+      [dataName, dataNpm, null, null, null, itemsPerPage, offset]
     );
-
+    
+    const totalDataQuery = await DB.query(
+      `SELECT COUNT(*) FROM filter_users($1, $2, $3, $4, $5, $6, $7) AS count`,
+      [dataName, dataNpm, null, null, null, null, null]
+    );
+    
+    const totalData = totalDataQuery.rows[0].count;
+    
     res.status(201).json({
       data: findData.rows,
+      totalData: totalData
     });
+
+    // const dataName = nama_lengkap || null;
+    // const dataNpm = npm || null;
+
+    // const findData = await DB.query(
+    //   `SELECT * FROM filter_users($1, $2, $3, $4, $5)`,
+    //   [dataName, dataNpm, null, null, null]
+    // );
+
+    // res.status(201).json({
+    //   data: findData.rows,
+    // });
 
   } else {
     const pageNumber = page || 1;
