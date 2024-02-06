@@ -94,60 +94,89 @@ exports.getTotalUsers = asyncHandler(async (req, res) => {
 });
 
 exports.getUserDosen = asyncHandler(async (req, res) => {
-  const { page, limit, searchQuery } = req.query;
+  const { page, limit, searchQuery, nama_lengkap, npm, nidn, kode_mhs } = req.query;
 
-  // Pengaturan parameter paginasi
-  const pageNumber = page || 1;
-  const itemsPerPage = limit || 10;
-  const offset = (pageNumber - 1) * itemsPerPage;
+  if(nama_lengkap || npm || nidn || kode_mhs){
+    const dataName = nama_lengkap || null;
+    const dataNpm = npm || null;
+    const dataNidn = nidn || null;
+    const dataKodeMhs = kode_mhs || null;
+    
+    const pageNumber = page || 1;
+    const itemsPerPage = limit || 10;
+    const offset = (pageNumber - 1) * itemsPerPage;
+    
+    const findData = await DB.query(
+      `SELECT * FROM filter_users($1, $2, $3, $4, $5, $6, $7) AS result`,
+      [dataName, dataNpm, null, dataKodeMhs, dataNidn, itemsPerPage, offset]
+    );
+    
+    const totalDataQuery = await DB.query(
+      `SELECT COUNT(*) FROM filter_users($1, $2, $3, $4, $5, $6, $7) AS count`,
+      [dataName, dataNpm, null, dataKodeMhs, dataNidn, null, null]
+    );
+    
+    const totalData = totalDataQuery.rows[0].count;
+    
+    res.status(201).json({
+      data: findData.rows,
+      totalData: totalData
+    });
+    
 
-  let searchFilter = "";
-  let searchParams = [];
+  } else { 
+    const pageNumber = page || 1;
+    const itemsPerPage = limit || 10;
+    const offset = (pageNumber - 1) * itemsPerPage;
 
-  if (searchQuery) {
-    searchFilter = `AND tb_data_pribadi.nama_lengkap ILIKE $${
-      searchParams.length + 1
-    }`;
-    searchParams = [...searchParams, `%${searchQuery}%`];
-  }
+    let searchFilter = "";
+    let searchParams = [];
 
-    const countQuery = `
-    SELECT COUNT(*) FROM tb_users
-    JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
-    WHERE tb_users.role = 'Dosen' AND tb_users.isverified = true
-    ${searchFilter}
-  `;
+    if (searchQuery) {
+      searchFilter = `AND tb_data_pribadi.nama_lengkap ILIKE $${
+        searchParams.length + 1
+      }`;
+      searchParams = [...searchParams, `%${searchQuery}%`];
+    }
 
-  const totalCount = await DB.query(countQuery, searchParams);
-  const totalData = totalCount.rows[0].count;
+      const countQuery = `
+      SELECT COUNT(*) FROM tb_users
+      JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
+      WHERE tb_users.role = 'Dosen' AND tb_users.isverified = true
+      ${searchFilter}
+    `;
 
-  const query = `
-    SELECT tb_users.*, tb_data_pribadi.no_hp, tb_data_pribadi.nama_lengkap, tb_jabatan_dosen.jabatan_id, tb_data_pribadi.kode_mhs, tb_jabatan_dosen.jabatan_fungsi
-    FROM tb_users
-    JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id
-    LEFT JOIN (
-      SELECT user_id, jabatan_id, jabatan_fungsi
-      FROM tb_jabatan_dosen
-      WHERE (user_id, updated_at) IN (
-        SELECT user_id, MAX(updated_at) AS max_updated_at
+    const totalCount = await DB.query(countQuery, searchParams);
+    const totalData = totalCount.rows[0].count;
+
+    const query = `
+      SELECT tb_users.*, tb_data_pribadi.no_hp, tb_data_pribadi.nama_lengkap, tb_jabatan_dosen.jabatan_id, tb_data_pribadi.kode_mhs, tb_jabatan_dosen.jabatan_fungsi, tb_data_pribadi.nip
+      FROM tb_users
+      JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id
+      LEFT JOIN (
+        SELECT user_id, jabatan_id, jabatan_fungsi
         FROM tb_jabatan_dosen
-        GROUP BY user_id
-      )
-    ) AS tb_jabatan_dosen ON tb_users.user_id = tb_jabatan_dosen.user_id
-    WHERE tb_users.role = 'Dosen'
-    ${searchFilter}
-    ORDER BY tb_users.created_at DESC
-    LIMIT $${searchParams.length + 1} OFFSET $${searchParams.length + 2}
-  `;
+        WHERE (user_id, updated_at) IN (
+          SELECT user_id, MAX(updated_at) AS max_updated_at
+          FROM tb_jabatan_dosen
+          GROUP BY user_id
+        )
+      ) AS tb_jabatan_dosen ON tb_users.user_id = tb_jabatan_dosen.user_id
+      WHERE tb_users.role = 'Dosen'
+      ${searchFilter}
+      ORDER BY tb_users.created_at DESC
+      LIMIT $${searchParams.length + 1} OFFSET $${searchParams.length + 2}
+    `;
 
-  // Menjalankan query dengan parameter
-  const user = await DB.query(query, [...searchParams, itemsPerPage, offset]);
+    // Menjalankan query dengan parameter
+    const user = await DB.query(query, [...searchParams, itemsPerPage, offset]);
 
-  res.status(200).json({
-    message: "Success get data.",
-    data: user.rows,
-    totalData: totalData
-  });
+    res.status(200).json({
+      message: "Success get data.",
+      data: user.rows,
+      totalData: totalData
+    });
+  }
 });
 
 exports.detailUser = asyncHandler(async (req, res) => {
