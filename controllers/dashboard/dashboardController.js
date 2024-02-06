@@ -34,12 +34,27 @@ exports.dashboardData = asyncHandler(async (req, res) => {
       JOIN tb_users ON tb_data_pribadi.user_id = tb_users.user_id
       WHERE tb_data_pribadi.user_id = $1`, [userLoginId]);
 
-    const sks = 21;
-    const pertemuanPerkuliahan = 22;
-    const belum_kolo = 5;
-    const besum_sidang = 8;
-    const belum_revisi = 2;
-    const kp_selesai = 8;
+    const sks = 0;
+    const pertemuanPerkuliahan = 0;
+    const belum_kolo = 0;
+    const besum_sidang = 0;
+    const belum_revisi = 0;
+    const kp_selesai = 0;
+
+    const queryIp = await DB.query("SELECT * FROM tb_ip_mhs WHERE user_id = $1", [userLoginId]);
+
+    const dataIp = queryIp.rows;
+
+    const dataChart = {
+      label: [],
+      data: []
+    };
+    
+    dataIp.forEach(entry => {
+      const label = `${entry.semester}-${entry.tahun}`;
+      dataChart.label.push(label);
+      dataChart.data.push(entry.ip);
+    });
 
     let data;
 
@@ -54,6 +69,7 @@ exports.dashboardData = asyncHandler(async (req, res) => {
         publikasi,
         hki,
         userData: responseData.rows[0],
+        dataChart
       };
     } else {
       data = {

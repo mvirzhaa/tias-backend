@@ -359,7 +359,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
     const convert = convertDate(unixTimestamp);
     const text = `Your account has been logged in to the device/browser ${thisUserAgent} at ${convert.toUTCString()}`;
     // Send Notice Email
-    const subject = "Notice For Your Account Smart Kampus";
+    const subject = "Notice For Your Account TIAS";
     const send_to = user.rows[0].email;
     const send_from = process.env.EMAIL_USER;
     const template = "noticeAccount";
