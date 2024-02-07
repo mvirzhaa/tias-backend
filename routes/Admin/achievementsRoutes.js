@@ -1,10 +1,10 @@
 const express = require("express");
-const { protected, adminOnly } = require("../../middleware/authMiddleware");
+const { protected, adminOnly, adminMhsOnly } = require("../../middleware/authMiddleware");
 const { getAchivements, getAchivementsByUserLoginId, getAchivementsByUserId, addAchievement, deleteAchievement, editAchievement, getAchievementDetail, updateUserAchievementStatus } = require("../../controllers/Admin/achievementsController");
 const { gamifyUpload } = require("../../middleware/gamifyUpload");
 const router = express.Router();
 
-router.get("/", protected, adminOnly, getAchivements); 
+router.get("/", protected, getAchivements); 
 router.get("/detail/:id", protected, adminOnly, getAchievementDetail); 
 router.post("/", protected, adminOnly, gamifyUpload, addAchievement); 
 router.delete("/:id", protected, adminOnly, deleteAchievement); 

@@ -4,10 +4,24 @@ const path = require("path");
 // Set Up Storage for uploaded files
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "public/gamify");
+    if (file.fieldname === "image") {
+      cb(null, "public/gamify");
+    } else if (file.fieldname === "lencana") {
+      cb(null, "public/gamify/lencana");
+    }
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
+    if (file.fieldname === "image") {
+      cb(
+        null,
+        file.fieldname + "-" + Date.now() + path.extname(file.originalname)
+      );
+    } else if (file.fieldname === "lencana") {
+      cb(
+        null,
+        file.fieldname + "-" + Date.now() + path.extname(file.originalname)
+      );
+    }
   },
 });
 
@@ -17,17 +31,21 @@ const fileUpload = multer({
   fileFilter: (req, file, cb) => {
     // Only accept image and PDF files
     if (
-      file.mimetype.startsWith("image/") 
+      file.mimetype.startsWith("image/") ||
+      file.mimetype === "application/pdf"
     ) {
       cb(null, true);
     } else {
-      cb(new Error("Only image and file are allowed."));
+      cb(new Error("Only image and PDF files are allowed."));
     }
   },
   limits: {
     fileSize: 10000000, // 10 MB file size limit
   },
-}).single("image");
+}).fields([
+  { name: "image", maxCount: 1 },
+  { name: "lencana", maxCount: 1 },
+]);
 
 // Middleware function to use multer for file uploads
 const gamifyUpload = (req, res, next) => {

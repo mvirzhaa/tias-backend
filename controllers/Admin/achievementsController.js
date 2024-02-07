@@ -4,7 +4,7 @@ const path = require("path");
 const fs = require("fs-extra");
 
 exports.getAchivements = asyncHandler(async (req, res) => {
-  const getData = await DB.query('SELECT * FROM achievements ORDER BY start_point ASC');
+  const getData = await DB.query('SELECT * FROM achievements ORDER BY start_point DESC');
 
   res.status(200).json({
     message: "Successfully get Data",
@@ -65,19 +65,31 @@ exports.editAchievement = asyncHandler(async (req, res) => {
 
   const oldData = getOldData.rows[0];
 
-  const file = req.file;
+  const file = req.files;
 
-  if (file) {
-    if (oldData.image) {
-      const filePath = path.join('public/gamify', oldData.image);
-      fs.unlink(filePath, (err) => {
-        if (err) {
-          console.log(err);
-        }
-      });
-    }
 
-    await DB.query('UPDATE achievements SET image = $1 WHERE id = $2', [file.filename, achievementId]);
+  if (Object.keys(file).length > 0 && file.lencana) {
+    // Handling lencana upload
+    const oldLencanaPath = path.join('public/gamify/lencana', oldData.lencana);
+    fs.unlink(oldLencanaPath, (err) => {
+      if (err) {
+        console.log(err);
+      }
+    });
+
+    await DB.query('UPDATE achievements SET lencana = $1 WHERE id = $2', [file.lencana[0].filename, achievementId]);
+  }
+
+  if (Object.keys(file).length > 0 && file.image) {
+    // Handling lencana upload
+    const oldImagePath = path.join('public/gamify', oldData.image);
+    fs.unlink(oldImagePath, (err) => {
+      if (err) {
+        console.log(err);
+      }
+    });
+
+    await DB.query('UPDATE achievements SET image = $1 WHERE id = $2', [file.lencana[0].image, achievementId]);
   }
 
   const mergedData = {
@@ -86,10 +98,12 @@ exports.editAchievement = asyncHandler(async (req, res) => {
     points: newData.points || oldData.points,
     start_point: newData.start_point || oldData.start_point,
     kode: newData.kode || oldData.kode,
+    sub_judul: newData.sub_judul || oldData.sub_judul,
+    deskripsi: newData.deskripsi || oldData.deskripsi,
   };
 
-  const updateData = await DB.query('UPDATE achievements SET name = $1, gamify = $2, points = $3, start_point = $4, kode = $5 WHERE id = $6 RETURNING *',
-    [mergedData.name, mergedData.gamify, mergedData.points, mergedData.start_point, mergedData.kode, achievementId]);
+  const updateData = await DB.query('UPDATE achievements SET name = $1, gamify = $2, points = $3, start_point = $4, kode = $5, sub_judul = $6, deskripsi = $7 WHERE id = $8 RETURNING *',
+    [mergedData.name, mergedData.gamify, mergedData.points, mergedData.start_point, mergedData.kode, mergedData.sub_judul, mergedData.deskripsi, achievementId]);
 
   if (updateData.rows.length) {
     res.status(200).json({
@@ -113,11 +127,20 @@ exports.deleteAchievement = asyncHandler(async (req, res) => {
     throw new Error("data Not Found.");
   }
 
-  const fileToDelete = findData.rows[0].image;
+  const fileToDeleteImage = findData.rows[0].image;
+  const fileToDeleteLencana = findData.rows[0].lencana;
 
-  const filePath = path.join('public/gamify', fileToDelete);
+  // Hapus file image jika ada
+  if (fileToDeleteImage) {
+    const imagePath = path.join('public/gamify', fileToDeleteImage);
+    fs.unlinkSync(imagePath);
+  }
 
-  fs.unlinkSync(filePath)
+  // Hapus file lencana jika ada
+  if (fileToDeleteLencana) {
+    const lencanaPath = path.join('public/gamify/lencana', fileToDeleteLencana);
+    fs.unlinkSync(lencanaPath);
+  }
 
   const deleteData = await DB.query('DELETE FROM achievements WHERE id = $1 RETURNING *', [achievementId]);
 
@@ -154,28 +177,35 @@ exports.getAchivementsByUserLoginId = asyncHandler(async (req, res) => {
   try {
     const userLoginId = req.user.user_id;
 
-    const totalPointsResult = await DB.query(
-      "SELECT point_pendidikan + point_pengabdian + point_penelitian + point_kompetensi + point_penunjang + point_rekomendasi AS total_points FROM tb_data_pribadi WHERE user_id = $1",
-      [userLoginId]
-    );
+    // const totalPointsResult = await DB.query(
+    //   "SELECT point_pendidikan + point_pengabdian + point_penelitian + point_kompetensi + point_penunjang + point_rekomendasi AS total_points FROM tb_data_pribadi WHERE user_id = $1",
+    //   [userLoginId]
+    // );
 
-    const totalPoints = totalPointsResult.rows[0].total_points;
+    // const totalPoints = totalPointsResult.rows[0].total_points;
 
     const findData = await DB.query(
-      'SELECT tb_users.npm, tb_users.user_id, tb_data_pribadi.nama_lengkap, $2 AS total_points, achievements.*, user_achievements.status FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id JOIN user_achievements ON tb_users.user_id = user_achievements.user_id JOIN achievements ON user_achievements.achievement_id = achievements.id WHERE tb_users.user_id = $1',
-      [userLoginId, totalPoints]
+      'SELECT tb_users.npm, tb_users.user_id, tb_data_pribadi.*, achievements.*, user_achievements.status FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id JOIN user_achievements ON tb_users.user_id = user_achievements.user_id JOIN achievements ON user_achievements.achievement_id = achievements.id WHERE tb_users.user_id = $1 ORDER BY achievements.start_point DESC',
+      [userLoginId]
     );
 
     const userData = {
       user_id: findData.rows[0].user_id,
       npm: findData.rows[0].npm,
       nama_lengkap: findData.rows[0].nama_lengkap,
-      total_points: findData.rows[0].total_points,
+      total_points: findData.rows[0].total_point,
       achievements: findData.rows.map(row => ({
         id: row.id, 
         name: row.name,
+        gamify: row.gamify,
+        start_point: row.start_point,
+        image: row.image,
+        kode: row.kode,
         status: row.status,
         points: row.points,
+        deskripsi: row.deskripsi,
+        lencana: row.lencana,
+        sub_judul: row.sub_judul
       })),
     };
 
