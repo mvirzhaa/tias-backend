@@ -173,8 +173,8 @@ exports.getActiveTantangan = asyncHandler(async (req, res) => {
       message: "Successfull get data.",
       data: data.rows.map((iterate)  => ({
         ...iterate,
-        pamflet_url: `${process.env.API_URL}/public/berita/pamflet/${iterate.pamflet}`,
-        dokumen_url: `${process.env.API_URL}/public/berita/dokumen/${iterate.dokumen}`
+        pamflet_url: `${process.env.API_URL}/berita/pamflet/${iterate.pamflet}`,
+        dokumen_url: `${process.env.API_URL}/berita/dokumen/${iterate.dokumen}`
       })),
     });
  
@@ -208,8 +208,8 @@ exports.getActiveEvent = asyncHandler(async (req, res) => {
       message: "Successfull get data.",
       data: data.rows.map((iterate)  => ({
         ...iterate,
-        pamflet_url: `${process.env.API_URL}/public/berita/pamflet/${iterate.pamflet}`,
-        dokumen_url: `${process.env.API_URL}/public/berita/dokumen/${iterate.dokumen}`
+        pamflet_url: `${process.env.API_URL}/berita/pamflet/${iterate.pamflet}`,
+        dokumen_url: `${process.env.API_URL}/berita/dokumen/${iterate.dokumen}`
       })),
     });
   
