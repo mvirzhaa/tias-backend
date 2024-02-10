@@ -17,7 +17,7 @@ exports.getMatkulHelp = asyncHandler(async (req, res) => {
 })
 
 exports.getDataPembelejaran = asyncHandler(async (req, res) => {
-  const API_URL = `https://absen.ft.uika-bogor.ac.id/api/pembelajaran`
+  const API_URL = `${process.env.API_LOCAL_ABSEN}/api/pembelajaran`
   try {
     const response = await axios.get(API_URL, {
       params: {
