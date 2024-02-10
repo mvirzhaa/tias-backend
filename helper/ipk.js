@@ -225,8 +225,16 @@ async function getIp(user_id, npm) {
         [user_id, 1, false]
       );
   
-      const totalPoints = sumPoint.rows[0].total_points;
-  
+
+      let totalPoints;
+
+      if(totalIpMhs > 8){
+         const calculate = (totalIpMhs - 8) * 400;
+         totalPoints = sumPoint.rows[0].total_points - calculate;
+      } else {
+        totalPoints = sumPoint.rows[0].total_points;
+      }
+
       await DB.query(
         "UPDATE tb_data_pribadi SET point_pendidikan = $1, ipk = $2 WHERE user_id = $3",
         [totalPoints, data.ipk, user_id]
