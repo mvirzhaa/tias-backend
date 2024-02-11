@@ -1,5 +1,4 @@
 const express = require("express");
-const { getSkpiPrestasi } = require("../../utils/skpi");
 const { getDataPrestasi } = require("../../controllers/skpi/prestasi");
 
 
