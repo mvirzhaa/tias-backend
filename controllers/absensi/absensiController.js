@@ -96,8 +96,9 @@ exports.showQr = asyncHandler(async (req, res) => {
         token
       }
     })
+    const qrImageUrl = response.data;
 
-    res.status(201).json(response.data)
+    res.status(201).send(`<img src="${qrImageUrl}`);
   } catch (error) {
     console.error("Error retrieving Absensi:", error);
     res.status(500).send("Internal Server Error");

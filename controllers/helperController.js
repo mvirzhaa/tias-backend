@@ -4,7 +4,7 @@ const { getIp, deleteIp, queryIpByNpm } = require("../helper/ipk");
 const { getKategoriIp } = require("../helper/kategori_ip");
 const {getMatkul, getClass} = require('../utils/matkul');
 const { gamifyAchievements } = require("../helper/gamifyAchievements");
-const { getPrestasi } = require("../utils/skpi");
+const { getPrestasi, getOrganisasi, getSertifikasi } = require("../utils/skpi");
 
 exports.getInformaticsStudent = asyncHandler(async (req, res) => {
   try {
@@ -123,6 +123,7 @@ exports.achievementsKategori = asyncHandler(async (req, res) => {
   }
 });
 
+// SKPI
 exports.getPrestasi = asyncHandler(async (req, res) => {
   try {
     const results = await getPrestasi();
@@ -132,7 +133,36 @@ exports.getPrestasi = asyncHandler(async (req, res) => {
       data: results,
     });
   } catch (error) {
-    console.error("Error retrieving students by department:", error);
+    console.error("Error retrieving skpi prestasi:", error);
     res.status(500).send("Internal Server Error");
   }
-})
+});
+
+exports.getOrganisasi = asyncHandler(async (req, res) => {
+  try {
+    const results = await getOrganisasi();
+
+
+    res.status(201).json({
+      data: results,
+    });
+  } catch (error) {
+    console.error("Error retrieving skpi organisasi:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+exports.getSertifikasi = asyncHandler(async (req, res) => {
+  try {
+    const results = await getSertifikasi();
+
+
+    res.status(201).json({
+      data: results,
+    });
+  } catch (error) {
+    console.error("Error retrieving skpi sertfikasi:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
