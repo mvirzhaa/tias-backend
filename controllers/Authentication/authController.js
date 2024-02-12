@@ -403,14 +403,16 @@ exports.loginUser = asyncHandler(async (req, res) => {
 
     const getPersonalData = await DB.query("SELECT nip, nama_lengkap, image, total_point FROM tb_data_pribadi WHERE user_id = $1", [user_id])
 
-    // Send HTTP-only Cookie
+    const oneMonth = 30 * 24 * 60 * 60 * 1000; 
+
     res.cookie("token", token, {
       path: "/",
       httpOnly: true,
-      expires: new Date(Date.now() + 1000 * 86400), // 1 day
+      expires: new Date(Date.now() + oneMonth), 
       sameSite: "none",
       secure: true,
     });
+
 
     res.status(200).json({
       message: "Login Success.",

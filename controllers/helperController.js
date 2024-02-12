@@ -4,6 +4,7 @@ const { getIp, deleteIp, queryIpByNpm } = require("../helper/ipk");
 const { getKategoriIp } = require("../helper/kategori_ip");
 const {getMatkul, getClass} = require('../utils/matkul');
 const { gamifyAchievements } = require("../helper/gamifyAchievements");
+const { getPrestasi } = require("../utils/skpi");
 
 exports.getInformaticsStudent = asyncHandler(async (req, res) => {
   try {
@@ -111,6 +112,20 @@ exports.queryIp = asyncHandler(async (req, res) => {
 exports.achievementsKategori = asyncHandler(async (req, res) => {
   try {
     const results = await gamifyAchievements();
+
+
+    res.status(201).json({
+      data: results,
+    });
+  } catch (error) {
+    console.error("Error retrieving students by department:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+exports.getPrestasi = asyncHandler(async (req, res) => {
+  try {
+    const results = await getPrestasi();
 
 
     res.status(201).json({

@@ -1,10 +1,25 @@
 const express = require("express");
 const { protected } = require("../../middleware/authMiddleware");
-const { getDataPembelejaran } = require("../../controllers/absensi/absensiController");
+const { getPembelajaran, storePembelajaran, cekPertemuan, listPertemuan, listAbsensi, deletePertemuan } = require("../../controllers/absensi/pembelajaranController");
+const { getAbsensi, storeAbsensi, deleteAbsensi, scanQr, showQr, updateAbsensi, dosenForMk } = require("../../controllers/absensi/absensiController");
 
 
 const router = express.Router();
 
-router.get("/get-pembelajaran", getDataPembelejaran);
+router.get("/get-pembelajaran", getPembelajaran);
+router.post("/store", storePembelajaran);
+router.get("/cek-pertemuan", cekPertemuan);
+router.get("/list-pertemuan", listPertemuan);
+router.get("/list-absensi", listAbsensi);
+router.delete("/delete-pertemuan/:id", deletePertemuan);
+
+router.get("/get-absensi", getAbsensi);
+router.post("/scan-qr", scanQr);
+router.get("/show-qr", showQr);
+router.post("/store-absensi", storeAbsensi);
+router.delete("/delete-absensi/:id", deleteAbsensi);
+router.post("/update-absensi/:id", updateAbsensi);
+
+router.get("/dosen-mk", dosenForMk);
 
 module.exports = router;

@@ -18,7 +18,15 @@ const dateToUnix = (date) => {
 };
 
 // expires at
-const expires_at = Math.floor((Date.now() + 3600000) / 1000);
+const currentTimeMillis = Date.now();
+
+const oneMonthMillis = 30 * 24 * 60 * 60 * 1000; 
+const expiresMillis = currentTimeMillis + oneMonthMillis;
+
+const expiresInSeconds = Math.floor(expiresMillis / 1000);
+
+const expires_at = expiresInSeconds;
+
 
 // Convert unixtimetamp
 const convertDate = (unixTimestamp) => {
