@@ -324,15 +324,19 @@ exports.papanPeringkat = asyncHandler(async (req, res) => {
     const totalData = totalCount.rows[0].count;
   
     const dataQuery = `
-      SELECT tb_users.*, tb_data_pribadi.nama_lengkap, tb_data_pribadi.image, tb_data_pribadi.point_kompetensi, tb_data_pribadi.point_pengabdian, tb_data_pribadi.point_pendidikan, tb_data_pribadi.point_penelitian, tb_data_pribadi.point_penunjang, tb_data_pribadi.point_rekomendasi, tb_data_pribadi.total_point, tb_data_pribadi.no_hp, tb_data_pribadi.kode_mhs, tb_data_pribadi.rank FROM tb_users
-      JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
-      WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true AND tb_data_pribadi.kode_mhs = 'ACTIVE'
-      ${searchFilter}
-      ORDER BY tb_data_pribadi.total_point DESC
-      LIMIT $${searchParams.length + 1} OFFSET $${searchParams.length + 2}
-    `;
+    SELECT tb_users.*, tb_data_pribadi.*, 
+      (SELECT COUNT(*) FROM tb_sertifikasi WHERE tb_sertifikasi.user_id = tb_users.user_id AND tb_sertifikasi.is_deleted = false AND tb_sertifikasi.status = 1) AS total_sertifikasi 
+    FROM tb_users
+    JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
+    WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true AND tb_data_pribadi.kode_mhs = 'ACTIVE'
+    ${searchFilter}
+    ORDER BY tb_data_pribadi.total_point DESC
+    LIMIT $1 OFFSET $2
+  `;
+  
   
     const user = await DB.query(dataQuery, [...searchParams, itemsPerPage, offset]);
+
   
     res.status(200).json({
       message: "Success get data.",
