@@ -108,7 +108,7 @@ exports.getRekomendasiByUserLogin = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
 
   const query = await DB.query(
-    `SELECT rekomendasi_mhs.id, rekomendasi_mhs.body as text_rekomendasi, rekomendasi_mhs.created_at FROM rekomendasi_mhs WHERE mahasiswa_id = '${userLoginId}'`
+    `SELECT rekomendasi_mhs.*, tb_users.nidn, tb_data_pribadi.nama_lengkap FROM rekomendasi_mhs JOIN tb_data_pribadi ON rekomendasi_mhs.user_id = tb_data_pribadi.user_id JOIN tb_users ON tb_users.user_id = rekomendasi_mhs.user_id WHERE mahasiswa_id = '${userLoginId}'`
   );
 
   res.status(201).json({

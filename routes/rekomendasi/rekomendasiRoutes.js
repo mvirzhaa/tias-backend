@@ -18,7 +18,7 @@ router.patch("/edit/:id", protected, dosenOnly, editRekomendasi);
 // ============= END REKOMENDASI ==================
 
 // ============= REKOMENDASI Mahasiswa ======================
-router.get("/get", protected, mhsOnly, getRekomendasiByUserLogin);
+router.get("/get", protected,  getRekomendasiByUserLogin);
 // ============= END REKOMENDASI ==================
 
 module.exports = router;
