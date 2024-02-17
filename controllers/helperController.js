@@ -5,6 +5,7 @@ const { getKategoriIp } = require("../helper/kategori_ip");
 const {getMatkul, getClass} = require('../utils/matkul');
 const { gamifyAchievements } = require("../helper/gamifyAchievements");
 const { getPrestasi, getOrganisasi, getSertifikasi } = require("../utils/skpi");
+const { default: axios } = require("axios");
 
 exports.getInformaticsStudent = asyncHandler(async (req, res) => {
   try {
@@ -165,4 +166,27 @@ exports.getSertifikasi = asyncHandler(async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
+
+exports.getSkpiPerkuliahan = asyncHandler(async (req, res) => {
+  const npm = req.user.npm;
+  const dataQuery = req.query;
+
+  const tahun = dataQuery.tahun || '2023/2024';
+  const semester = dataQuery.semester || 'GENAP';
+
+  const API_URL = `${process.env.API_URL_SKPI}/index.php?menu=jadwal-kuliah&academic_year=${tahun}&semester=${semester}&code=${npm}`
+  try {
+
+    const response = await axios.get(API_URL);
+
+    res.status(201).json({
+      data: response.data.Data,
+      totalData: response.data.Total,
+      sks: response.data.SKS
+    })
+  } catch (error) {
+    console.error("Error retrieving Perkuliahan:", error);
+    res.status(500).send("Internal Server Error");
+  }
+})
 
