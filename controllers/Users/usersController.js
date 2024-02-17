@@ -36,8 +36,8 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
     
 
   } else { 
-    const pageNumber = page || 1;
-    const itemsPerPage = limit || 10;
+    const pageNumber = page;
+    const itemsPerPage = limit;
     const offset = (pageNumber - 1) * itemsPerPage;
   
     let searchFilter = "";
