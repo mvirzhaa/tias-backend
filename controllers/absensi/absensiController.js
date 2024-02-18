@@ -111,7 +111,6 @@ exports.updateAbsensi = asyncHandler(async (req, res) => {
 
   const API_URL = `${process.env.API_LOCAL_ABSEN}/absensi/update/${id}`;
 
-console.log(status_absen);
   try {
     const formData = new FormData();
     formData.append('npm', npm);
@@ -146,6 +145,34 @@ exports.dosenForMk = asyncHandler(async (req, res) => {
     })
 
     res.status(201).json(response.data)
+  } catch (error) {
+    console.error("Error retrieving Absensi:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+exports.absensiForMhs = asyncHandler(async (req, res) => {
+  const npm = req.user.npm;
+  const API_URL = `${process.env.API_LOCAL_ABSEN}/absensi`;
+
+  const {id_matkul, kelas} = req.query;
+
+  try {
+    const response = await axios.get(API_URL, {
+      params: {
+        filter: ['npm'],
+        filterValue: [npm]
+      }
+    });
+
+    const filteredData = response.data.data.filter(item => {
+      return item.pembelajaran && item.pembelajaran.id_matkul === id_matkul && item.pembelajaran.kelas === kelas;
+    });
+
+    res.status(201).json({
+      data: filteredData,
+      totalData: filteredData.length
+    })
   } catch (error) {
     console.error("Error retrieving Absensi:", error);
     res.status(500).send("Internal Server Error");

@@ -1,7 +1,7 @@
 const express = require("express");
 const { protected } = require("../../middleware/authMiddleware");
 const { getPembelajaran, storePembelajaran, cekPertemuan, listPertemuan, listAbsensi, deletePertemuan } = require("../../controllers/absensi/pembelajaranController");
-const { getAbsensi, storeAbsensi, deleteAbsensi, scanQr, showQr, updateAbsensi, dosenForMk } = require("../../controllers/absensi/absensiController");
+const { getAbsensi, storeAbsensi, deleteAbsensi, scanQr, showQr, updateAbsensi, dosenForMk, absensiForMhs } = require("../../controllers/absensi/absensiController");
 
 
 const router = express.Router();
@@ -14,6 +14,7 @@ router.get("/list-absensi", listAbsensi);
 router.delete("/delete-pertemuan/:id", deletePertemuan);
 
 router.get("/get-absensi", getAbsensi);
+router.get("/get-absensi-mhs", protected, absensiForMhs);
 router.post("/scan-qr", scanQr);
 router.get("/show-qr", showQr);
 router.post("/store-absensi", storeAbsensi);
