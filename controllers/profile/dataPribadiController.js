@@ -138,13 +138,14 @@ exports.getDataPribadi = asyncHandler(async (req, res) => {
     } else {
       lencana = null
     }
-    
+
+    const data = dataPribadi.rows.map((iterate) => ({
+      ...iterate,
+      image: `${process.env.API_URL}/foto-profile/${iterate.image}`,
+      lencana: lencana
+    }))
     res.status(201).json({
-      data: dataPribadi.rows.map((iterate) => ({
-        ...iterate,
-        image: `${process.env.API_URL}/foto-profile/${iterate.image}`,
-        lencana: lencana
-      })),
+      data: data[0],
       p_pendidikan: dataPribadi.rows[0]['point_pendidikan'].toString(),
       total_point: dataPribadi.rows[0]['total_point'].toString(),
     });
