@@ -130,8 +130,14 @@ exports.getDataPribadi = asyncHandler(async (req, res) => {
 
     const dataPribadi = await DB.query(query);
 
+    const queryLencana = await DB.query(`SELECT * FROM achievements WHERE gamify = $1`, [dataPribadi.rows[0].rank]);
+
     res.status(201).json({
-      data: dataPribadi.rows[0],
+      data: dataPribadi.rows.map((iterate) => ({
+        ...iterate,
+        image: `${process.env.API_URL}/foto-profile/${iterate.image}`,
+        lencana: `${process.env.API_URL}/gamify/lencana/${queryLencana.rows[0].lencana}`
+      })),
       p_pendidikan: dataPribadi.rows[0]['point_pendidikan'].toString(),
       total_point: dataPribadi.rows[0]['total_point'].toString(),
     });

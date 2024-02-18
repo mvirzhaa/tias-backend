@@ -197,7 +197,7 @@ exports.getDataPenelitian = asyncHandler(async (req, res) => {
     const offset = (page - 1) * limit;
 
     const dataPenelitian = await DB.query(
-      "SELECT * FROM tb_penelitian WHERE user_id = $1  and is_deleted = $2 LIMIT $3 OFFSET $4",
+      "SELECT tb_penelitian.*, kategori_publikasi.nama_kategori, kategori_publikasi.point, kategori_publikasi.tingkatan FROM tb_penelitian JOIN kategori_publikasi ON tb_penelitian.kategori_id = kategori_publikasi.id WHERE user_id = $1  and is_deleted = $2 LIMIT $3 OFFSET $4",
       [userLoginId, false, limit, offset]
     );
 

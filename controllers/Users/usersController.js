@@ -57,7 +57,7 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
     const totalData = totalCount.rows[0].count;
   
     const dataQuery = `
-    SELECT tb_users.*, tb_data_pribadi.nama_lengkap, tb_data_pribadi.image, tb_data_pribadi.point_kompetensi, tb_data_pribadi.point_pengabdian, tb_data_pribadi.point_pendidikan, tb_data_pribadi.point_penelitian, tb_data_pribadi.point_penunjang, tb_data_pribadi.point_rekomendasi, tb_data_pribadi.total_point, tb_data_pribadi.no_hp, tb_data_pribadi.kode_mhs FROM tb_users
+    SELECT tb_users.*, tb_data_pribadi.*, (SELECT COUNT(*) FROM tb_sertifikasi WHERE tb_sertifikasi.user_id = tb_users.user_id AND tb_sertifikasi.is_deleted = false AND tb_sertifikasi.status = 1) AS total_sertifikasi  FROM tb_users
     JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
     WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true
     ${searchFilter}
