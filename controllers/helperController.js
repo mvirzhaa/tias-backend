@@ -179,11 +179,27 @@ exports.getSkpiPerkuliahan = asyncHandler(async (req, res) => {
 
     const response = await axios.get(API_URL);
 
-    res.status(201).json({
-      data: response.data.Data,
-      totalData: response.data.Total,
-      sks: response.data.SKS
-    })
+    if(!response.data.Data && !response.data.Total && !response.data.SKS){
+      res.status(201).json({
+        data: [],
+        totalData: "0",
+        sks: "0"
+      })
+    } else {
+      res.status(201).json({
+        data: response.data.Data,
+        totalData: response.data.Total,
+        sks: response.data.SKS
+      })
+    }
+
+    // res.status(201).json({
+    //   data: response.data.Data,
+    //   totalData: response.data.Total,
+    //   sks: response.data.SKS
+    // })
+
+
   } catch (error) {
     console.error("Error retrieving Perkuliahan:", error);
     res.status(500).send("Internal Server Error");
