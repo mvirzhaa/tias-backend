@@ -159,7 +159,7 @@ exports.getSkpiPerkuliahan = asyncHandler(async (req, res) => {
 
 exports.tesGetMatkul = asyncHandler(async (req, res) => {
   try {
-    const npm = '201106040468';
+    const npm = '2011';
     const results = await getMkForMhs(npm);
 
 

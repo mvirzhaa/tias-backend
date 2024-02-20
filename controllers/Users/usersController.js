@@ -29,9 +29,17 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
     );
     
     const totalData = totalDataQuery.rows[0].count;
+
+    const updatedUsers = findData.rows.map(async (iterate) => {
+      const matkulMhs = await getMkForMhs(iterate.npm); 
+      const status_frs = iterate.kode_mhs === "ACTIVE" ? (!matkulMhs.Data && !matkulMhs.Total && !matkulMhs.SKS) ? 0 : 1 : null;
+      return { ...iterate, status_frs };
+    });
+
+    const updatedUsersWithData = await Promise.all(updatedUsers);
     
     return res.status(201).json({
-      data: findData.rows,
+      data: updatedUsersWithData,
       totalData: totalData
     });
   } else { 
