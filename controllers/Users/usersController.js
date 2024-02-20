@@ -3,6 +3,7 @@ const DB = require("../../database");
 const bcrypt = require("bcryptjs");
 const { changePasswordUsersValidation } = require("../../validation/formValidation");
 const { GamifyPoints } = require("../../utils/gamify");
+const { getMkForMhs } = require("../../helper/skpi");
 
 exports.getUserMhs = asyncHandler(async (req, res) => {
   const { page, limit, searchQuery, nama_lengkap, npm, nidn, kode_mhs } = req.query;
@@ -66,10 +67,19 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
   `;
 
     const user = await DB.query(dataQuery, [...searchParams, itemsPerPage, offset]);
+
+
+    const updatedUsers = user.rows.map(async (iterate) => {
+      const matkulMhs = await getMkForMhs(iterate.npm); 
+      const status_frs = iterate.kode_mhs === "ACTIVE" ? (!matkulMhs.Data && !matkulMhs.Total && !matkulMhs.SKS) ? 0 : 1 : null;
+      return { ...iterate, status_frs };
+    });
+
+    const updatedUsersWithData = await Promise.all(updatedUsers);
   
     return res.status(200).json({
       message: "Success get data.",
-      data: user.rows,
+      data: updatedUsersWithData,
       totalData: totalData
     });
   }

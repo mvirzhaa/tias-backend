@@ -1,6 +1,6 @@
 const express = require("express");
 const { protected } = require("../middleware/authMiddleware");
-const { getInformaticsStudent, getDosenInfromatics, getIpMhs, getKategoriIp, getMatkulHelp, queryIp, getClassControler, achievementsKategori, getPrestasi, getOrganisasi, getSertifikasi, getSkpiPerkuliahan } = require("../controllers/helperController");
+const { getInformaticsStudent, getDosenInfromatics, getIpMhs, getKategoriIp, getMatkulHelp, queryIp, getClassControler, achievementsKategori, getPrestasi, getOrganisasi, getSertifikasi, getSkpiPerkuliahan, tesGetMatkul } = require("../controllers/helperController");
 
 
 const router = express.Router();
@@ -19,5 +19,6 @@ router.get("/skpi-organisasi", getOrganisasi);
 router.get("/skpi-sertifikasi", getSertifikasi);
 
 router.get("/skpi-perkuliahan", protected, getSkpiPerkuliahan);
+router.get("/tes-get-matkul", tesGetMatkul);
 
 module.exports = router;

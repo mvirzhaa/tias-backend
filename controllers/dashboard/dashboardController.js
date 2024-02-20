@@ -1,5 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const DB = require("../../database");
+const { getMkForMhs } = require("../../helper/skpi");
 
 
 const getCount = async (table, userLoginId) => {
@@ -18,6 +19,7 @@ const getCount = async (table, userLoginId) => {
 exports.dashboardData = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
   const role = req.user.role;
+  const npm = req.user.npm;
 
   try {
     const tes = await getCount("tb_tes", userLoginId);
@@ -59,6 +61,9 @@ exports.dashboardData = asyncHandler(async (req, res) => {
     let data;
 
     if (role === "Mahasiswa") {
+      const matkulMhs = await getMkForMhs(npm);
+      let status_frs = responseData.rows[0].kode_mhs === "ACTIVE" ? (!matkulMhs.Data && !matkulMhs.Total && !matkulMhs.SKS) ? 0 : 1 : null;
+
       data = {
         tes,
         sertifikasi,
@@ -69,7 +74,8 @@ exports.dashboardData = asyncHandler(async (req, res) => {
         publikasi,
         hki,
         userData: responseData.rows[0],
-        dataChart
+        dataChart,
+        status_frs
       };
     } else {
       data = {
