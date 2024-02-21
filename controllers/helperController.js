@@ -210,7 +210,7 @@ exports.getSertifikasi = asyncHandler(async (req, res) => {
 
       res.status(201).json({
         data: results,
-        kategori: resultsKategori
+        kategori: resultsKategori.find(kategori => kategori.kode === "NON").id
       });
 
   } catch (error) {
