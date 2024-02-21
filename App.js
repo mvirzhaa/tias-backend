@@ -26,6 +26,7 @@ const beritaRoutes = require("./routes/Admin/beritaRoutes");
 const achievmentsRoutes = require("./routes/Admin/achievementsRoutes");
 const absensiRoutes = require("./routes/absensi/absensiRoutes");
 const helpRoutes = require("./routes/helperRoutes");
+const skpiRoutes = require("./routes/skpi/skpiRoutes");
 const errorHandler = require("./helper/errorHandler");
 
 const app = express();
@@ -64,6 +65,7 @@ app.use("/dashboard", dashboardRoutes);
 app.use("/berita", beritaRoutes);
 app.use("/absensi", absensiRoutes);
 app.use("/achievments", achievmentsRoutes);
+app.use("/skpi", skpiRoutes);
 
 
 app.use("/help", helpRoutes);

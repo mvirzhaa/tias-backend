@@ -25,8 +25,8 @@ exports.createDataSerti = asyncHandler(async (req, res) => {
       !data.kategori_id ||
       !data.nama_serti ||
       !data.bidang_studi ||
-      !data.nomor_sk ||
-      !data.tgl_serti
+      !data.tgl_serti ||
+      !data.penyelenggara
     ) {
       fs.unlink(file.file_serti[0].path, (err) => {
         if (err) {

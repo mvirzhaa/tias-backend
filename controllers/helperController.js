@@ -7,6 +7,7 @@ const { gamifyAchievements } = require("../helper/gamifyAchievements");
 const { getPrestasi, getOrganisasi, getSertifikasi } = require("../utils/skpi");
 const { default: axios } = require("axios");
 const { getMkForMhs } = require("../helper/skpi");
+const { getKategoriSertifikasi } = require("../utils/kategori");
 
 exports.getInformaticsStudent = asyncHandler(async (req, res) => {
   try {
@@ -202,12 +203,16 @@ exports.getOrganisasi = asyncHandler(async (req, res) => {
 
 exports.getSertifikasi = asyncHandler(async (req, res) => {
   try {
-    const results = await getSertifikasi();
+    const {npm} = req.query;
+    const results = await getSertifikasi(npm);
 
+    const resultsKategori = await getKategoriSertifikasi()
 
-    res.status(201).json({
-      data: results,
-    });
+      res.status(201).json({
+        data: results,
+        kategori: resultsKategori
+      });
+
   } catch (error) {
     console.error("Error retrieving skpi sertfikasi:", error);
     res.status(500).send("Internal Server Error");
