@@ -93,7 +93,6 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
   }
 });
 
-
 exports.getTotalUsers = asyncHandler(async (req, res) => {
   const resultMhs = await DB.query(`SELECT COUNT(*) AS total_data FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true`);
 
@@ -359,4 +358,23 @@ exports.papanPeringkat = asyncHandler(async (req, res) => {
       totalData: totalData
     }); 
   }
+})
+
+exports.getUsesDsnMhs = asyncHandler(async (req, res) => {
+
+  const findMhs = await DB.query("SELECT tb_users.user_id, tb_users.npm, tb_data_pribadi.nama_lengkap FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true ");
+
+  const resultsMhs = findMhs.rows;
+
+  const findDosen = await DB.query("SELECT tb_users.user_id, tb_users.nidn, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.role = 'Dosen' AND tb_users.isverified = true ");
+
+  const resultsDosen = findDosen.rows;
+
+  res.status(200).json({
+    message: "Success get data.",
+    data: {
+      resultsMhs,
+      resultsDosen
+    },
+  }); 
 })

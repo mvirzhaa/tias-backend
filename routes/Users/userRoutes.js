@@ -7,6 +7,7 @@ const {
   changePaswordUser,
   getTotalUsers,
   papanPeringkat,
+  getUsesDsnMhs,
 } = require("../../controllers/Users/usersController");
 
 const router = express.Router();
@@ -17,5 +18,6 @@ router.get("/detail-user/:userId", protected, detailUser);
 router.patch("/change-password/:userId", protected, changePaswordUser);
 router.get("/total-data", protected, getTotalUsers);
 router.get("/papan-peringkat", protected, papanPeringkat);
+router.get("/all", protected, getUsesDsnMhs);
 
 module.exports = router;
