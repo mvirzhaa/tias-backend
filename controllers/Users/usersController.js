@@ -378,3 +378,25 @@ exports.getUsesDsnMhs = asyncHandler(async (req, res) => {
     },
   }); 
 })
+exports.getUserMhsAgain = asyncHandler(async (req, res) => {
+
+  const findMhs = await DB.query("SELECT tb_users.user_id, tb_users.npm, tb_data_pribadi.nama_lengkap FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true ");
+
+  const resultsMhs = findMhs.rows;
+
+  res.status(200).json({
+    message: "Success get data.",
+    data: resultsMhs,
+  }); 
+})
+exports.getUserDosenAgain = asyncHandler(async (req, res) => {
+
+  const findMhs = await DB.query("SELECT tb_users.user_id, tb_users.npm, tb_data_pribadi.nama_lengkap FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true ");
+
+  const resultsMhs = findMhs.rows;
+
+  res.status(200).json({
+    message: "Success get data.",
+    data: resultsDosen
+  }); 
+})
