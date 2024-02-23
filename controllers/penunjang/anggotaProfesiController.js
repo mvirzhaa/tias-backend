@@ -23,7 +23,10 @@ exports.addDataProfesi = asyncHandler(async (req, res) => {
     if (
       !data.nama_organisasi ||
       !data.peran ||
-      !data.mulai_keanggotaan ||
+      !data.mulai_tahun ||
+      !data.mulai_bulan ||
+      !data.selesai_tahun ||
+      !data.selesai_bulan ||
       !data.kategori_id
     ) {
       fs.unlink(file.file_profesi[0].path, (err) => {

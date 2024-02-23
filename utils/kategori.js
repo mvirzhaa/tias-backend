@@ -12,6 +12,32 @@ async function getKategoriSertifikasi(){
   }
 }
 
+async function getKategoriProfesi(){
+  try {
+    const response = await DB.query("SELECT * FROM kategori_profesi");
+
+    const results = response.rows;
+
+    return results;
+  } catch (error) {
+    throw new Error("failed to retrieve prestasi data.");
+  }
+}
+
+async function getKategoriPrestasi(){
+  try {
+    const response = await DB.query("SELECT * FROM kategori_prestasi");
+
+    const results = response.rows;
+
+    return results;
+  } catch (error) {
+    throw new Error("failed to retrieve prestasi data.");
+  }
+}
+
 module.exports = {
-  getKategoriSertifikasi
+  getKategoriSertifikasi,
+  getKategoriProfesi,
+  getKategoriPrestasi
 };
