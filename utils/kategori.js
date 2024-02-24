@@ -36,8 +36,20 @@ async function getKategoriPrestasi(){
   }
 }
 
+async function getKategoriPublikasi(){
+  try {
+    const response = await DB.query("SELECT * FROM kategori_publikasi");
+
+    const results = response.rows;
+
+    return results;
+  } catch (error) {
+    throw new Error("failed to retrieve prestasi data.");
+  }
+}
 module.exports = {
   getKategoriSertifikasi,
   getKategoriProfesi,
-  getKategoriPrestasi
+  getKategoriPrestasi,
+  getKategoriPublikasi
 };
