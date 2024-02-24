@@ -11,9 +11,14 @@ exports.addRekomendasi = asyncHandler(async (req, res) => {
     throw new Error("Pleas fill in all the required fields.");
   };
 
-  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
+  const user = await DB.query("SELECT tb_users.*, tb_data_pribadi.total_point FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE user_id = $1", [
     userLoginId,
   ]);
+
+  if(user.rows[0].total_point <= 2400){
+    res.status(400);
+    throw new Error("The user has not reached point 2400 as a proficient.");
+  }
 
   if (user.rows.length) {
     const findRekomendasi = await DB.query("SELECT * FROM rekomendasi_mhs WHERE user_id = $1 AND mahasiswa_id = $2", [userLoginId, data.mahasiswa_id]);
