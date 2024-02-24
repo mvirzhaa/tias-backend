@@ -54,6 +54,7 @@ exports.addAchievement = asyncHandler(async (req, res) => {
 exports.editAchievement = asyncHandler(async (req, res) => {
   const achievementId = req.params.id;
   const newData = req.body;
+  const file = req.files;
 
   const getOldData = await DB.query('SELECT * FROM achievements WHERE id = $1', [achievementId]);
 
@@ -65,10 +66,7 @@ exports.editAchievement = asyncHandler(async (req, res) => {
 
   const oldData = getOldData.rows[0];
 
-  const file = req.files;
-
-
-  if (Object.keys(file).length > 0 && file.lencana) {
+  if (file && file.lencana && file.lencana.length > 0) {
     // Handling lencana upload
     const oldLencanaPath = path.join('public/gamify/lencana', oldData.lencana);
     fs.unlink(oldLencanaPath, (err) => {
@@ -80,8 +78,8 @@ exports.editAchievement = asyncHandler(async (req, res) => {
     await DB.query('UPDATE achievements SET lencana = $1 WHERE id = $2', [file.lencana[0].filename, achievementId]);
   }
 
-  if (Object.keys(file).length > 0 && file.image) {
-    // Handling lencana upload
+  if (file && file.image && file.image.length > 0) {
+    // Handling image upload
     const oldImagePath = path.join('public/gamify', oldData.image);
     fs.unlink(oldImagePath, (err) => {
       if (err) {
@@ -89,7 +87,7 @@ exports.editAchievement = asyncHandler(async (req, res) => {
       }
     });
 
-    await DB.query('UPDATE achievements SET image = $1 WHERE id = $2', [file.lencana[0].image, achievementId]);
+    await DB.query('UPDATE achievements SET image = $1 WHERE id = $2', [file.image[0].filename, achievementId]);
   }
 
   const mergedData = {
@@ -116,6 +114,7 @@ exports.editAchievement = asyncHandler(async (req, res) => {
     });
   }
 });
+
 
 exports.deleteAchievement = asyncHandler(async (req, res) => {
   const achievementId = req.params.id;
