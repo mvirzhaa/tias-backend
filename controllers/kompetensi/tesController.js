@@ -120,7 +120,7 @@ exports.getDataTes = asyncHandler(async (req, res) => {
     const offset = (page - 1) * limit;
 
     const dataTes = await DB.query(
-      "SELECT * FROM tb_tes WHERE user_id = $1 and is_deleted = $2 LIMIT $3 OFFSET $4",
+      "SELECT tb_tes.*, kategori_sertifikasi.nama_kategori, kategori_sertifikasi.point FROM tb_tes JOIN kategori_sertifikasi ON tb_tes.kategori_id = kategori_sertifikasi.id WHERE user_id = $1 and is_deleted = $2 LIMIT $3 OFFSET $4",
       [userLoginId, false, limit, offset]
     );
 

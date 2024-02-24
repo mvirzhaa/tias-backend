@@ -171,7 +171,7 @@ exports.getDataPengabdian = asyncHandler(async (req, res) => {
 
     const offset = (page - 1) * limit;
 
-    const query = `SELECT * FROM tb_pengabdian WHERE user_id = $1 and is_deleted = $2 LIMIT $3 OFFSET $4`;
+    const query = `SELECT tb_pengabdian.*, kategori_publikasi.nama_kategori, kategori_publikasi.tingkatan, kategori_publikasi.point FROM tb_pengabdian JOIN kategori_publikasi ON tb_pengabdian.kategori_id = kategori_publikasi.id WHERE user_id = $1 and is_deleted = $2 LIMIT $3 OFFSET $4`;
 
     const dataPengabdian = await DB.query(query, [
       userLoginId,

@@ -154,7 +154,7 @@ exports.getDataPembicara = asyncHandler(async (req, res) => {
     const offset = (page - 1) * limit;
 
     const findData = await DB.query(
-      "SELECT * FROM tb_pembicara WHERE user_id = $1  and is_deleted = $2 LIMIT $3 OFFSET $4",
+      "SELECT tb_pembicara.*, kategori_publikasi.nama_kategori, kategori_publikasi.tingkatan, kategori_publikasi.point FROM tb_pembicara JOIN kategori_publikasi ON tb_pembicara.kategori_id = kategori_publikasi.id WHERE user_id = $1  and is_deleted = $2 LIMIT $3 OFFSET $4",
       [userLoginId, false, limit, offset]
     );
 
