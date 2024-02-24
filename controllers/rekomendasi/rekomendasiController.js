@@ -11,7 +11,7 @@ exports.addRekomendasi = asyncHandler(async (req, res) => {
     throw new Error("Pleas fill in all the required fields.");
   };
 
-  const user = await DB.query("SELECT tb_users.*, tb_data_pribadi.total_point FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE user_id = $1", [
+  const user = await DB.query("SELECT tb_users.*, tb_data_pribadi.total_point FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.user_id = $1", [
     userLoginId,
   ]);
 
