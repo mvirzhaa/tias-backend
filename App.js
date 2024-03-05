@@ -28,6 +28,7 @@ const absensiRoutes = require("./routes/absensi/absensiRoutes");
 const jadwalRapatRoutes = require("./routes/jadwal-rapat/jadwalRapatRoutes");
 const helpRoutes = require("./routes/helperRoutes");
 const skpiRoutes = require("./routes/skpi/skpiRoutes");
+const votingRoutes = require("./routes/e-voting/eVotingRoutes")
 const errorHandler = require("./helper/errorHandler");
 
 const app = express();
@@ -68,6 +69,7 @@ app.use("/absensi", absensiRoutes);
 app.use("/meet", jadwalRapatRoutes);
 app.use("/achievments", achievmentsRoutes);
 app.use("/skpi", skpiRoutes);
+app.use("/voting", votingRoutes);
 
 
 app.use("/help", helpRoutes);
