@@ -3,81 +3,8 @@ const DB_TIAS = require("../../database");
 const asyncHandler = require("express-async-handler");
 const md5 = require("md5");
 
-exports.getResults = asyncHandler(async (req, res) => {
-  const {
-    filter,
-    filterValue,
-    dataTable,
-    orderField,
-    orderValue,
-    page,
-    perPage,
-  } = req.query;
-
-  const pageNumber = parseInt(page, 10) || 1;
-  const itemsPerPage = parseInt(perPage, 10) || 10;
-
-  const offset = (pageNumber - 1) * itemsPerPage;
-
-  let query = "SELECT * FROM tb_verifikasi_hasil";
-
-  if (filter && filterValue) {
-    if (Array.isArray(filter) && Array.isArray(filterValue)) {
-      for (let i = 0; i < filter.length; i++) {
-        query += ` WHERE ${filter[i]} = '${filterValue[i]}'`;
-        if (i !== filter.length - 1) {
-          query += " AND";
-        }
-      }
-    } else {
-      res
-        .status(400)
-        .json({ message: "Filter and filterValue must be arrays." });
-      return;
-    }
-  }
-
-  if (orderField && orderValue) {
-    if (Array.isArray(orderField) && Array.isArray(orderValue)) {
-      query += " ORDER BY ";
-      for (let i = 0; i < orderField.length; i++) {
-        query += `${orderField[i]} ${orderValue[i]}`;
-        if (i !== orderField.length - 1) {
-          query += ",";
-        }
-      }
-    } else {
-      res
-        .status(400)
-        .json({ message: "orderField and orderValue must be arrays." });
-      return;
-    }
-  }
-
-  query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
-
-  const result = await DB.query(query);
-
-  let responseData = result.rows;
-
-  if (dataTable === "true") {
-    responseData = {
-      draw: 1,
-      recordsTotal: responseData.length,
-      recordsFiltered: responseData.length,
-      data: responseData,
-    };
-  } else {
-    responseData = Object.values(responseData);
-  }
-
-  res.status(200).json({
-    message: "success",
-    data: responseData,
-  });
-});
-
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
 async function NumberToLetter(angka) {
   let huruf = "";
   for (let i = angka.length - 1; i >= 0; i--) {
@@ -92,21 +19,19 @@ async function combineValue(hashMd5, hashIdAnswer) {
   const panjangHashMd5 = hashMd5.length;
   const panjangHashIdAnswer = hashIdAnswer.length;
 
-  const jumlahSisipan = Math.floor(panjangHashMd5 / panjangHashIdAnswer);
+  const posisiPenyisipan = Math.floor(panjangHashMd5 / 2);
 
   let hasil = "";
-  let counterHashId = 0;
 
   for (let i = 0; i < panjangHashMd5; i++) {
-    hasil += hashMd5[i];
-    if ((i + 1) % jumlahSisipan === 0 && counterHashId < panjangHashIdAnswer) {
-      hasil += hashIdAnswer[counterHashId];
-      counterHashId++;
+    if (i === posisiPenyisipan) {
+      hasil += hashIdAnswer;
     }
+    hasil += hashMd5[i];
   }
 
-  if (counterHashId < panjangHashIdAnswer) {
-    hasil += hashIdAnswer.slice(counterHashId);
+  if (panjangHashMd5 < panjangHashIdAnswer) {
+    hasil += hashIdAnswer.slice(panjangHashMd5);
   }
 
   return hasil;
@@ -192,14 +117,65 @@ exports.createResult = asyncHandler(async (req, res) => {
     );
 
     res.status(200).json({
-      message: "Successfully created data.",
-      data: saveVerifikasi.rows[0],
+      message: "Success",
+      data: saveVerifikasi.rows[0].cek_sum,
     });
   } catch (error) {
     console.log(error);
 
     res.status(400).json({
       message: error.message || "Failed to create data.",
+    });
+  }
+});
+
+async function extractIdAnswer(combinedHash) {
+  const panjangHashMd5 = 32;
+  const panjangHashIdAnswer = combinedHash.length - panjangHashMd5;
+  const posisiAwalHashIdAnswer = Math.floor(panjangHashMd5 / 2);
+
+  const hashIdAnswer = combinedHash.substring(
+    posisiAwalHashIdAnswer,
+    posisiAwalHashIdAnswer + panjangHashIdAnswer
+  );
+
+  return hashIdAnswer;
+}
+
+async function LetterToNumber(huruf) {
+  let angka = "";
+  for (let i = 0; i < huruf.length; i++) {
+    const index = alphabet.indexOf(huruf[i].toUpperCase());
+    if (index !== -1) {
+      angka = index.toString() + angka;
+    }
+  }
+  return angka;
+}
+
+exports.cekSum = asyncHandler(async (req, res) => {
+  const code = req.body.code;
+
+  try {
+    const id_jawaban = await extractIdAnswer(code);
+
+    const angkaIdJawaban = await LetterToNumber(id_jawaban);
+
+    const id = parseInt(angkaIdJawaban);
+
+    const findJawaban = await DB.query(
+      "SELECT * FROM tb_jawaban WHERE id = $1",
+      [id]
+    );
+
+    res.status(200).json({
+      message: "success",
+      suara: findJawaban.rows[0].jawaban,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(400).json({
+      message: error.message || "Failed to decrypt data.",
     });
   }
 });

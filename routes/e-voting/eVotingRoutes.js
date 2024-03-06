@@ -17,7 +17,7 @@ const {
 } = require("../../controllers/e-voting/answerController");
 const {
   createResult,
-  getResults,
+  cekSum,
 } = require("../../controllers/e-voting/resultsController");
 
 const router = express.Router();
@@ -36,6 +36,7 @@ router.put("/answer/:id", protected, adminOnly, updateAnswer);
 router.delete("/answer/:id", protected, adminOnly, deleteAnswer);
 
 router.post("/result", protected, createResult);
-router.get("/result", protected, getResults);
+
+router.get("/cek-sum", protected, cekSum);
 
 module.exports = router;
