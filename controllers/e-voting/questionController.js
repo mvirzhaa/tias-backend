@@ -99,48 +99,34 @@ exports.detailQuestion = asyncHandler(async (req, res) => {
       [id]
     );
     const options = await DB.query(
-      "SELECT * FROM tb_jawaban WHERE id_pertanyaan = $1 AND status_jawaban = $2",
-      [id, 0]
+      "SELECT tb_jawaban.*, tb_hasil.* FROM tb_jawaban JOIN tb_hasil ON tb_jawaban.id = tb_hasil.id_jawaban WHERE tb_jawaban.id_pertanyaan = $1 AND tb_jawaban.status_jawaban = $2",
+      [id, 1]
     );
 
-    const results = await DB.query(
-      "SELECT * FROM tb_verifikasi_hasil WHERE id_pertanyaan = $1",
-      [id]
-    );
+    const findJmlSuara = await DB.query("SELECT * FROM tb_verifikasi_hasil WHERE id_pertanyaan = $1", [id]);
 
-    // Inisialisasi objek untuk menyimpan jumlah jawaban
-    const counts = {};
+
+
+    const label = [];
+    const data = [];
+
     options.rows.forEach((option) => {
-      counts[option.jawaban] = 0; // Inisialisasi jumlah jawaban untuk setiap opsi
+      label.push(option.jawaban);
+      data.push(option.hasil);
     });
 
-    // Menghitung jumlah jawaban untuk setiap opsi
-    results.rows.forEach((result) => {
-      counts[
-        options.rows.find((option) => option.id === result.id_jawaban).jawaban
-      ]++;
-    });
-
-    // Buat struktur data realCount
-    const realCount = {
-      label: Object.keys(counts),
-      data: Object.values(counts),
+    const dataChart = {
+      label: label,
+      data: data,
     };
-
-    const questionOptions = options.rows.map((option) => ({
-      ...option,
-      jmlSuara: results.rows.filter((result) => result.id_jawaban === option.id)
-        .length,
-    }));
 
     const response = {
       message: "success",
       data: {
         pertanyaan: question.rows[0],
-        option: questionOptions,
-        realCount: realCount,
-        hasil: results.rows,
-        jmlSuara: results.rowCount,
+        option: options.rows,
+        realCount: dataChart,
+        jmlSuara: findJmlSuara.rowCount
       },
     };
 
@@ -189,9 +175,10 @@ exports.detailForEditQuestion = asyncHandler(async (req, res) => {
 exports.createQuestion = asyncHandler(async (req, res) => {
   const newData = req.body;
 
-  if (!newData.deskripsi || !newData.jawaban || !newData.jawaban.length) {
-    res.status(400);
-    throw new Error("Please fill in all the required fields.");
+  if (!newData.deskripsi || !newData.jawaban || newData.jawaban.length === 0) {
+    return res.status(400).json({
+      message: "Please fill in all the required fields.",
+    });
   }
 
   try {
@@ -203,10 +190,19 @@ exports.createQuestion = asyncHandler(async (req, res) => {
     const pertanyaan_id = saveData.rows[0].id;
 
     const saveDataJawabanPromises = newData.jawaban.map(async (jawaban) => {
-      return await DB.query(
+      const saveJawaban = await DB.query(
         "INSERT INTO tb_jawaban(id_pertanyaan, jawaban) VALUES($1, $2) RETURNING *",
         [pertanyaan_id, jawaban]
       );
+
+      const jawabanId = saveJawaban.rows[0].id;
+
+      const saveDataHasil = await DB.query(
+        "INSERT INTO tb_hasil(id_jawaban) VALUES ($1) RETURNING *",
+        [jawabanId]
+      );
+
+      return saveDataHasil.rows[0];
     });
 
     const saveDataJawabanResults = await Promise.all(saveDataJawabanPromises);
@@ -214,11 +210,12 @@ exports.createQuestion = asyncHandler(async (req, res) => {
     res.status(200).json({
       message: "Successfully created data.",
       data: saveData.rows[0],
-      jawaban: saveDataJawabanResults.map((result) => result.rows[0]),
+      jawaban: saveDataJawabanResults,
     });
   } catch (error) {
-    res.status(400).json({
-      message: error.message || "Failed to create data.",
+    console.error("Error creating question:", error);
+    res.status(500).json({
+      message: "Failed to create data.",
     });
   }
 });

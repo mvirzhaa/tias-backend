@@ -29,10 +29,10 @@ exports.protected = asyncHandler(async (req, res, next) => {
       throw new Error("User not found.");
     }
 
-    if(user.rows[0].role === "Mahasiswa"){
+    if (user.rows[0].role === "Mahasiswa") {
       const gamify = await GamifyPoints(user.rows[0].user_id, user.rows[0].npm);
 
-      if(gamify != 200){
+      if (gamify != 200) {
         res.status(500);
         throw new Error("Gamification Error.");
       }
