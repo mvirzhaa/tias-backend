@@ -154,7 +154,7 @@ async function LetterToNumber(huruf) {
 }
 
 exports.cekSum = asyncHandler(async (req, res) => {
-  const code = req.body.code;
+  const code = req.query.code;
 
   try {
     const id_jawaban = await extractIdAnswer(code);

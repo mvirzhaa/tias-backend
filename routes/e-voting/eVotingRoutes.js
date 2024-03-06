@@ -37,6 +37,6 @@ router.delete("/answer/:id", protected, adminOnly, deleteAnswer);
 
 router.post("/result", protected, createResult);
 
-router.get("/cek-sum", protected, cekSum);
+router.get("/cek-sum", cekSum);
 
 module.exports = router;
