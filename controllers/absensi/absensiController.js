@@ -222,19 +222,16 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
 });
 
 function calculatePersentase(pertemuanData) {
-  // Hitung total pertemuan
-  const totalPertemuan = pertemuanData.reduce(
-    (acc, curr) => acc + curr.pertemuan.length,
-    0
-  );
+  const totalMataKuliah = pertemuanData.length;
 
-  // Hitung jumlah pertemuan yang dihadiri
-  const hadir = pertemuanData.reduce((acc, curr) => {
-    return acc + curr.pertemuan.reduce((a, c) => a + c, 0);
-  }, 0);
+  const persentaseMataKuliah = pertemuanData.map((matkul) => {
+    const hadir = matkul.pertemuan.reduce((a, c) => a + c, 0);
+    const persentase = (hadir / matkul.pertemuan.length) * 100;
+    return persentase;
+  });
 
-  // Hitung persentase
-  const persentase = (hadir / totalPertemuan) * 100;
+  const rataRataPersentase =
+    persentaseMataKuliah.reduce((acc, curr) => acc + curr, 0) / totalMataKuliah;
 
-  return `${persentase.toFixed(2)}%`;
+  return `${rataRataPersentase.toFixed(2)}%`;
 }
