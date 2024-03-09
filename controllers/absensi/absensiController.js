@@ -2,6 +2,7 @@ const asyncHandler = require("express-async-handler");
 const axios = require("axios");
 const FormData = require("form-data");
 const DB = require("../../database/index");
+const async = require("async");
 
 exports.getAbsensi = asyncHandler(async (req, res) => {
   const API_URL = `${process.env.API_LOCAL_ABSEN}/absensi`;
@@ -192,35 +193,40 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
     const resultsDosen = findDosen.rows;
 
     const results = [];
-
-    for (const dosen of resultsDosen) {
+    const queue = async.queue(async (dosen, callback) => {
       const API_URL_GASAL = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=gasal&code=${dosen.nip}`;
       const responseGasal = await axios.get(API_URL_GASAL);
       const persentaseGasal = calculatePersentase(responseGasal.data.data);
-
       results.push({
         ...dosen,
         gasal: persentaseGasal,
       });
-    }
-
-    for (const dosen of resultsDosen) {
+      await sleep(1000);
       const API_URL_GENAP = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=genap&code=${dosen.nip}`;
       const responseGenap = await axios.get(API_URL_GENAP);
       const persentaseGenap = calculatePersentase(responseGenap.data.data);
-
       results.find((result) => result.nip === dosen.nip).genap =
         persentaseGenap;
-    }
-
-    res.status(200).json({
-      message: "Success get data.",
-      data: results,
+      callback();
     });
+
+    queue.drain(() => {
+      res.status(200).json({
+        message: "Success get data.",
+        data: results,
+      });
+    });
+
+    queue.push(resultsDosen);
   } catch (error) {
+    console.log(error);
     res.status(500).send("Internal Server Error");
   }
 });
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function calculatePersentase(pertemuanData) {
   const totalMataKuliah = pertemuanData.length;
