@@ -184,12 +184,23 @@ exports.absensiForMhs = asyncHandler(async (req, res) => {
 });
 
 exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
-  const { page, limit, nama_lengkap, nidn, kode_mhs } = req.query;
+  let { page, limit, nama_lengkap, nidn, kode_mhs } = req.query;
+
+  // Konversi nilai page dan limit ke tipe data number, dan atur nilai default jika tidak ada
+  page = parseInt(page) || 1;
+  limit = parseInt(limit) || 10;
+
+  // Pastikan nilai page tidak kurang dari 1
+  if (page < 1) {
+    page = 1;
+  }
 
   try {
+    // Bangun query dasar
     let query =
       "SELECT tb_users.user_id, tb_users.nidn, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.image FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.role = 'Dosen' AND tb_users.isverified = true ";
 
+    // Tambahkan kondisi filter berdasarkan nilai yang diberikan
     if (nama_lengkap) {
       query += `AND tb_data_pribadi.nama_lengkap ILIKE '%${nama_lengkap}%' `;
     }
@@ -202,24 +213,32 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
       query += `AND tb_data_pribadi.kode_mhs = '${kode_mhs}' `;
     }
 
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    // Hitung offset untuk query
+    const offset = (page - 1) * limit;
+
+    // Sesuaikan query untuk mengambil data dengan batasan halaman dan offset yang benar
     query += `ORDER BY tb_data_pribadi.nama_lengkap ASC OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY`;
 
+    // Query database dengan query yang telah disesuaikan
     const findDosen = await DB.query(query);
     const resultsDosen = findDosen.rows;
 
+    // Lakukan pengolahan tambahan pada data hasil query
     const promises = resultsDosen.map(async (dosen) => {
       const API_URL_GASAL = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=gasal&code=${dosen.nip}`;
       const API_URL_GENAP = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=genap&code=${dosen.nip}`;
 
+      // Lakukan permintaan API menggunakan axios
       const [responseGasal, responseGenap] = await Promise.all([
         axios.get(API_URL_GASAL),
         axios.get(API_URL_GENAP),
       ]);
 
+      // Hitung persentase gasal dan genap
       const persentaseGasal = calculatePersentase(responseGasal.data.data);
       const persentaseGenap = calculatePersentase(responseGenap.data.data);
 
+      // Mengembalikan objek dosen dengan persentase gasal dan genap
       return {
         ...dosen,
         gasal: persentaseGasal,
@@ -227,8 +246,10 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
       };
     });
 
+    // Tunggu semua proses pengolahan tambahan selesai
     const resultsWithPersentase = await Promise.all(promises);
 
+    // Hitung total data untuk memberikan informasi jumlah halaman
     const totalDataQuery = await DB.query(
       `SELECT COUNT(*) FROM (${query
         .replace(/OFFSET.*$/g, "")
@@ -236,12 +257,14 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
     );
     const totalData = parseInt(totalDataQuery.rows[0].count);
 
+    // Kirim respons dengan data yang telah diproses
     res.status(200).json({
       message: "Success get data.",
       data: resultsWithPersentase,
       totalData: totalData,
     });
   } catch (error) {
+    // Tangani kesalahan dengan log dan kirim respons 500
     console.log(error);
     res.status(500).send("Internal Server Error");
   }
