@@ -224,24 +224,26 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
     const findDosen = await DB.query(mainQuery);
     const resultsDosen = findDosen.rows;
 
-    const promises = resultsDosen.map(async (dosen) => {
-      const API_URL_GASAL = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=gasal&code=${dosen.nip}`;
-      const API_URL_GENAP = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=genap&code=${dosen.nip}`;
+    const promises = resultsDosen
+      .slice((page - 1) * limit, page * limit)
+      .map(async (dosen) => {
+        const API_URL_GASAL = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=gasal&code=${dosen.nip}`;
+        const API_URL_GENAP = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=genap&code=${dosen.nip}`;
 
-      const [responseGasal, responseGenap] = await Promise.all([
-        axios.get(API_URL_GASAL),
-        axios.get(API_URL_GENAP),
-      ]);
+        const [responseGasal, responseGenap] = await Promise.all([
+          axios.get(API_URL_GASAL),
+          axios.get(API_URL_GENAP),
+        ]);
 
-      const persentaseGasal = calculatePersentase(responseGasal.data.data);
-      const persentaseGenap = calculatePersentase(responseGenap.data.data);
+        const persentaseGasal = calculatePersentase(responseGasal.data.data);
+        const persentaseGenap = calculatePersentase(responseGenap.data.data);
 
-      return {
-        ...dosen,
-        gasal: persentaseGasal,
-        genap: persentaseGenap,
-      };
-    });
+        return {
+          ...dosen,
+          gasal: persentaseGasal,
+          genap: persentaseGenap,
+        };
+      });
 
     const resultsWithPersentase = await Promise.all(promises);
 
