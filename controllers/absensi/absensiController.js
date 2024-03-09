@@ -184,80 +184,39 @@ exports.absensiForMhs = asyncHandler(async (req, res) => {
 });
 
 exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
-  let { page, limit, nama_lengkap, nidn, kode_mhs } = req.query;
-
-  // Mengonversi string page dan limit menjadi bilangan bulat
-  page = parseInt(page) || 1;
-  limit = parseInt(limit) || 10;
-
   try {
-    let mainQuery = `SELECT tb_users.user_id, tb_users.nidn, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.image 
-      FROM tb_users 
-      JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id 
-      WHERE tb_users.role = 'Dosen' AND tb_users.isverified = true`;
+    const findDosen = await DB.query(
+      "SELECT tb_users.user_id, tb_users.nidn, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.image FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.role = 'Dosen' AND tb_users.isverified = true "
+    );
 
-    let countQuery = `SELECT COUNT(*) AS total FROM tb_users 
-      JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id 
-      WHERE tb_users.role = 'Dosen' AND tb_users.isverified = true`;
-
-    if (nama_lengkap) {
-      mainQuery += ` AND tb_data_pribadi.nama_lengkap ILIKE '%${nama_lengkap}%'`;
-      countQuery += ` AND tb_data_pribadi.nama_lengkap ILIKE '%${nama_lengkap}%'`;
-    }
-
-    if (nidn) {
-      mainQuery += ` AND tb_users.nidn = '${nidn}'`;
-      countQuery += ` AND tb_users.nidn = '${nidn}'`;
-    }
-
-    if (kode_mhs) {
-      mainQuery += ` AND tb_data_pribadi.kode_mhs = '${kode_mhs}'`;
-      countQuery += ` AND tb_data_pribadi.kode_mhs = '${kode_mhs}'`;
-    }
-
-    // Menghitung offset secara dinamis
-    const offset = (page - 1) * limit;
-
-    // Menambahkan LIMIT ke query utama untuk mengambil jumlah data yang sesuai dengan halaman dan limit
-    mainQuery += ` ORDER BY tb_data_pribadi.nama_lengkap ASC LIMIT ${limit} OFFSET ${offset}`;
-
-    const findDosen = await DB.query(mainQuery);
     const resultsDosen = findDosen.rows;
 
-    const promises = resultsDosen
-      .slice((page - 1) * limit, page * limit)
-      .map(async (dosen) => {
-        const API_URL_GASAL = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=gasal&code=${dosen.nip}`;
-        const API_URL_GENAP = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=genap&code=${dosen.nip}`;
+    const promises = resultsDosen.map(async (dosen) => {
+      const API_URL_GASAL = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=gasal&code=${dosen.nip}`;
+      const API_URL_GENAP = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=genap&code=${dosen.nip}`;
 
-        const [responseGasal, responseGenap] = await Promise.all([
-          axios.get(API_URL_GASAL),
-          axios.get(API_URL_GENAP),
-        ]);
+      const [responseGasal, responseGenap] = await Promise.all([
+        axios.get(API_URL_GASAL),
+        axios.get(API_URL_GENAP),
+      ]);
 
-        const persentaseGasal = calculatePersentase(responseGasal.data.data);
-        const persentaseGenap = calculatePersentase(responseGenap.data.data);
+      const persentaseGasal = calculatePersentase(responseGasal.data.data);
+      const persentaseGenap = calculatePersentase(responseGenap.data.data);
 
-        return {
-          ...dosen,
-          gasal: persentaseGasal,
-          genap: persentaseGenap,
-        };
-      });
+      return {
+        ...dosen,
+        gasal: persentaseGasal,
+        genap: persentaseGenap,
+      };
+    });
 
-    const resultsWithPersentase = await Promise.all(promises);
-
-    // Menghitung total data dengan menggunakan countQuery
-    const totalDataQuery = await DB.query(countQuery);
-    const totalData = parseInt(totalDataQuery.rows[0].total);
+    const results = await Promise.all(promises);
 
     res.status(200).json({
       message: "Success get data.",
-      data: resultsWithPersentase,
-      totalData: totalData,
+      data: results,
     });
   } catch (error) {
-    console.log(error);
     res.status(500).send("Internal Server Error");
   }
 });
