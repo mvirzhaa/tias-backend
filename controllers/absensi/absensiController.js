@@ -191,35 +191,24 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
 
     const resultsDosen = findDosen.rows;
 
-    const promises = resultsDosen.map(async (dosen) => {
-      try {
-        const API_URL_GASAL = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=gasal&code=${dosen.nip}`;
-        const API_URL_GENAP = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=genap&code=${dosen.nip}`;
+    const results = [];
 
-        const [responseGasal, responseGenap] = await Promise.all([
-          axios.get(API_URL_GASAL),
-          axios.get(API_URL_GENAP),
-        ]);
+    for (const dosen of resultsDosen) {
+      const API_URL_GASAL = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=gasal&code=${dosen.nip}`;
+      const API_URL_GENAP = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=genap&code=${dosen.nip}`;
 
-        const persentaseGasal = calculatePersentase(responseGasal.data.data);
-        const persentaseGenap = calculatePersentase(responseGenap.data.data);
+      const responseGasal = await axios.get(API_URL_GASAL);
+      const responseGenap = await axios.get(API_URL_GENAP);
 
-        return {
-          ...dosen,
-          gasal: persentaseGasal,
-          genap: persentaseGenap,
-        };
-      } catch (error) {
-        if (error.response && error.response.status === 429) {
-          await new Promise((resolve) => setTimeout(resolve, 5000));
-          return retry();
-        } else {
-          throw error;
-        }
-      }
-    });
+      const persentaseGasal = calculatePersentase(responseGasal.data.data);
+      const persentaseGenap = calculatePersentase(responseGenap.data.data);
 
-    const results = await Promise.all(promises);
+      results.push({
+        ...dosen,
+        gasal: persentaseGasal,
+        genap: persentaseGenap,
+      });
+    }
 
     res.status(200).json({
       message: "Success get data.",
