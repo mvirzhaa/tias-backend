@@ -8,7 +8,7 @@ exports.getActiveQuestion = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     message: "success",
-    data: result.rows[0],
+    data: result.rows,
   });
 });
 
@@ -103,9 +103,10 @@ exports.detailQuestion = asyncHandler(async (req, res) => {
       [id, 1]
     );
 
-    const findJmlSuara = await DB.query("SELECT * FROM tb_verifikasi_hasil WHERE id_pertanyaan = $1", [id]);
-
-
+    const findJmlSuara = await DB.query(
+      "SELECT * FROM tb_verifikasi_hasil WHERE id_pertanyaan = $1",
+      [id]
+    );
 
     const label = [];
     const data = [];
@@ -126,7 +127,7 @@ exports.detailQuestion = asyncHandler(async (req, res) => {
         pertanyaan: question.rows[0],
         option: options.rows,
         realCount: dataChart,
-        jmlSuara: findJmlSuara.rowCount
+        jmlSuara: findJmlSuara.rowCount,
       },
     };
 
