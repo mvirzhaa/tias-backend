@@ -192,8 +192,8 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
     const resultsDosen = findDosen.rows;
 
     const promises = resultsDosen.map(async (dosen) => {
-      const API_URL_GASAL = `https://absen.ft.uika-bogor.ac.id/api/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=gasal&code=${dosen.nip}`;
-      const API_URL_GENAP = `https://absen.ft.uika-bogor.ac.id/api/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=genap&code=${dosen.nip}`;
+      const API_URL_GASAL = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=gasal&code=${dosen.nip}`;
+      const API_URL_GENAP = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=genap&code=${dosen.nip}`;
 
       const [responseGasal, responseGenap] = await Promise.all([
         axios.get(API_URL_GASAL),
