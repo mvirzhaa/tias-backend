@@ -184,11 +184,28 @@ exports.absensiForMhs = asyncHandler(async (req, res) => {
 });
 
 exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
-  try {
-    const findDosen = await DB.query(
-      "SELECT tb_users.user_id, tb_users.nidn, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.image FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.role = 'Dosen' AND tb_users.isverified = true "
-    );
+  const { page, limit, nama_lengkap, nidn, kode_mhs } = req.query;
 
+  try {
+    let query =
+      "SELECT tb_users.user_id, tb_users.nidn, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.image FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.role = 'Dosen' AND tb_users.isverified = true ";
+
+    if (nama_lengkap) {
+      query += `AND tb_data_pribadi.nama_lengkap ILIKE '%${nama_lengkap}%' `;
+    }
+
+    if (nidn) {
+      query += `AND tb_users.nidn = '${nidn}' `;
+    }
+
+    if (kode_mhs) {
+      query += `AND tb_data_pribadi.kode_mhs = '${kode_mhs}' `;
+    }
+
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    query += `ORDER BY tb_data_pribadi.nama_lengkap ASC OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY`;
+
+    const findDosen = await DB.query(query);
     const resultsDosen = findDosen.rows;
 
     const promises = resultsDosen.map(async (dosen) => {
@@ -210,13 +227,20 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
       };
     });
 
-    const results = await Promise.all(promises);
+    const resultsWithPersentase = await Promise.all(promises);
+
+    const totalDataQuery = await DB.query(
+      `SELECT COUNT(*) FROM (${query}) AS countQuery`
+    );
+    const totalData = parseInt(totalDataQuery.rows[0].count);
 
     res.status(200).json({
       message: "Success get data.",
-      data: results,
+      data: resultsWithPersentase,
+      totalData: totalData,
     });
   } catch (error) {
+    console.log(error);
     res.status(500).send("Internal Server Error");
   }
 });
