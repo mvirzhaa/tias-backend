@@ -184,16 +184,7 @@ exports.absensiForMhs = asyncHandler(async (req, res) => {
 });
 
 exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
-  let { page, limit, nama_lengkap, nidn, kode_mhs } = req.query;
-
-  // Pastikan nilai page dan limit valid
-  page = parseInt(page) || 1;
-  limit = parseInt(limit) || 10;
-
-  // Set halaman kembali ke 1 jika tidak ada atau kurang dari 1
-  if (page <= 0) {
-    page = 1;
-  }
+  const { page, limit, nama_lengkap, nidn, kode_mhs } = req.query;
 
   try {
     let query =
@@ -211,7 +202,7 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
       query += `AND tb_data_pribadi.kode_mhs = '${kode_mhs}' `;
     }
 
-    const offset = (page - 1) * limit;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
     query += `ORDER BY tb_data_pribadi.nama_lengkap ASC OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY`;
 
     const findDosen = await DB.query(query);
@@ -239,10 +230,11 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
     const resultsWithPersentase = await Promise.all(promises);
 
     const totalDataQuery = await DB.query(
-      `SELECT COUNT(*) FROM (${query.replace(/OFFSET.*$/g, '').replace(/FETCH.*$/g, '')}) AS countQuery`
+      `SELECT COUNT(*) FROM (${query
+        .replace(/OFFSET.*$/g, "")
+        .replace(/FETCH.*$/g, "")}) AS countQuery`
     );
     const totalData = parseInt(totalDataQuery.rows[0].count);
-    
 
     res.status(200).json({
       message: "Success get data.",
