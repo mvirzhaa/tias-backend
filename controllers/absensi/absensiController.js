@@ -191,31 +191,37 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
   limit = parseInt(limit) || 10;
 
   try {
-    let query =
-      `SELECT tb_users.user_id, tb_users.nidn, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.image 
+    let mainQuery = `SELECT tb_users.user_id, tb_users.nidn, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.image 
       FROM tb_users 
       JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id 
       WHERE tb_users.role = 'Dosen' AND tb_users.isverified = true`;
 
+    let countQuery = `SELECT COUNT(*) AS total FROM tb_users 
+      JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id 
+      WHERE tb_users.role = 'Dosen' AND tb_users.isverified = true`;
+
     if (nama_lengkap) {
-      query += ` AND tb_data_pribadi.nama_lengkap ILIKE '%${nama_lengkap}%'`;
+      mainQuery += ` AND tb_data_pribadi.nama_lengkap ILIKE '%${nama_lengkap}%'`;
+      countQuery += ` AND tb_data_pribadi.nama_lengkap ILIKE '%${nama_lengkap}%'`;
     }
 
     if (nidn) {
-      query += ` AND tb_users.nidn = '${nidn}'`;
+      mainQuery += ` AND tb_users.nidn = '${nidn}'`;
+      countQuery += ` AND tb_users.nidn = '${nidn}'`;
     }
 
     if (kode_mhs) {
-      query += ` AND tb_data_pribadi.kode_mhs = '${kode_mhs}'`;
+      mainQuery += ` AND tb_data_pribadi.kode_mhs = '${kode_mhs}'`;
+      countQuery += ` AND tb_data_pribadi.kode_mhs = '${kode_mhs}'`;
     }
 
     // Menghitung offset secara dinamis
     const offset = (page - 1) * limit;
 
-    // Menambahkan LIMIT ke query untuk mengambil jumlah data yang sesuai dengan halaman dan limit
-    query += ` ORDER BY tb_data_pribadi.nama_lengkap ASC LIMIT ${limit} OFFSET ${offset}`;
+    // Menambahkan LIMIT ke query utama untuk mengambil jumlah data yang sesuai dengan halaman dan limit
+    mainQuery += ` ORDER BY tb_data_pribadi.nama_lengkap ASC LIMIT ${limit} OFFSET ${offset}`;
 
-    const findDosen = await DB.query(query);
+    const findDosen = await DB.query(mainQuery);
     const resultsDosen = findDosen.rows;
 
     const promises = resultsDosen.map(async (dosen) => {
@@ -239,10 +245,8 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
 
     const resultsWithPersentase = await Promise.all(promises);
 
-    // Menghitung total data dengan cara yang lebih sederhana
-    const totalDataQuery = await DB.query(
-      `SELECT COUNT(*) AS total FROM (${query}) AS subquery`
-    );
+    // Menghitung total data dengan menggunakan countQuery
+    const totalDataQuery = await DB.query(countQuery);
     const totalData = parseInt(totalDataQuery.rows[0].total);
 
     res.status(200).json({
@@ -255,7 +259,6 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
-
 
 function calculatePersentase(pertemuanData) {
   const totalMataKuliah = pertemuanData.length;
