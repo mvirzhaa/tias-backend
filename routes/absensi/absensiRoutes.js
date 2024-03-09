@@ -17,6 +17,7 @@ const {
   updateAbsensi,
   dosenForMk,
   absensiForMhs,
+  getDosenForAbsensi,
 } = require("../../controllers/absensi/absensiController");
 const {
   exportListPertemuan,
@@ -42,5 +43,6 @@ router.post("/update-absensi/:id", updateAbsensi);
 router.get("/dosen-mk", dosenForMk);
 
 router.get("/list-pertemuan/excel", exportListPertemuan);
+router.get("/list-dosen", getDosenForAbsensi);
 
 module.exports = router;

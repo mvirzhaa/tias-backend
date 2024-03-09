@@ -61,8 +61,8 @@ exports.exportListPertemuan = asyncHandler(async (req, res) => {
 
       // Apply cell background color based on status_kelas
       rowExcel.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-        if (colNumber > 3 && colNumber <= 17) {
-          const columnIndex = colNumber - 4; // Adjust column index to match pertemuan_statusKelas
+        if (colNumber > 3) {
+          const columnIndex = colNumber - 5; // Adjust column index to match pertemuan_statusKelas
           const statusKelas = row.pertemuan_statusKelas[columnIndex];
           let color;
           switch (statusKelas) {
