@@ -45,9 +45,9 @@ exports.exportListPertemuan = asyncHandler(async (req, res) => {
         row.name_matkul || "",
         row.class || "",
         ...(row.pertemuan_statusKelas || []).slice(0, 7),
-        row.uts || "",
+        "", // UTS (empty cell)
         ...(row.pertemuan_statusKelas || []).slice(7, 14),
-        row.uas || "",
+        "", // UAS (empty cell)
         row.persentase || "",
       ];
 
@@ -61,7 +61,7 @@ exports.exportListPertemuan = asyncHandler(async (req, res) => {
 
       // Apply cell background color based on status_kelas
       rowExcel.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-        if (colNumber > 3) {
+        if (colNumber >= 5 && colNumber <= 11) {
           const columnIndex = colNumber - 5; // Adjust column index to match pertemuan_statusKelas
           const statusKelas = row.pertemuan_statusKelas[columnIndex];
           let color;
@@ -84,14 +84,48 @@ exports.exportListPertemuan = asyncHandler(async (req, res) => {
             pattern: "solid",
             fgColor: { argb: color },
           };
-          // Set border for each cell
-          cell.border = {
-            top: { style: "thin", color: { argb: "000000" } },
-            left: { style: "thin", color: { argb: "000000" } },
-            bottom: { style: "thin", color: { argb: "000000" } },
-            right: { style: "thin", color: { argb: "000000" } },
+        } else if (colNumber >= 13 && colNumber <= 19) {
+          const columnIndex = colNumber - 8; // Adjust column index to match pertemuan_statusKelas
+          const statusKelas = row.pertemuan_statusKelas[columnIndex];
+          let color;
+          if (statusKelas !== null) {
+            switch (statusKelas) {
+              case "Offline":
+                color = "00FF00"; // Green
+                break;
+              case "Online":
+                color = "0000FF"; // Blue
+                break;
+              case "Hybrid":
+                color = "800080"; // Purple
+                break;
+              default:
+                color = "FFFFFF"; // Gray
+                break;
+            }
+          } else {
+            color = "FFFFFF"; // Gray for null value
+          }
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: color },
+          };
+        } else if (colNumber === 12 || colNumber === 20) {
+          // For UTS and UAS columns, apply gray color
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "808080" }, // Gray
           };
         }
+        // Set border for each cell
+        cell.border = {
+          top: { style: "thin", color: { argb: "000000" } },
+          left: { style: "thin", color: { argb: "000000" } },
+          bottom: { style: "thin", color: { argb: "000000" } },
+          right: { style: "thin", color: { argb: "000000" } },
+        };
       });
     });
 
