@@ -6,7 +6,7 @@ exports.exportListPertemuan = asyncHandler(async (req, res) => {
   const nip = req.query.nip;
   const semester = req.query.semester;
 
-  const GASAL_URL = `${process.env.API_LOCAL_ABSEN}pembelajaran/list-pertemuan`;
+  const GASAL_URL = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan`;
 
   try {
     const response = await axios.get(GASAL_URL, {

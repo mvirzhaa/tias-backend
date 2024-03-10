@@ -194,8 +194,8 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
 
     const results = [];
     const queue = async.queue(async (dosen, callback) => {
-      const GASAL_URL = `${process.env.API_LOCAL_ABSEN}pembelajaran/list-pertemuan`;
-      const responseGasal = await axios.get(GASAL_URL, {
+      const API_URL_GASAL = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan`;
+      const responseGasal = await axios.get(API_URL_GASAL, {
         params: {
           dataTable: true,
           filter: ["semester", "curr_code"],
@@ -209,8 +209,8 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
         gasal: persentaseGasal,
       });
       await sleep(1000);
-      const GENAP_URL = `${process.env.API_LOCAL_ABSEN}pembelajaran/list-pertemuan`;
-      const responseGenap = await axios.get(GENAP_URL, {
+      const API_URL_GENAP = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan`;
+      const responseGenap = await axios.get(API_URL_GENAP, {
         params: {
           dataTable: true,
           filter: ["semester", "curr_code"],
