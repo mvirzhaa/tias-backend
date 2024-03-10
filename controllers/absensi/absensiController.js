@@ -194,7 +194,7 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
 
     const results = [];
     const queue = async.queue(async (dosen, callback) => {
-      const GASAL_URL = `https://absen.ft.uika-bogor.ac.id/api/pembelajaran/list-pertemuan`;
+      const GASAL_URL = `${process.env.API_LOCAL_ABSEN}pembelajaran/list-pertemuan`;
       const responseGasal = await axios.get(GASAL_URL, {
         params: {
           dataTable: true,
@@ -209,7 +209,7 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
         gasal: persentaseGasal,
       });
       await sleep(1000);
-      const GENAP_URL = `https://absen.ft.uika-bogor.ac.id/api/pembelajaran/list-pertemuan`;
+      const GENAP_URL = `${process.env.API_LOCAL_ABSEN}pembelajaran/list-pertemuan`;
       const responseGenap = await axios.get(GENAP_URL, {
         params: {
           dataTable: true,
@@ -219,10 +219,10 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
         },
       });
       const persentaseGenap = calculatePersentase(responseGenap.data.data);
-      results.find((result) => result.nip === dosen.nip).genap = persentaseGenap;
+      results.find((result) => result.nip === dosen.nip).genap =
+        persentaseGenap;
       callback();
     });
-    
 
     queue.drain(() => {
       res.status(200).json({

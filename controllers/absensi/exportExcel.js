@@ -3,10 +3,20 @@ const axios = require("axios");
 const asyncHandler = require("express-async-handler");
 
 exports.exportListPertemuan = asyncHandler(async (req, res) => {
-  const API_URL = `https://absen.ft.uika-bogor.ac.id/api/pembelajaran/list-pertemuan?dataTable=true&code=410100569`;
+  const nip = req.query.nip;
+  const semester = req.query.semester;
+
+  const GASAL_URL = `${process.env.API_LOCAL_ABSEN}pembelajaran/list-pertemuan`;
 
   try {
-    const response = await axios.get(API_URL);
+    const response = await axios.get(GASAL_URL, {
+      params: {
+        dataTable: true,
+        filter: ["semester", "curr_code"],
+        filterValue: [semester, "TIF2021"],
+        code: nip,
+      },
+    });
 
     // Check if 'data' property exists in the response
     if (!response.data || !response.data.data) {
