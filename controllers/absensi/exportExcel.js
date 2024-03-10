@@ -8,6 +8,7 @@ exports.exportListPertemuan = asyncHandler(async (req, res) => {
 
   const GASAL_URL = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan`;
 
+
   try {
     const response = await axios.get(GASAL_URL, {
       params: {
@@ -47,7 +48,6 @@ exports.exportListPertemuan = asyncHandler(async (req, res) => {
 
     const data = response.data.data;
 
-    // Add data to the worksheet
     data.forEach((row, index) => {
       const rowData = [
         index + 1,
@@ -55,13 +55,12 @@ exports.exportListPertemuan = asyncHandler(async (req, res) => {
         row.name_matkul || "",
         row.class || "",
         ...(row.pertemuan_statusKelas || []).slice(0, 7),
-        "", // UTS (empty cell)
+        "", 
         ...(row.pertemuan_statusKelas || []).slice(7, 14),
-        "", // UAS (empty cell)
+        "", 
         row.persentase || "",
       ];
 
-      // Check if rowData contains undefined values
       if (rowData.some((value) => value === undefined)) {
         console.log("Skipping row due to missing data:", rowData);
         return;
@@ -69,7 +68,6 @@ exports.exportListPertemuan = asyncHandler(async (req, res) => {
 
       const rowExcel = worksheet.addRow(rowData);
 
-      // Apply cell background color based on status_kelas
       rowExcel.eachCell({ includeEmpty: true }, (cell, colNumber) => {
         if (colNumber >= 5 && colNumber <= 11) {
           const columnIndex = colNumber - 5; // Adjust column index to match pertemuan_statusKelas
@@ -86,7 +84,7 @@ exports.exportListPertemuan = asyncHandler(async (req, res) => {
               color = "800080"; // Purple
               break;
             default:
-              color = "FFFFFF"; // Gray
+              color = "FFFFFF"; // white
               break;
           }
           cell.fill = {
@@ -95,7 +93,7 @@ exports.exportListPertemuan = asyncHandler(async (req, res) => {
             fgColor: { argb: color },
           };
         } else if (colNumber >= 13 && colNumber <= 19) {
-          const columnIndex = colNumber - 8; // Adjust column index to match pertemuan_statusKelas
+          const columnIndex = colNumber - 8; 
           const statusKelas = row.pertemuan_statusKelas[columnIndex];
           let color;
           if (statusKelas !== null) {
@@ -110,11 +108,11 @@ exports.exportListPertemuan = asyncHandler(async (req, res) => {
                 color = "800080"; // Purple
                 break;
               default:
-                color = "FFFFFF"; // Gray
+                color = "FFFFFF"; // white
                 break;
             }
           } else {
-            color = "FFFFFF"; // Gray for null value
+            color = "FFFFFF";
           }
           cell.fill = {
             type: "pattern",
@@ -122,14 +120,12 @@ exports.exportListPertemuan = asyncHandler(async (req, res) => {
             fgColor: { argb: color },
           };
         } else if (colNumber === 12 || colNumber === 20) {
-          // For UTS and UAS columns, apply gray color
           cell.fill = {
             type: "pattern",
             pattern: "solid",
             fgColor: { argb: "808080" }, // Gray
           };
         }
-        // Set border for each cell
         cell.border = {
           top: { style: "thin", color: { argb: "000000" } },
           left: { style: "thin", color: { argb: "000000" } },
