@@ -194,21 +194,35 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
 
     const results = [];
     const queue = async.queue(async (dosen, callback) => {
-      const API_URL_GASAL = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=gasal&code=${dosen.nip}`;
-      const responseGasal = await axios.get(API_URL_GASAL);
+      const GASAL_URL = `https://absen.ft.uika-bogor.ac.id/api/pembelajaran/list-pertemuan`;
+      const responseGasal = await axios.get(GASAL_URL, {
+        params: {
+          dataTable: true,
+          filter: ["semester", "curr_code"],
+          filterValue: ["gasal", "TIF2021"],
+          code: dosen.nip,
+        },
+      });
       const persentaseGasal = calculatePersentase(responseGasal.data.data);
       results.push({
         ...dosen,
         gasal: persentaseGasal,
       });
       await sleep(1000);
-      const API_URL_GENAP = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-pertemuan?dataTable=true&filter[]=semester&filterValue[]=genap&code=${dosen.nip}`;
-      const responseGenap = await axios.get(API_URL_GENAP);
+      const GENAP_URL = `https://absen.ft.uika-bogor.ac.id/api/pembelajaran/list-pertemuan`;
+      const responseGenap = await axios.get(GENAP_URL, {
+        params: {
+          dataTable: true,
+          filter: ["semester", "curr_code"],
+          filterValue: ["genap", "TIF2021"],
+          code: dosen.nip,
+        },
+      });
       const persentaseGenap = calculatePersentase(responseGenap.data.data);
-      results.find((result) => result.nip === dosen.nip).genap =
-        persentaseGenap;
+      results.find((result) => result.nip === dosen.nip).genap = persentaseGenap;
       callback();
     });
+    
 
     queue.drain(() => {
       res.status(200).json({
