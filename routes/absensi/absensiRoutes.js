@@ -21,6 +21,7 @@ const {
 } = require("../../controllers/absensi/absensiController");
 const {
   exportListPertemuan,
+  exportListAbsensi,
 } = require("../../controllers/absensi/exportExcel");
 
 const router = express.Router();
@@ -43,6 +44,7 @@ router.post("/update-absensi/:id", updateAbsensi);
 router.get("/dosen-mk", dosenForMk);
 
 router.get("/list-pertemuan/excel", exportListPertemuan);
+router.get("/list-absensi/excel", exportListAbsensi);
 router.get("/list-dosen", getDosenForAbsensi);
 
 module.exports = router;
