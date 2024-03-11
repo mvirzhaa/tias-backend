@@ -11,6 +11,15 @@ exports.formRegisterValidation = (data) => {
   return schema.validate(data);
 };
 
+exports.formRegisterPmmValidation = (data) => {
+  const schema = Joi.object({
+    npm: Joi.number().label("npm"),
+    email: Joi.string().email().required().label("Email"),
+    password: PasswordComplexity().required().label("Password"),
+  });
+  return schema.validate(data);
+};
+
 // reset password validation
 exports.resetPasswordValidation = (data) => {
   const schema = Joi.object({

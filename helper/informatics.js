@@ -1,3 +1,4 @@
+const { default: axios } = require("axios");
 const mysql = require("mysql2");
 
 const pool = mysql.createPool({
@@ -29,6 +30,23 @@ async function getInformaticsStudent(departmentCode) {
   }
 }
 
+async function getPmmStudent(npm) {
+  const API_URL = `${process.env.API_KAMPUSMERDEKA_UIKA}/index.php`;
+
+  try {
+    const response = await axios.get(API_URL, {
+      params: {
+        menu: "mahasiswa-pmm",
+        academic_year: "2023/2024",
+        semester: "GENAP",
+        code: npm,
+      },
+    });
+
+    return response.data.Data;
+  } catch (error) {}
+}
+
 async function getDosen(division) {
   const query =
     "SELECT adm_lookup.lookup_id, adm_lookup.lookup_value, simpeg_pegawai.* FROM simpeg_pegawai JOIN adm_lookup ON adm_lookup.lookup_id = simpeg_pegawai.division WHERE adm_lookup.lookup_name = 'DIVISION' AND simpeg_pegawai.klasi_pegawai = 'PENDIDIK (DOSEN)' AND adm_lookup.lookup_id != 'AKADEMIK' AND simpeg_pegawai.status_kerja = 'AKTIF' AND adm_lookup.lookup_id = ?;";
@@ -44,4 +62,5 @@ module.exports = {
   executeQuery,
   getInformaticsStudent,
   getDosen,
+  getPmmStudent,
 };

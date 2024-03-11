@@ -4,6 +4,7 @@ const {
   formRegisterValidation,
   resetPasswordValidation,
   changePasswordValidation,
+  formRegisterPmmValidation,
 } = require("../../validation/formValidation");
 const bcrypt = require("bcryptjs");
 const parser = require("ua-parser-js");
@@ -20,8 +21,12 @@ const jwt = require("jsonwebtoken");
 // Triger 2FA
 const Cryptr = require("cryptr");
 const sendEmail = require("../../utils/sendMail");
-const { getInformaticsStudent, getDosen } = require("../../helper/informatics");
-const { getIp, deleteIp} = require("../../helper/ipk");
+const {
+  getInformaticsStudent,
+  getDosen,
+  getPmmStudent,
+} = require("../../helper/informatics");
+const { getIp, deleteIp } = require("../../helper/ipk");
 const { updateGamifyKompetensi } = require("../../utils/gamifyKompetensi");
 const cryptr = new Cryptr(process.env.CRYPTR_KEY);
 
@@ -49,7 +54,6 @@ exports.register = asyncHandler(async (req, res) => {
   await checkIfExists("nidn", npm_nidn, "NIDN already exists.");
   await checkIfExists("email", email, "Email already exists.");
 
-  
   if (!npm_nidn || !email || !password) {
     res.status(400);
     throw new Error("Pleas fill in all the required fields.");
@@ -105,20 +109,20 @@ exports.register = asyncHandler(async (req, res) => {
           studentWithNpm.mobile_phone,
           studentWithNpm.national_id_number,
           convert,
-          studentWithNpm.status
+          studentWithNpm.status,
         ]
       );
 
       const reqInsertedIp = await getIp(saveUser.rows[0].user_id, npm_nidn);
 
-      if(reqInsertedIp != 200){
+      if (reqInsertedIp != 200) {
         res.status(400);
         throw new Error("failed to delete and add ip data.");
       }
- 
-      const achievementsData = await DB.query('SELECT id FROM achievements');
-      const achievementsDefault = achievementsData.rows.map(row => row.id);
-      
+
+      const achievementsData = await DB.query("SELECT id FROM achievements");
+      const achievementsDefault = achievementsData.rows.map((row) => row.id);
+
       const userAchievementsInserts = [];
       for (const achievementId of achievementsDefault) {
         const userAchievementInsert = await DB.query(
@@ -127,12 +131,16 @@ exports.register = asyncHandler(async (req, res) => {
         );
         userAchievementsInserts.push(userAchievementInsert);
       }
-      
+
       const allUserAchievementsInserted = userAchievementsInserts.every(
         (result) => result.rows.length > 0
       );
 
-      if (saveUser.rows.length && savePersonalData.rows.length && allUserAchievementsInserted) {
+      if (
+        saveUser.rows.length &&
+        savePersonalData.rows.length &&
+        allUserAchievementsInserted
+      ) {
         const { user_id, npm, email } = saveUser.rows[0];
 
         // Create verification token
@@ -274,6 +282,126 @@ exports.register = asyncHandler(async (req, res) => {
   }
 });
 
+exports.registerMhsPmm = asyncHandler(async (req, res) => {
+  const { error } = formRegisterPmmValidation(req.body);
+  if (error) {
+    return res.status(400).send({ message: error.details[0].message });
+  }
+
+  const { npm, email, password } = req.body;
+
+  const checkIfExists = async (column, value, errorMessage) => {
+    const result = await DB.query(
+      `SELECT * FROM tb_users WHERE ${column} = $1`,
+      [value]
+    );
+
+    if (result.rows.length) {
+      res.status(400);
+      throw new Error(errorMessage);
+    }
+  };
+
+  await checkIfExists("npm", npm, "NPM already exists.");
+  await checkIfExists("email", email, "Email already exists.");
+
+  if (!npm || !email || !password) {
+    res.status(400);
+    throw new Error("Pleas fill in all the required fields.");
+  }
+
+  // Get userAgent
+  const ua = parser(req.headers["user-agent"]);
+  const userAgent = [ua.ua];
+
+  // hash password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  const role = "Mahasiswa";
+  const created_at = unixTimestamp;
+  const convert = convertDate(created_at);
+
+  const result = await getPmmStudent(npm);
+  const dataMhsPmm = result[0];
+
+  if (result.length) {
+    // Save user to DB
+    const saveUser = await DB.query(
+      `INSERT INTO tb_users(npm, email, password, role, user_agent, created_at) VALUES ($1, $2, $3, $4, $5, $6) returning *`,
+      [npm, email, hashedPassword, role, userAgent, convert]
+    );
+
+    const jenkelSiak =
+      dataMhsPmm.sex === "LAKI-LAKI"
+        ? "L"
+        : dataMhsPmm.sex === "PEREMPUAN"
+        ? "P"
+        : null;
+
+    const savePersonalData = await DB.query(
+      `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, jenkel, tanggal_lahir, tempat_lahir, agama, email,  no_hp, nik, created_at, kode_mhs) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
+        RETURNING *`,
+      [
+        saveUser.rows[0].user_id,
+        dataMhsPmm.name,
+        jenkelSiak,
+        dataMhsPmm.birthdate,
+        dataMhsPmm.birthplace,
+        dataMhsPmm.religion,
+        email,
+        dataMhsPmm.phone,
+        dataMhsPmm.national_id_number,
+        convert,
+        "PMM",
+      ]
+    );
+
+    if (saveUser.rows.length && savePersonalData.rows.length) {
+      const { user_id, npm, email } = saveUser.rows[0];
+
+      // Create verification token
+      const verificationToken =
+        crypto.randomBytes(32).toString("hex") + user_id;
+      // console.log("verif token :", verificationToken);
+      const hashedToken = hashToken(verificationToken);
+
+      const unix = unixTimestamp;
+      const createdAt = await convertDate(unix);
+      const unixExpires = expires_at;
+      const expiresAt = await convertDate(unixExpires);
+
+      await DB.query(
+        "INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
+        [user_id, hashedToken, createdAt, expiresAt]
+      );
+
+      // Construct Verification Token
+      const verificationUrl = `${process.env.FRONTEND_URL}/verification/${verificationToken}`;
+
+      // Send verification email
+      const subject = "Verify Your Account";
+      const send_to = email;
+      const send_from = process.env.EMAIL_USER;
+      const template = "verifyEmail";
+      const link = verificationUrl;
+
+      await sendMail(subject, send_to, send_from, template, link);
+
+      res.status(200).json({
+        message: `Verification Email Sent ${email}.`,
+      });
+    } else {
+      res.status(400);
+      throw new Error("Invalid User data");
+    }
+  } else {
+    res.status(400);
+    throw new Error("INVALID NPM. NPM NOT FOUND!!");
+  }
+});
+
 exports.loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -378,7 +506,6 @@ exports.loginUser = asyncHandler(async (req, res) => {
   // // Generate Token
   const token = generateToken(id);
 
-
   if (user.rows.length && passwordIsCorrect) {
     const {
       user_id,
@@ -395,24 +522,26 @@ exports.loginUser = asyncHandler(async (req, res) => {
     const createdAt = await convertDate(unix);
     const unixExpires = expires_at;
     const expiresAt = await convertDate(unixExpires);
-  
+
     await DB.query(
       "INSERT INTO token(user_id, login_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
       [id, token, createdAt, expiresAt]
     );
 
-    const getPersonalData = await DB.query("SELECT nip, nama_lengkap, image, total_point FROM tb_data_pribadi WHERE user_id = $1", [user_id])
+    const getPersonalData = await DB.query(
+      "SELECT nip, nama_lengkap, image, total_point FROM tb_data_pribadi WHERE user_id = $1",
+      [user_id]
+    );
 
-    const oneMonth = 30 * 24 * 60 * 60 * 1000; 
+    const oneMonth = 30 * 24 * 60 * 60 * 1000;
 
     res.cookie("token", token, {
       path: "/",
       httpOnly: true,
-      expires: new Date(Date.now() + oneMonth), 
+      expires: new Date(Date.now() + oneMonth),
       sameSite: "none",
       secure: true,
     });
-
 
     res.status(200).json({
       message: "Login Success.",

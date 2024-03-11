@@ -18,12 +18,14 @@ const {
   sendAutomatedEmail,
   cekDataPribadi,
   getUserLogin,
+  registerMhsPmm,
 } = require("../../controllers/Authentication/authController");
 const { protected, adminOnly } = require("../../middleware/authMiddleware");
 
 const router = express.Router();
 
 router.post("/register", register);
+router.post("/register-pmm", registerMhsPmm);
 router.post("/login", loginUser);
 router.get("/cekDataPribadi/:id", cekDataPribadi);
 router.post("/sendLoginCode/:email", sendLoginCode);
