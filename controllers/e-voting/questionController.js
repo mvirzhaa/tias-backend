@@ -98,8 +98,9 @@ exports.detailQuestion = asyncHandler(async (req, res) => {
       "SELECT * FROM tb_pertanyaan WHERE id = $1",
       [id]
     );
+
     const options = await DB.query(
-      "SELECT tb_jawaban.*, tb_hasil.* FROM tb_jawaban JOIN tb_hasil ON tb_jawaban.id = tb_hasil.id_jawaban WHERE tb_jawaban.id_pertanyaan = $1 AND tb_jawaban.status_jawaban = $2",
+      "SELECT tb_jawaban.*, tb_hasil.* FROM tb_jawaban JOIN tb_hasil ON tb_jawaban.id = tb_hasil.id_jawaban WHERE tb_jawaban.id_pertanyaan = $1 AND tb_jawaban.status_jawaban = $2 ORDER BY tb_hasil.hasil DESC",
       [id, 1]
     );
 
