@@ -9,25 +9,28 @@ exports.addRekomendasi = asyncHandler(async (req, res) => {
   if (!data.body || !data.mahasiswa_id) {
     res.status(400);
     throw new Error("Pleas fill in all the required fields.");
-  };
+  }
 
-  const user = await DB.query("SELECT tb_users.*, tb_data_pribadi.total_point FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.user_id = $1", [
-    userLoginId,
-  ]);
+  const user = await DB.query(
+    "SELECT tb_users.*, tb_data_pribadi.total_point FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.user_id = $1",
+    [data.mahasiswa_id]
+  );
 
-  if(user.rows[0].total_point <= 2400){
+  if (user.rows[0].total_point <= 2400) {
     res.status(400);
     throw new Error("The user has not reached point 2400 as a proficient.");
   }
 
   if (user.rows.length) {
-    const findRekomendasi = await DB.query("SELECT * FROM rekomendasi_mhs WHERE user_id = $1 AND mahasiswa_id = $2", [userLoginId, data.mahasiswa_id]);
+    const findRekomendasi = await DB.query(
+      "SELECT * FROM rekomendasi_mhs WHERE user_id = $1 AND mahasiswa_id = $2",
+      [userLoginId, data.mahasiswa_id]
+    );
 
-    if(findRekomendasi.rows.length){
+    if (findRekomendasi.rows.length) {
       res.status(400);
       throw new Error("you have made the recommendation.");
     }
-
 
     const findMhs = await DB.query(
       "SELECT * FROM tb_users WHERE user_id = $1 and role = $2",
@@ -60,9 +63,12 @@ exports.addRekomendasi = asyncHandler(async (req, res) => {
         [data.mahasiswa_id]
       );
 
-      const findUsePoint = await DB.query("SELECT point FROM point_rekomendasi WHERE status = $1", [1]);
-  
-      const pointUse = Number(findUsePoint.rows[0].point)
+      const findUsePoint = await DB.query(
+        "SELECT point FROM point_rekomendasi WHERE status = $1",
+        [1]
+      );
+
+      const pointUse = Number(findUsePoint.rows[0].point);
 
       const totalData = jumlahDataRekomen.rows[0].count * pointUse;
 

@@ -28,7 +28,8 @@ const absensiRoutes = require("./routes/absensi/absensiRoutes");
 const jadwalRapatRoutes = require("./routes/jadwal-rapat/jadwalRapatRoutes");
 const helpRoutes = require("./routes/helperRoutes");
 const skpiRoutes = require("./routes/skpi/skpiRoutes");
-const votingRoutes = require("./routes/e-voting/eVotingRoutes")
+const votingRoutes = require("./routes/e-voting/eVotingRoutes");
+const bimbinganAkademikRoutes = require("./routes/bimbingan/bimbinganAkademik");
 const errorHandler = require("./helper/errorHandler");
 
 const app = express();
@@ -70,13 +71,12 @@ app.use("/meet", jadwalRapatRoutes);
 app.use("/achievments", achievmentsRoutes);
 app.use("/skpi", skpiRoutes);
 app.use("/voting", votingRoutes);
-
+app.use("/bimbingan-akademik", bimbinganAkademikRoutes);
 
 app.use("/help", helpRoutes);
 app.get("/", (req, res) => {
   res.send("Server Oke");
 });
-
 
 // error handler
 app.use(errorHandler);
@@ -84,7 +84,7 @@ app.use(errorHandler);
 const startServer = () => {
   const PORT = process.env.PORT || 5000;
   try {
-    app.listen(PORT,  () => {
+    app.listen(PORT, () => {
       console.log(`Server Running On Port: ${PORT}`);
     });
   } catch (error) {
