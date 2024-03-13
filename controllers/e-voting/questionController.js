@@ -246,27 +246,25 @@ exports.updateQuestion = asyncHandler(async (req, res) => {
     await DB.query(updateQuery, updateValues);
 
     if (dataToUpdate.dataOptions) {
-      await DB.query("DELETE FROM tb_jawaban WHERE id_pertanyaan = $1", [
-        idToUpdate,
-      ]);
+      for (const opt of dataToUpdate.dataOptions) {
+        if (opt.id) {
+          await DB.query(
+            "UPDATE tb_jawaban SET jawaban = $1, status_jawaban = $2 WHERE id = $3",
+            [opt.jawaban, opt.status_jawaban, opt.id]
+          );
+        } else {
+          const insertedJawaban = await DB.query(
+            "INSERT INTO tb_jawaban(id_pertanyaan, jawaban, status_jawaban) VALUES ($1, $2, $3) RETURNING id",
+            [idToUpdate, opt.jawaban, opt.status_jawaban]
+          );
+          const newJawabanId = insertedJawaban.rows[0].id;
 
-      dataToUpdate.dataOptions.forEach(async (opt) => {
-        // Mengakses langsung properti dataOptions
-        const dataOptions = {
-          id_pertanyaan: opt.id_pertanyaan,
-          jawaban: opt.jawaban,
-          status_jawaban: opt.status_jawaban,
-        };
-
-        await DB.query(
-          "INSERT INTO tb_jawaban(id_pertanyaan, jawaban, status_jawaban) VALUES ($1, $2, $3) RETURNING *",
-          [
-            dataOptions.id_pertanyaan,
-            dataOptions.jawaban,
-            dataOptions.status_jawaban,
-          ]
-        );
-      });
+          await DB.query(
+            "INSERT INTO tb_hasil(id_jawaban) VALUES ($1) RETURNING *",
+            [newJawabanId]
+          );
+        }
+      }
     }
 
     res.status(200).json({
