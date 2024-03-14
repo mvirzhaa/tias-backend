@@ -13,7 +13,7 @@ exports.formRegisterValidation = (data) => {
 
 exports.formRegisterPmmValidation = (data) => {
   const schema = Joi.object({
-    npm: Joi.number().label("npm"),
+    npm: Joi.string().label("npm"),
     email: Joi.string().email().required().label("Email"),
     password: PasswordComplexity().required().label("Password"),
   });

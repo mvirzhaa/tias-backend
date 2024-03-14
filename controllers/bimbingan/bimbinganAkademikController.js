@@ -1,5 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const DB = require("../../db-bimbingan-akademik");
+const DB_TIAS = require("../../database");
 const { unixTimestamp, convertDate } = require("../../utils");
 
 // ====================  BIMBINGAN MAHASISWA ==========================
@@ -36,10 +37,10 @@ exports.addDataBimbinganAkademik = asyncHandler(async (req, res) => {
   // ==============MAHASISWA BIMBINGAN===================
   JSON.parse(data.mhs_bimbingan).forEach(async (mhs) => {
     const mhsBimbingan = {
-      mhs_id: mhs.mhs_id,
+      mhs_id: mhs.user_id,
     };
 
-    const keysData = ["bimbingan_akademik_id", ...Object.keys(mhsBimbingan)];
+    const keysData = ["id_bimbingan", ...Object.keys(mhsBimbingan)];
     const valuesData = [bimbinganId, ...Object.values(mhsBimbingan)];
     const placeholdersData = keysData.map((key, index) => `$${index + 1}`);
 
@@ -68,7 +69,7 @@ exports.getDataBimbingan = asyncHandler(async (req, res) => {
 
   if (role === "Dosen") {
     const findData = await DB.query(
-      "SELECT * FROM tb_bimbingan_mhs WHERE is_deleted = $1",
+      "SELECT * FROM tb_bimbingan_akademik WHERE id = $1 AND is_deleted = $2",
       [userLoginId, false]
     );
 
@@ -81,6 +82,7 @@ exports.getDataBimbingan = asyncHandler(async (req, res) => {
 
     res.status(200).json({
       message: "Successfully get data.",
+      totalData: findData.rowCount,
       data: findData.rows.map((iterate) => ({
         ...iterate,
         mhs_bimbingan: findMhs.rows,
@@ -88,41 +90,70 @@ exports.getDataBimbingan = asyncHandler(async (req, res) => {
     });
   } else if (role === "Mahasiswa") {
     const findData = await DB.query(
-      "SELECT * FROM tb_bimbingan_mhs WHERE mhs_id = $1",
+      "SELECT * FROM tb_bimbingan_akademik WHERE mhs_id = $1",
       [userLoginId]
     );
 
     if (findData.rows.length === 0) {
       res.status(404).json({
         message: "Data not found for the current user.",
+        totalData: 0,
         data: [],
       });
       return;
     }
-
     const bimbinganAkademikId = findData.rows[0].id;
 
     const findMhsBimbingan = await DB.query(
-      "SELECT * FROM mhs_bimbingan_akademik WHERE bimbingan_akademik_id = $1",
+      "SELECT * FROM mhs_bimbingan_akademik WHERE id_bimbingan = $1",
       [bimbinganAkademikId]
     );
 
     res.status(200).json({
       message: "Successfully get data.",
+      totalData: findData.rowCount, // Menambahkan total data
       data: {
         bimbingan_mhs: findData.rows[0],
         mhs_bimbingan: findMhsBimbingan.rows,
       },
     });
+  } else {
+    const findData = await DB.query(
+      "SELECT * FROM tb_bimbingan_akademik WHERE is_deleted = $1",
+      [false]
+    );
+
+    const dosenIds = findData.rows.map((data) => data.dosen_id);
+
+    const findDosen = await DB_TIAS.query(
+      "SELECT user_id, nama_lengkap FROM tb_data_pribadi WHERE user_id = ANY($1)",
+      [dosenIds]
+    );
+
+    const dosenMap = {};
+    findDosen.rows.forEach((dosen) => {
+      dosenMap[dosen.user_id] = dosen.nama_lengkap;
+    });
+
+    const mergedData = findData.rows.map((data) => ({
+      ...data,
+      nama_lengkap: dosenMap[data.dosen_id],
+    }));
+
+    res.status(200).json({
+      message: "Successfully get data.",
+      totalData: findData.rowCount,
+      data: mergedData,
+    });
   }
 });
 
 exports.detailDataBimbingan = asyncHandler(async (req, res) => {
-  const { bimbinganId } = req.params;
+  const { id } = req.params;
 
   const findData = await DB.query(
-    "SELECT * FROM tb_bimbingan_mhs WHERE id = $1",
-    [bimbinganId]
+    "SELECT * FROM tb_bimbingan_akademik WHERE id = $1",
+    [id]
   );
 
   if (findData.rows.length === 0) {
@@ -136,15 +167,35 @@ exports.detailDataBimbingan = asyncHandler(async (req, res) => {
   const bimbinganData = findData.rows[0];
 
   const mhsBimbingan = await DB.query(
-    "SELECT * FROM mhs_bimbingan_akademik WHERE bimbingan_akademik_id = $1",
-    [bimbinganId]
+    "SELECT * FROM mhs_bimbingan_akademik WHERE id_bimbingan = $1",
+    [id]
   );
+
+  const mhsIds = mhsBimbingan.rows.map((data) => data.mhs_id);
+
+  const findMhs = await DB_TIAS.query(
+    "SELECT tb_users.npm, tb_users.user_id, tb_data_pribadi.user_id, tb_data_pribadi.nama_lengkap FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.user_id = ANY($1)",
+    [mhsIds]
+  );
+
+  const mhsMap = {};
+  findMhs.rows.forEach((mhs) => {
+    mhsMap[mhs.user_id] = mhs;
+  });
+
+  const mergedData = mhsBimbingan.rows.map((data) => ({
+    ...data,
+    nama_lengkap: mhsMap[data.mhs_id].nama_lengkap,
+    npm: mhsMap[data.mhs_id].npm,
+    dok_frs: data.dok_frs,
+    catatan: data.catatan,
+  }));
 
   res.status(200).json({
     message: "Bimbingan data retrieved successfully.",
     data: {
       dataBimbingan: bimbinganData,
-      mhsBimbingan: mhsBimbingan.rows,
+      mhsBimbingan: mergedData,
     },
   });
 });
@@ -154,14 +205,14 @@ exports.editDataBimbingan = asyncHandler(async (req, res) => {
   const data = req.body;
 
   const findDataBimbingan = await DB.query(
-    "SELECT * FROM tb_bimbingan_mhs WHERE id = $1",
+    "SELECT * FROM tb_bimbingan_akademik WHERE id = $1",
     [bimbinganId]
   );
 
   if (findDataBimbingan.rows.length) {
     if (data.mhs_bimbingan) {
       await DB.query(
-        "DELETE FROM mhs_bimbingan_akademik WHERE bimbingan_akademik_id = $1",
+        "DELETE FROM mhs_bimbingan_akademik WHERE id_bimbingan = $1",
         [bimbinganId]
       );
 
@@ -176,10 +227,7 @@ exports.editDataBimbingan = asyncHandler(async (req, res) => {
           p4: mhs.p4,
         };
 
-        const keysData = [
-          "bimbingan_akademik_id",
-          ...Object.keys(mhsBimbingan),
-        ];
+        const keysData = ["id_bimbingan", ...Object.keys(mhsBimbingan)];
         const valuesData = [bimbinganId, ...Object.values(mhsBimbingan)];
         const placeholdersData = keysData.map((key, index) => `$${index + 1}`);
 
@@ -203,11 +251,11 @@ exports.editDataBimbingan = asyncHandler(async (req, res) => {
 });
 
 exports.deleteDataBimbingan = asyncHandler(async (req, res) => {
-  const { bimbinganId } = req.params;
+  const { id } = req.params;
 
   const findData = await DB.query(
-    "SELECT * FROM tb_bimbingan_mhs WHERE id = $1",
-    [bimbinganId]
+    "SELECT * FROM tb_bimbingan_akademik WHERE id = $1",
+    [id]
   );
 
   if (!findData.rows.length) {
@@ -215,13 +263,28 @@ exports.deleteDataBimbingan = asyncHandler(async (req, res) => {
     throw new Error("Data not found.");
   }
 
-  const created_at = unixTimestamp;
-  const convert = convertDate(created_at);
+  await DB.query("DELETE FROM tb_bimbingan_akademik WHERE id = $1", [id]);
+  await DB.query("DELETE FROM mhs_bimbingan_akademik WHERE id_bimbingan = $1", [
+    id,
+  ]);
 
-  await DB.query(
-    "UPDATE tb_bimbingan_mhs SET is_deleted = $1, deleted_at = $2 WHERE id = $3",
-    [true, convert, bimbinganId]
+  res.status(200).json({ message: "Data deleted successfully." });
+});
+
+exports.deleteMhsBimbingan = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const findData = await DB.query(
+    "SELECT * FROM mhs_bimbingan_akademik WHERE id = $1",
+    [id]
   );
+
+  if (!findData.rows.length) {
+    res.status(400);
+    throw new Error("Data not found.");
+  }
+
+  await DB.query("DELETE FROM mhs_bimbingan_akademik WHERE id = $1", [id]);
 
   res.status(200).json({ message: "Data deleted successfully." });
 });
