@@ -31,7 +31,7 @@ async function getInformaticsStudent(departmentCode) {
 }
 
 async function getPmmStudent(npm) {
-  const API_URL = `${process.env.API_KAMPUSMERDEKA_UIKA}/index.php`;
+  const API_URL = `${process.env.API_URL_SKPI}/index.php`;
 
   try {
     const response = await axios.get(API_URL, {

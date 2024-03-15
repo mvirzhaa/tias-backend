@@ -38,6 +38,7 @@ exports.addDataBimbinganAkademik = asyncHandler(async (req, res) => {
   JSON.parse(data.mhs_bimbingan).forEach(async (mhs) => {
     const mhsBimbingan = {
       mhs_id: mhs.user_id,
+      dok_frs: "index.pdf"
     };
 
     const keysData = ["id_bimbingan", ...Object.keys(mhsBimbingan)];
@@ -69,59 +70,28 @@ exports.getDataBimbingan = asyncHandler(async (req, res) => {
 
   if (role === "Dosen") {
     const findData = await DB.query(
-      "SELECT * FROM tb_bimbingan_akademik WHERE id = $1 AND is_deleted = $2",
-      [userLoginId, false]
-    );
-
-    const bkId = findData.rows[0].id;
-
-    const findMhs = await DB.query(
-      "SELECT * FROM mhs_bimbingan_akademik WHERE id = $1",
-      bkId
+      "SELECT * FROM tb_bimbingan_akademik WHERE dosen_id = $1",
+      [userLoginId]
     );
 
     res.status(200).json({
       message: "Successfully get data.",
       totalData: findData.rowCount,
-      data: findData.rows.map((iterate) => ({
-        ...iterate,
-        mhs_bimbingan: findMhs.rows,
-      })),
+      data: findData.rows,
     });
   } else if (role === "Mahasiswa") {
     const findData = await DB.query(
-      "SELECT * FROM tb_bimbingan_akademik WHERE mhs_id = $1",
+      "SELECT mhs_bimbingan_akademik.*, tb_bimbingan_akademik.* FROM mhs_bimbingan_akademik JOIN tb_bimbingan_akademik ON mhs_bimbingan_akademik.id_bimbingan = tb_bimbingan_akademik.id WHERE mhs_bimbingan_akademik.mhs_id = $1",
       [userLoginId]
-    );
-
-    if (findData.rows.length === 0) {
-      res.status(404).json({
-        message: "Data not found for the current user.",
-        totalData: 0,
-        data: [],
-      });
-      return;
-    }
-    const bimbinganAkademikId = findData.rows[0].id;
-
-    const findMhsBimbingan = await DB.query(
-      "SELECT * FROM mhs_bimbingan_akademik WHERE id_bimbingan = $1",
-      [bimbinganAkademikId]
     );
 
     res.status(200).json({
       message: "Successfully get data.",
-      totalData: findData.rowCount, // Menambahkan total data
-      data: {
-        bimbingan_mhs: findData.rows[0],
-        mhs_bimbingan: findMhsBimbingan.rows,
-      },
+      totalData: findData.rowCount,
+      data: findData.rows[0],
     });
   } else {
-    const findData = await DB.query(
-      "SELECT * FROM tb_bimbingan_akademik WHERE is_deleted = $1",
-      [false]
-    );
+    const findData = await DB.query("SELECT * FROM tb_bimbingan_akademik");
 
     const dosenIds = findData.rows.map((data) => data.dosen_id);
 
@@ -188,7 +158,6 @@ exports.detailDataBimbingan = asyncHandler(async (req, res) => {
     nama_lengkap: mhsMap[data.mhs_id].nama_lengkap,
     npm: mhsMap[data.mhs_id].npm,
     dok_frs: data.dok_frs,
-    catatan: data.catatan,
   }));
 
   res.status(200).json({
@@ -198,56 +167,6 @@ exports.detailDataBimbingan = asyncHandler(async (req, res) => {
       mhsBimbingan: mergedData,
     },
   });
-});
-
-exports.editDataBimbingan = asyncHandler(async (req, res) => {
-  const { bimbinganId } = req.params;
-  const data = req.body;
-
-  const findDataBimbingan = await DB.query(
-    "SELECT * FROM tb_bimbingan_akademik WHERE id = $1",
-    [bimbinganId]
-  );
-
-  if (findDataBimbingan.rows.length) {
-    if (data.mhs_bimbingan) {
-      await DB.query(
-        "DELETE FROM mhs_bimbingan_akademik WHERE id_bimbingan = $1",
-        [bimbinganId]
-      );
-
-      JSON.parse(data.mhs_bimbingan).forEach(async (mhs) => {
-        const mhsBimbingan = {
-          user_id: mhs.user_id,
-          dok_frs: mhs.dok_frs,
-          catatan: mhs.catatan,
-          p1: mhs.p1,
-          p2: mhs.p2,
-          p3: mhs.p3,
-          p4: mhs.p4,
-        };
-
-        const keysData = ["id_bimbingan", ...Object.keys(mhsBimbingan)];
-        const valuesData = [bimbinganId, ...Object.values(mhsBimbingan)];
-        const placeholdersData = keysData.map((key, index) => `$${index + 1}`);
-
-        await DB.query(
-          `INSERT INTO mhs_bimbingan_akademik(${keysData.join(
-            ", "
-          )}) VALUES (${placeholdersData.join(", ")}) returning *`,
-          valuesData
-        );
-      });
-    }
-
-    res.status(201).json({
-      message: "Successfully update data.",
-    });
-  } else {
-    res.status(404).json({
-      message: "Data not found",
-    });
-  }
 });
 
 exports.deleteDataBimbingan = asyncHandler(async (req, res) => {
@@ -287,4 +206,147 @@ exports.deleteMhsBimbingan = asyncHandler(async (req, res) => {
   await DB.query("DELETE FROM mhs_bimbingan_akademik WHERE id = $1", [id]);
 
   res.status(200).json({ message: "Data deleted successfully." });
+});
+
+exports.updateForAdmin = asyncHandler(async (req, res) => {
+  const idToUpdate = req.params.id;
+  const dataToUpdate = req.body;
+
+  if (!idToUpdate) {
+    res.status(400);
+    throw new Error("ID parameter is missing.");
+  }
+
+  try {
+    const bimbinganAkademik = {
+      dosen_id: dataToUpdate.dosen_id,
+      tahun_akademik: dataToUpdate.tahun_akademik,
+    };
+
+    const updateQuery =
+      "UPDATE tb_bimbingan_akademik SET dosen_id = $1, tahun_akademik = $2 WHERE id = $3 RETURNING *";
+    const updateValues = [
+      bimbinganAkademik.dosen_id,
+      bimbinganAkademik.tahun_akademik,
+      idToUpdate,
+    ];
+    await DB.query(updateQuery, updateValues);
+
+    // Menguraikan string mhs_bimbingan menjadi objek JavaScript
+    const mhsBimbingan = JSON.parse(dataToUpdate.mhs_bimbingan);
+
+    if (mhsBimbingan && Array.isArray(mhsBimbingan)) {
+      for (const opt of mhsBimbingan) {
+        if (opt.hasOwnProperty("id")) {
+          // Memeriksa keberadaan properti 'id'
+          await DB.query(
+            "UPDATE mhs_bimbingan_akademik SET mhs_id = $1 WHERE id = $2",
+            [opt.mhs_id, opt.id]
+          );
+        } else {
+          await DB.query(
+            "INSERT INTO mhs_bimbingan_akademik(id_bimbingan, mhs_id) VALUES ($1, $2) RETURNING id",
+            [idToUpdate, opt.mhs_id]
+          );
+        }
+      }
+    }
+
+    res.status(200).json({
+      message: "Successfully updated data.",
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: error.message || "Failed to update data.",
+    });
+  }
+});
+
+exports.updateForDosen = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const data = req.body;
+
+  if (!id) {
+    res.status(400);
+    throw new Error("ID parameter is missing.");
+  }
+
+  try {
+    const updateValues = [];
+    const updateQueryParts = [];
+
+    if (data.p1 !== undefined && data.p1 !== null && data.p1 !== "") {
+      updateValues.push(data.p1);
+      updateQueryParts.push("p1 = $" + updateValues.length);
+    }
+    if (data.p2 !== undefined && data.p2 !== null && data.p2 !== "") {
+      updateValues.push(data.p2);
+      updateQueryParts.push("p2 = $" + updateValues.length);
+    }
+    if (data.p3 !== undefined && data.p3 !== null && data.p3 !== "") {
+      updateValues.push(data.p3);
+      updateQueryParts.push("p3 = $" + updateValues.length);
+    }
+    if (data.p4 !== undefined && data.p4 !== null && data.p4 !== "") {
+      updateValues.push(data.p4);
+      updateQueryParts.push("p4 = $" + updateValues.length);
+    }
+    if (data.catatan !== undefined && data.catatan !== null) {
+      updateValues.push(data.catatan);
+      updateQueryParts.push("catatan = $" + updateValues.length);
+    }
+
+    const setQuery = updateQueryParts.join(", ");
+
+    if (updateValues.length > 0) {
+      updateValues.push(id);
+      await DB.query(
+        `UPDATE tb_bimbingan_akademik SET ${setQuery} WHERE id = $${updateValues.length}`,
+        updateValues
+      );
+    }
+
+    res.status(200).json({
+      message: "Successfully updated data.",
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: error.message || "Failed to update data.",
+    });
+  }
+});
+
+exports.updateForMhs = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const file = req.file;
+
+  if (!file) {
+    res.status(400);
+    throw new Error("Please fill in one file.");
+  }
+
+  const findData = await DB.query(
+    "SELECT * FROM mhs_bimbingan_akademik WHERE id = $1",
+    [id]
+  );
+
+  if (!findData.rows.length) {
+    res.status(400);
+    throw new Error("Data not found.");
+  }
+
+  if (findData.rows[0].dok_frs != "index.pdf") {
+    await fs.remove(
+      path.join(`public/dokumen-frs/${findData.rows[0].dok_frs}`)
+    );
+  }
+
+  await DB.query(
+    `UPDATE mhs_bimbingan_akademik SET dok_frs = $1 WHERE id = $2`,
+    [file.filename, id]
+  );
+
+  res.status(201).json({
+    message: "Successfully update data.",
+  });
 });
