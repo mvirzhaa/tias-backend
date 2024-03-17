@@ -23,6 +23,7 @@ const {
   exportListPertemuan,
   exportListAbsensi,
   exportsRekapPertemuan,
+  exportsPersentaseDosen,
 } = require("../../controllers/absensi/exportExcel");
 
 const router = express.Router();
@@ -47,6 +48,7 @@ router.get("/dosen-mk", dosenForMk);
 router.get("/list-pertemuan/excel", exportListPertemuan);
 router.get("/list-absensi/excel", exportListAbsensi);
 router.get("/rekap-pertemuan/excel", exportsRekapPertemuan);
+router.get("/persentase-dosen/excel", exportsPersentaseDosen);
 
 router.get("/list-dosen", getDosenForAbsensi);
 

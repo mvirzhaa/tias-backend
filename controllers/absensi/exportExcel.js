@@ -170,6 +170,87 @@ exports.exportsRekapPertemuan = asyncHandler(async (req, res) => {
   res.end();
 });
 
+exports.exportsPersentaseDosen = asyncHandler(async (req, res) => {
+  const API_URL = `${process.env.API_LOCAL_ABSEN}/pembelajaran/list-dosen-pertemuan`;
+
+  const response = await axios.get(API_URL);
+
+  const data = response.data.data;
+
+  if (data.length === 0) {
+    res.status(404);
+    throw new Error("Data not found");
+  }
+
+  const workbook = new excel.Workbook();
+  const worksheet = workbook.addWorksheet("Absensi");
+
+  worksheet.addRow([`Laporan persentase Absensi Dosen`]).font = {
+    bold: true,
+    size: 16,
+  };
+
+  worksheet.addRow([]);
+
+  const tableHeader = [
+    "nik",
+    "nidn",
+    "Nama",
+    "Total Matakuliah GASAL",
+    "Total Matakuliah Genap",
+    "Pesentase GASAL",
+    "Persentase GENAP",
+  ];
+
+  const headerRow = worksheet.addRow(tableHeader);
+  headerRow.eachCell((cell) => {
+    cell.border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+    cell.font = { bold: true };
+  });
+
+  data.forEach((row, index) => {
+    const rowData = [
+      row.code_lecturer,
+      row.nik,
+      row.name,
+      row.ttl_matkulGasal,
+      row.ttl_matkulGenap,
+      row.persentase_gasal,
+      row.persentase_genap,
+    ];
+    const dataRow = worksheet.addRow(rowData);
+
+    dataRow.eachCell((cell) => {
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" },
+      };
+    });
+  });
+
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
+
+  res.set("Access-Control-Expose-Headers", "Content-Disposition");
+
+  res.set(
+    "Content-Disposition",
+    "attachment; filename=" + `persentase-absensi-dosen.xlsx`
+  );
+
+  await workbook.xlsx.write(res);
+  res.end();
+});
+
 exports.exportListPertemuan = asyncHandler(async (req, res) => {
   const nip = req.query.nip;
   const semester = req.query.semester;
