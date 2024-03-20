@@ -173,6 +173,7 @@ exports.register = asyncHandler(async (req, res) => {
 
         res.status(200).json({
           message: `Verification Email Sent ${email}.`,
+          data: saveUser.rows[0]
         });
       } else {
         res.status(400);

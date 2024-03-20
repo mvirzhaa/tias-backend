@@ -19,6 +19,13 @@ const {
   createResult,
   cekSum,
 } = require("../../controllers/e-voting/resultsController");
+const {
+  getGroupVoting,
+  createGroup,
+  deleteGroup,
+  detailGroup,
+  editGroup,
+} = require("../../controllers/e-voting/groupController");
 
 const router = express.Router();
 
@@ -38,5 +45,11 @@ router.delete("/answer/:id", protected, adminOnly, deleteAnswer);
 router.post("/result", protected, createResult);
 
 router.get("/cek-sum", cekSum);
+
+router.get("/group-voting", protected, getGroupVoting);
+router.get("/group-voting/:id", protected, detailGroup);
+router.post("/group-voting", protected, createGroup);
+router.delete("/group-voting/:id", protected, deleteGroup);
+router.put("/group-voting/:id", protected, editGroup);
 
 module.exports = router;
