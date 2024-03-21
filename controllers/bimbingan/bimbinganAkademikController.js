@@ -2,17 +2,19 @@ const asyncHandler = require("express-async-handler");
 const DB = require("../../db-bimbingan-akademik");
 const DB_TIAS = require("../../database");
 const { unixTimestamp, convertDate } = require("../../utils");
+const path = require("path");
+const fs = require("fs-extra");
 
 // ====================  BIMBINGAN MAHASISWA ==========================
 exports.addDataBimbinganAkademik = asyncHandler(async (req, res) => {
   const data = req.body;
-  if (!data.tahun_akademik || !data.dosen_id || !data.mhs_bimbingan) {
+  if (!data.tahun_angkatan || !data.dosen_id || !data.mhs_bimbingan) {
     res.status(400);
     throw new Error("Pleas fill in all the required fields.");
   }
   // ==============BIMBINGAN MAHASISWA===================
   const dataBimbingan = {
-    tahun_akademik: data.tahun_akademik,
+    tahun_angkatan: data.tahun_angkatan,
     dosen_id: data.dosen_id,
   };
 
@@ -24,9 +26,9 @@ exports.addDataBimbinganAkademik = asyncHandler(async (req, res) => {
   const placeholders = keys.map((key, index) => `$${index + 1}`);
 
   const saveData = await DB.query(
-    `INSERT INTO tb_bimbingan_akademik(${keys.join(
+    `INSERT INTO tb_bk(${keys.join(", ")}) VALUES (${placeholders.join(
       ", "
-    )}) VALUES (${placeholders.join(", ")}) returning *`,
+    )}) returning *`,
     values
   );
 
@@ -38,22 +40,31 @@ exports.addDataBimbinganAkademik = asyncHandler(async (req, res) => {
   JSON.parse(data.mhs_bimbingan).forEach(async (mhs) => {
     const mhsBimbingan = {
       mhs_id: mhs.user_id,
-      dok_frs: "index.pdf"
     };
 
-    const keysData = ["id_bimbingan", ...Object.keys(mhsBimbingan)];
+    const keysData = ["bk_id", ...Object.keys(mhsBimbingan)];
     const valuesData = [bimbinganId, ...Object.values(mhsBimbingan)];
     const placeholdersData = keysData.map((key, index) => `$${index + 1}`);
 
     await DB.query(
-      `INSERT INTO mhs_bimbingan_akademik(${keysData.join(
+      `INSERT INTO mhs_bk(${keysData.join(
         ", "
       )}) VALUES (${placeholdersData.join(", ")}) returning *`,
       valuesData
     );
+
+    // Buat entri semester_bk 1-8 untuk setiap mahasiswa
+    for (let i = 1; i <= 8; i++) {
+      await DB.query(
+        "INSERT INTO semester_bk(id_mhs, semester, dok_frs) VALUES($1, $2, $3) returning *",
+        [mhsBimbingan.mhs_id, i, "index.pdf"]
+      );
+    }
   });
+
   // ==============END MAHASISWA BIMBINGAN===================
 
+  // Add bimbingan semester
   if (saveData.rows) {
     res.status(200).json({
       message: "Successfull created data.",
@@ -69,10 +80,9 @@ exports.getDataBimbingan = asyncHandler(async (req, res) => {
   const role = req.user.role;
 
   if (role === "Dosen") {
-    const findData = await DB.query(
-      "SELECT * FROM tb_bimbingan_akademik WHERE dosen_id = $1",
-      [userLoginId]
-    );
+    const findData = await DB.query("SELECT * FROM tb_bk WHERE dosen_id = $1", [
+      userLoginId,
+    ]);
 
     res.status(200).json({
       message: "Successfully get data.",
@@ -81,17 +91,25 @@ exports.getDataBimbingan = asyncHandler(async (req, res) => {
     });
   } else if (role === "Mahasiswa") {
     const findData = await DB.query(
-      "SELECT mhs_bimbingan_akademik.*, tb_bimbingan_akademik.* FROM mhs_bimbingan_akademik JOIN tb_bimbingan_akademik ON mhs_bimbingan_akademik.id_bimbingan = tb_bimbingan_akademik.id WHERE mhs_bimbingan_akademik.mhs_id = $1",
+      "SELECT mhs_bk.*, tb_bk.* FROM mhs_bk JOIN tb_bk ON mhs_bk.bk_id = tb_bk.id WHERE mhs_bk.mhs_id = $1",
       [userLoginId]
+    );
+
+    const mhsIds = findData.rows[0].mhs_id;
+
+    const findDataSemester = await DB.query(
+      "SELECT * FROM semester_bk WHERE id_mhs = $1",
+      [mhsIds]
     );
 
     res.status(200).json({
       message: "Successfully get data.",
       totalData: findData.rowCount,
       data: findData.rows[0],
+      semesters: findDataSemester.rows,
     });
   } else {
-    const findData = await DB.query("SELECT * FROM tb_bimbingan_akademik");
+    const findData = await DB.query("SELECT * FROM tb_bk");
 
     const dosenIds = findData.rows.map((data) => data.dosen_id);
 
@@ -121,10 +139,7 @@ exports.getDataBimbingan = asyncHandler(async (req, res) => {
 exports.detailDataBimbingan = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const findData = await DB.query(
-    "SELECT * FROM tb_bimbingan_akademik WHERE id = $1",
-    [id]
-  );
+  const findData = await DB.query("SELECT * FROM tb_bk WHERE id = $1", [id]);
 
   if (findData.rows.length === 0) {
     res.status(404).json({
@@ -136,15 +151,25 @@ exports.detailDataBimbingan = asyncHandler(async (req, res) => {
 
   const bimbinganData = findData.rows[0];
 
-  const mhsBimbingan = await DB.query(
-    "SELECT * FROM mhs_bimbingan_akademik WHERE id_bimbingan = $1",
-    [id]
-  );
+  const mhsBimbingan = await DB.query("SELECT * FROM mhs_bk WHERE bk_id = $1", [
+    id,
+  ]);
 
   const mhsIds = mhsBimbingan.rows.map((data) => data.mhs_id);
 
+  const semesterData = await Promise.all(
+    mhsIds.map(async (mhsId) => {
+      const semesters = await DB.query(
+        "SELECT * FROM semester_bk WHERE id_mhs = $1",
+        [mhsId]
+      );
+
+      return { mhsId, semesters: semesters.rows };
+    })
+  );
+
   const findMhs = await DB_TIAS.query(
-    "SELECT tb_users.npm, tb_users.user_id, tb_data_pribadi.user_id, tb_data_pribadi.nama_lengkap FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.user_id = ANY($1)",
+    "SELECT tb_users.npm, tb_data_pribadi.nama_lengkap, tb_users.user_id FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.user_id = ANY($1)",
     [mhsIds]
   );
 
@@ -153,11 +178,12 @@ exports.detailDataBimbingan = asyncHandler(async (req, res) => {
     mhsMap[mhs.user_id] = mhs;
   });
 
-  const mergedData = mhsBimbingan.rows.map((data) => ({
-    ...data,
-    nama_lengkap: mhsMap[data.mhs_id].nama_lengkap,
-    npm: mhsMap[data.mhs_id].npm,
-    dok_frs: data.dok_frs,
+  const mergedData = mhsBimbingan.rows.map((mhs) => ({
+    ...mhs,
+    npm: mhsMap[mhs.mhs_id]?.npm || null,
+    nama_lengkap: mhsMap[mhs.mhs_id]?.nama_lengkap || null,
+    semesters:
+      semesterData.find((data) => data.mhsId === mhs.mhs_id)?.semesters || [],
   }));
 
   res.status(200).json({
@@ -172,20 +198,23 @@ exports.detailDataBimbingan = asyncHandler(async (req, res) => {
 exports.deleteDataBimbingan = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const findData = await DB.query(
-    "SELECT * FROM tb_bimbingan_akademik WHERE id = $1",
-    [id]
-  );
+  const findData = await DB.query("SELECT * FROM tb_bk WHERE id = $1", [id]);
 
   if (!findData.rows.length) {
     res.status(400);
     throw new Error("Data not found.");
   }
 
-  await DB.query("DELETE FROM tb_bimbingan_akademik WHERE id = $1", [id]);
-  await DB.query("DELETE FROM mhs_bimbingan_akademik WHERE id_bimbingan = $1", [
+  await DB.query("DELETE FROM tb_bk WHERE id = $1", [id]);
+
+  const mhsBimbingan = await DB.query("SELECT * FROM mhs_bk WHERE bk_id = $1", [
     id,
   ]);
+  const idMhsList = mhsBimbingan.rows.map((mhs) => mhs.mhs_id);
+
+  await DB.query("DELETE FROM semester_bk WHERE id_mhs = ANY($1)", [idMhsList]);
+
+  await DB.query("DELETE FROM mhs_bk WHERE bk_id = $1", [id]);
 
   res.status(200).json({ message: "Data deleted successfully." });
 });
@@ -193,17 +222,23 @@ exports.deleteDataBimbingan = asyncHandler(async (req, res) => {
 exports.deleteMhsBimbingan = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const findData = await DB.query(
-    "SELECT * FROM mhs_bimbingan_akademik WHERE id = $1",
-    [id]
-  );
+  const findData = await DB.query("SELECT * FROM mhs_bk WHERE id = $1", [id]);
 
   if (!findData.rows.length) {
     res.status(400);
     throw new Error("Data not found.");
   }
 
-  await DB.query("DELETE FROM mhs_bimbingan_akademik WHERE id = $1", [id]);
+  const deleteMhs = await DB.query(
+    "DELETE FROM mhs_bk WHERE id = $1 RETURNING *",
+    [id]
+  );
+
+  const mhsIds = deleteMhs.rows[0].mhs_id;
+
+  await DB.query("DELETE FROM semester_bk WHERE id_mhs = $1 RETURNING *", [
+    mhsIds,
+  ]);
 
   res.status(200).json({ message: "Data deleted successfully." });
 });
@@ -220,14 +255,14 @@ exports.updateForAdmin = asyncHandler(async (req, res) => {
   try {
     const bimbinganAkademik = {
       dosen_id: dataToUpdate.dosen_id,
-      tahun_akademik: dataToUpdate.tahun_akademik,
+      tahun_angkatan: dataToUpdate.tahun_angkatan,
     };
 
     const updateQuery =
-      "UPDATE tb_bimbingan_akademik SET dosen_id = $1, tahun_akademik = $2 WHERE id = $3 RETURNING *";
+      "UPDATE tb_bk SET dosen_id = $1, tahun_angkatan = $2 WHERE id = $3 RETURNING *";
     const updateValues = [
       bimbinganAkademik.dosen_id,
-      bimbinganAkademik.tahun_akademik,
+      bimbinganAkademik.tahun_angkatan,
       idToUpdate,
     ];
     await DB.query(updateQuery, updateValues);
@@ -239,15 +274,22 @@ exports.updateForAdmin = asyncHandler(async (req, res) => {
       for (const opt of mhsBimbingan) {
         if (opt.hasOwnProperty("id")) {
           // Memeriksa keberadaan properti 'id'
-          await DB.query(
-            "UPDATE mhs_bimbingan_akademik SET mhs_id = $1 WHERE id = $2",
-            [opt.mhs_id, opt.id]
-          );
+          await DB.query("UPDATE mhs_bk SET mhs_id = $1 WHERE id = $2", [
+            opt.mhs_id,
+            opt.id,
+          ]);
         } else {
           await DB.query(
-            "INSERT INTO mhs_bimbingan_akademik(id_bimbingan, mhs_id) VALUES ($1, $2) RETURNING id",
+            "INSERT INTO mhs_bk(bk_id, mhs_id) VALUES ($1, $2) RETURNING id",
             [idToUpdate, opt.mhs_id]
           );
+
+          for (let i = 1; i <= 8; i++) {
+            await DB.query(
+              "INSERT INTO semester_bk(id_mhs, semester, dok_frs) VALUES($1, $2, $3) returning *",
+              [opt.mhs_id, i, "index.pdf"]
+            );
+          }
         }
       }
     }
@@ -301,7 +343,7 @@ exports.updateForDosen = asyncHandler(async (req, res) => {
     if (updateValues.length > 0) {
       updateValues.push(id);
       await DB.query(
-        `UPDATE tb_bimbingan_akademik SET ${setQuery} WHERE id = $${updateValues.length}`,
+        `UPDATE semester_bk SET ${setQuery} WHERE id = $${updateValues.length}`,
         updateValues
       );
     }
@@ -325,10 +367,9 @@ exports.updateForMhs = asyncHandler(async (req, res) => {
     throw new Error("Please fill in one file.");
   }
 
-  const findData = await DB.query(
-    "SELECT * FROM mhs_bimbingan_akademik WHERE id = $1",
-    [id]
-  );
+  const findData = await DB.query("SELECT * FROM semester_bk WHERE id = $1", [
+    id,
+  ]);
 
   if (!findData.rows.length) {
     res.status(400);
@@ -341,12 +382,13 @@ exports.updateForMhs = asyncHandler(async (req, res) => {
     );
   }
 
-  await DB.query(
-    `UPDATE mhs_bimbingan_akademik SET dok_frs = $1 WHERE id = $2`,
+  const updateDok = await DB.query(
+    `UPDATE semester_bk SET dok_frs = $1 WHERE id = $2 returning *`,
     [file.filename, id]
   );
 
   res.status(201).json({
     message: "Successfully update data.",
+    data: updateDok.rows[0],
   });
 });
