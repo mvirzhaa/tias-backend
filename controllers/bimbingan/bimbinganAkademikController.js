@@ -12,6 +12,21 @@ exports.addDataBimbinganAkademik = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("Pleas fill in all the required fields.");
   }
+  const mhsIds = JSON.parse(data.mhs_bimbingan).map((mhs) => mhs.user_id);
+  const existingMhsIds = await DB.query(
+    "SELECT mhs_id FROM mhs_bk WHERE mhs_id = ANY($1)",
+    [mhsIds]
+  );
+  const existingMhsIdSet = new Set(
+    existingMhsIds.rows.map((row) => row.mhs_id)
+  );
+
+  const isAnyExistingMhs = mhsIds.some((id) => existingMhsIdSet.has(id));
+  if (isAnyExistingMhs) {
+    res.status(400);
+    throw new Error("salah satu mahasiswa sudah didaftarkan.");
+  }
+
   // ==============BIMBINGAN MAHASISWA===================
   const dataBimbingan = {
     tahun_angkatan: data.tahun_angkatan,
@@ -42,23 +57,26 @@ exports.addDataBimbinganAkademik = asyncHandler(async (req, res) => {
       mhs_id: mhs.user_id,
     };
 
-    const keysData = ["bk_id", ...Object.keys(mhsBimbingan)];
-    const valuesData = [bimbinganId, ...Object.values(mhsBimbingan)];
-    const placeholdersData = keysData.map((key, index) => `$${index + 1}`);
+    // Pastikan mhs_id ada
+    if (mhsBimbingan.mhs_id) {
+      const keysData = ["bk_id", ...Object.keys(mhsBimbingan)];
+      const valuesData = [bimbinganId, ...Object.values(mhsBimbingan)];
+      const placeholdersData = keysData.map((key, index) => `$${index + 1}`);
 
-    await DB.query(
-      `INSERT INTO mhs_bk(${keysData.join(
-        ", "
-      )}) VALUES (${placeholdersData.join(", ")}) returning *`,
-      valuesData
-    );
-
-    // Buat entri semester_bk 1-8 untuk setiap mahasiswa
-    for (let i = 1; i <= 8; i++) {
       await DB.query(
-        "INSERT INTO semester_bk(id_mhs, semester, dok_frs) VALUES($1, $2, $3) returning *",
-        [mhsBimbingan.mhs_id, i, "index.pdf"]
+        `INSERT INTO mhs_bk(${keysData.join(
+          ", "
+        )}) VALUES (${placeholdersData.join(", ")}) returning *`,
+        valuesData
       );
+
+      // Buat entri semester_bk 1-8 untuk setiap mahasiswa
+      for (let i = 1; i <= 8; i++) {
+        await DB.query(
+          "INSERT INTO semester_bk(id_mhs, semester, dok_frs) VALUES($1, $2, $3) returning *",
+          [mhsBimbingan.mhs_id, i, "index.pdf"]
+        );
+      }
     }
   });
 
