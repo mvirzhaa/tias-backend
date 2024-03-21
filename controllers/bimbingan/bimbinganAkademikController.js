@@ -230,7 +230,17 @@ exports.deleteDataBimbingan = asyncHandler(async (req, res) => {
   ]);
   const idMhsList = mhsBimbingan.rows.map((mhs) => mhs.mhs_id);
 
-  await DB.query("DELETE FROM semester_bk WHERE id_mhs = ANY($1)", [idMhsList]);
+  const deleteSemester = await DB.query(
+    "DELETE FROM semester_bk WHERE id_mhs = ANY($1) RETURNING *",
+    [idMhsList]
+  );
+
+  for (const row of deleteSemester.rows) {
+    const dokFrs = row.dok_frs;
+    if (dokFrs !== "index.pdf") {
+      await fs.remove(path.join(`public/dokumen-frs/${dokFrs}`));
+    }
+  }
 
   await DB.query("DELETE FROM mhs_bk WHERE bk_id = $1", [id]);
 
