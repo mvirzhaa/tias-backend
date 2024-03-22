@@ -89,6 +89,7 @@ exports.exportsRekapPertemuan = asyncHandler(async (req, res) => {
     "Paraf",
     "Jumlah Mahasiswa",
     "Paraf Prodi",
+    "dosen_pengganti_luar"
   ];
 
   const headerRow = worksheet.addRow(tableHeader);
@@ -140,6 +141,7 @@ exports.exportsRekapPertemuan = asyncHandler(async (req, res) => {
       "",
       "",
       "",
+      row.dosen_pengganti
     ];
     const dataRow = worksheet.addRow(rowData);
 
