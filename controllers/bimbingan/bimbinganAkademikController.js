@@ -102,10 +102,50 @@ exports.getDataBimbingan = asyncHandler(async (req, res) => {
       userLoginId,
     ]);
 
+    const mergedData = findData.rows.map((data) => ({
+      ...data,
+      mahasiswa: [],
+    }));
+
+    const bkIds = findData.rows.map((data) => data.id);
+
+    const findMhsBk = await DB.query(
+      "SELECT * FROM mhs_bk WHERE bk_id = ANY($1)",
+      [bkIds]
+    );
+
+    await Promise.all(
+      findMhsBk.rows.map(async (mhs) => {
+        try {
+          const index = mergedData.findIndex((data) => data.id === mhs.bk_id);
+
+          const findMhs = await DB_TIAS.query(
+            "SELECT user_id, nama_lengkap FROM tb_data_pribadi WHERE user_id = $1",
+            [mhs.mhs_id]
+          );
+
+          if (findMhs.rows.length > 0) {
+            const nama_lengkap_mhs = findMhs.rows[0].nama_lengkap;
+
+            if (index !== -1) {
+              mergedData[index].mahasiswa.push({
+                id: mhs.id,
+                bk_id: mhs.bk_id,
+                mhs_id: mhs.mhs_id,
+                nama_lengkap: nama_lengkap_mhs,
+              });
+            }
+          }
+        } catch (error) {
+          console.error("Error occurred while fetching student data:", error);
+        }
+      })
+    );
+
     res.status(200).json({
       message: "Successfully get data.",
       totalData: findData.rowCount,
-      data: findData.rows,
+      data: mergedData,
     });
   } else if (role === "Mahasiswa") {
     const findData = await DB.query(
