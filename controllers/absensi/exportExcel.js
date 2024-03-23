@@ -82,15 +82,14 @@ exports.exportsRekapPertemuan = asyncHandler(async (req, res) => {
     "Tanggal",
     "Waktu Mulai",
     "Waktu Selesai",
-    "Rencana Pembelajaran Semester (RPS)",
-    "Realisasi Rencana Pembelajaran Semester(RRPS)",
+    "RPS",
+    "Realisasi RPS",
     "Paraf Dosen / TP",
     "Wakil Mahasiswa",
     "Paraf",
     "Jumlah Mahasiswa",
     "Paraf Prodi",
-    "Dosen Pengganti",
-    "Dosen Tamu"
+    "Dosen Pengganti/Tamu",
   ];
 
   const headerRow = worksheet.addRow(tableHeader);
@@ -104,8 +103,6 @@ exports.exportsRekapPertemuan = asyncHandler(async (req, res) => {
     cell.font = { bold: true };
   });
 
-  // const API_URL_ABSENSI = `${process.env.API_LOCAL_ABSEN}/absensi`;
-
   data.forEach((row, index) => {
     let learningDone;
     learningDone = row.learning_done
@@ -117,21 +114,9 @@ exports.exportsRekapPertemuan = asyncHandler(async (req, res) => {
     const tgl = `${createdAt.day} ${createdAt.month} ${createdAt.year}`;
     const learningStart = `${createdAt.hours}:${createdAt.minutes}`;
 
-    // const idPembelajaran = row.id_pembelajaran;
+    const dosenPenganti = row.dosen_pengganti ? row.dosen_pengganti.nama : "";
 
-    // const response = await axios.get(API_URL_ABSENSI, {
-    //   params: {
-    //     dataTable: true,
-    //     filter: ["id_pembelajaran"],
-    //     filterValue: [idPembelajaran],
-    //   },
-    // });
-
-    // console.log(response.data.recordsTotal);
-
-    let dosenPenganti;
-
-    dosenPenganti = row.dosen_pengganti ? row.dosen_pengganti.nama : "";
+    const dosenTamu = row.dosen_tamu ? row.dosen_tamu : "";
 
     const rowData = [
       row.pertemuan,
@@ -146,8 +131,7 @@ exports.exportsRekapPertemuan = asyncHandler(async (req, res) => {
       "",
       "",
       "",
-      dosenPenganti,
-      row.dosen_tamu || "",
+      `${dosenPenganti}${dosenTamu}`,
     ];
     const dataRow = worksheet.addRow(rowData);
 
