@@ -6,6 +6,7 @@ const {
   deleteDataPribadi,
   updateStatusMhs,
   updateProfileImage,
+  uploadTtd,
 } = require("../../controllers/profile/dataPribadiController");
 const {
   createDokumenPribadi,
@@ -41,6 +42,7 @@ const {
 } = require("../../controllers/profile/kepangkatanController");
 const { profileUpload } = require("../../middleware/profileUpload");
 const { profileImageUpload } = require("../../middleware/profileImageUpload");
+const { profileUploadTtd } = require("../../middleware/profileUploadTtd");
 
 const router = express.Router();
 
@@ -51,6 +53,7 @@ router.get("/getDataPribadi", protected, getDataPribadi);
 router.delete("/deleteData/:dataID", protected, adminOnly, deleteDataPribadi);
 router.patch("/updateStatusMhs/:id", protected, adminOnly, updateStatusMhs);
 router.patch("/updateImage", protected, profileImageUpload, updateProfileImage);
+router.patch("/update-ttd", protected, profileUploadTtd, uploadTtd);
 // ============= END DATA PRIBADI =============
 
 // ============= DOKUMEN PRIBADI ==============

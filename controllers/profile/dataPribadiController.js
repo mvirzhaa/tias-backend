@@ -126,29 +126,32 @@ exports.createDataPribadi = asyncHandler(async (req, res) => {
 exports.getDataPribadi = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
 
-    const query = `SELECT tb_data_pribadi.*, tb_users.npm, tb_users.nidn, tb_users.role FROM tb_data_pribadi JOIN tb_users ON tb_data_pribadi.user_id = tb_users.user_id WHERE tb_data_pribadi.user_id = '${userLoginId}'`;
+  const query = `SELECT tb_data_pribadi.*, tb_users.npm, tb_users.nidn, tb_users.role FROM tb_data_pribadi JOIN tb_users ON tb_data_pribadi.user_id = tb_users.user_id WHERE tb_data_pribadi.user_id = '${userLoginId}'`;
 
-    const dataPribadi = await DB.query(query);
+  const dataPribadi = await DB.query(query);
 
-    const queryLencana = await DB.query(`SELECT * FROM achievements WHERE gamify = $1`, [dataPribadi.rows[0].rank]);
+  const queryLencana = await DB.query(
+    `SELECT * FROM achievements WHERE gamify = $1`,
+    [dataPribadi.rows[0].rank]
+  );
 
-    let lencana;
-    if(queryLencana.rows.length){
-      lencana = `${process.env.API_URL}/gamify/lencana/${queryLencana.rows[0].lencana}`
-    } else {
-      lencana = null
-    }
-
-    const data = dataPribadi.rows.map((iterate) => ({
-      ...iterate,
-      image: `${process.env.API_URL}/foto-profile/${iterate.image}`,
-      lencana: lencana
-    }))
-    res.status(201).json({
-      data: data[0],
-      p_pendidikan: dataPribadi.rows[0]['point_pendidikan'].toString(),
-      total_point: dataPribadi.rows[0]['total_point'].toString(),
-    });
+  let lencana;
+  if (queryLencana.rows.length) {
+    lencana = `${process.env.API_URL}/gamify/lencana/${queryLencana.rows[0].lencana}`;
+  } else {
+    lencana = null;
+  }
+  const data = dataPribadi.rows.map((iterate) => ({
+    ...iterate,
+    image: `${process.env.API_URL}/foto-profile/${iterate.image}`,
+    ttd: `${process.env.API_URL_LOCAL}/ttd/${iterate.ttd}`,
+    lencana: lencana,
+  }));
+  res.status(201).json({
+    data: data[0],
+    p_pendidikan: dataPribadi.rows[0]["point_pendidikan"].toString(),
+    total_point: dataPribadi.rows[0]["total_point"].toString(),
+  });
 });
 
 exports.editDataPribadi = asyncHandler(async (req, res) => {
@@ -271,5 +274,44 @@ exports.updateProfileImage = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     message: "Successfully update data.",
+  });
+});
+
+exports.uploadTtd = asyncHandler(async (req, res) => {
+  const userLoginId = req.user.user_id;
+  const file = req.file;
+
+  if (!file) {
+    res.status(400);
+    throw new Error("Please fill in one file.");
+  }
+
+  const findData = await DB.query(
+    "SELECT * FROM tb_data_pribadi WHERE user_id = $1",
+    [userLoginId]
+  );
+
+  if (!findData.rows.length) {
+    res.status(400);
+    throw new Error("Data not found.");
+  }
+
+  if (findData.rows[0].ttd) {
+    await fs.remove(path.join(`public/ttd/${findData.rows[0].ttd}`));
+  }
+
+  const updated_at = unixTimestamp;
+  const convert = convertDate(updated_at);
+
+  const updateData = await DB.query(
+    `UPDATE tb_data_pribadi SET ttd = $1, updated_at = $2 WHERE user_id = $3 RETURNING ttd`,
+    [file.filename, convert, userLoginId]
+  );
+
+  res.status(201).json({
+    message: "Successfully update data.",
+    data: {
+      ttd: updateData.rows[0].ttd,
+    },
   });
 });
