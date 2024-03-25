@@ -20,7 +20,7 @@ exports.protected = asyncHandler(async (req, res, next) => {
     const verified = jwt.verify(token, process.env.JWT_SECRET);
     // Get user id from token
     const user = await DB.query(
-      "SELECT user_id, npm, nidn, email, role, isverified, created_at FROM tb_users where user_id = $1",
+      "SELECT tb_users.*, tb_data_pribadi.* FROM tb_users JOIN tb_data_pribadi ON tb_data_pribadi.user_id = tb_users.user_id where tb_users.user_id = $1",
       [verified.id]
     );
 

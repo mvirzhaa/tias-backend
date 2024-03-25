@@ -1,6 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const DB = require("../../database");
 const { unixTimestamp, convertDate } = require("../../utils");
+const { insertValidasiDokumen } = require("../../utils/validasiDigital");
 
 exports.addRekomendasi = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
@@ -12,7 +13,7 @@ exports.addRekomendasi = asyncHandler(async (req, res) => {
   }
 
   const user = await DB.query(
-    "SELECT tb_users.*, tb_data_pribadi.total_point FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.user_id = $1",
+    "SELECT tb_users.*, tb_data_pribadi.total_point, tb_data_pribadi.nama_lengkap FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.user_id = $1",
     [data.mahasiswa_id]
   );
 
@@ -76,6 +77,14 @@ exports.addRekomendasi = asyncHandler(async (req, res) => {
         "UPDATE tb_data_pribadi SET point_rekomendasi = $1 WHERE user_id = $2",
         [totalData, data.mahasiswa_id]
       );
+
+      await insertValidasiDokumen({
+        dosen_id: userLoginId,
+        mhs_id: data.mahasiswa_id,
+        nama_kegiatan: `Dosen ${req.user.nama_lengkap}-${req.user.nidn} telah memberikan rekomendasi kepada mahasiswa ${user.rows[0].nama_lengkap}-${user.rows[0].npm}`,
+        link_kegiatan: `${process.env.FRONTEND_URL}/dosen/rek-mhs/detail-mhs/${data.mahasiswa_id}`,
+        link_validasi: `${process.env.FRONTEND_URL}`,
+      });
 
       res.status(200).json({
         message: "Successfull created data.",
