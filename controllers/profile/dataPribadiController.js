@@ -144,7 +144,7 @@ exports.getDataPribadi = asyncHandler(async (req, res) => {
   const data = dataPribadi.rows.map((iterate) => ({
     ...iterate,
     image: `${process.env.API_URL}/foto-profile/${iterate.image}`,
-    ttd: `${process.env.API_URL_LOCAL}/ttd/${iterate.ttd}`,
+    ttd: `${process.env.API_URL}/ttd/${iterate.ttd}`,
     lencana: lencana,
   }));
   res.status(201).json({
