@@ -10,6 +10,7 @@ const {
   getUsesDsnMhs,
   getUserMhsAgain,
   getUserDosenAgain,
+  getUsers,
 } = require("../../controllers/Users/usersController");
 
 const router = express.Router();
@@ -23,5 +24,6 @@ router.get("/papan-peringkat", protected, papanPeringkat);
 router.get("/all", protected, getUsesDsnMhs);
 router.get("/all-mhs", protected, getUserMhsAgain);
 router.get("/all-dosen", protected, getUserDosenAgain);
+router.get("/all-users", getUsers);
 
 module.exports = router;

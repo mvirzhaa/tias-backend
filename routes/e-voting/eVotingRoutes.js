@@ -25,6 +25,10 @@ const {
   deleteGroup,
   detailGroup,
   editGroup,
+  detailToCreateUserGroup,
+  getGroupUsers,
+  userGroupRegister,
+  deleteUserFromGroup,
 } = require("../../controllers/e-voting/groupController");
 
 const router = express.Router();
@@ -48,8 +52,13 @@ router.get("/cek-sum", cekSum);
 
 router.get("/group-voting", protected, getGroupVoting);
 router.get("/group-voting/:id", protected, detailGroup);
+router.get("/group-voting/detail-to-create/:id", detailToCreateUserGroup);
 router.post("/group-voting", protected, createGroup);
 router.delete("/group-voting/:id", protected, deleteGroup);
 router.put("/group-voting/:id", protected, editGroup);
+
+router.get("/group-users", protected, getGroupUsers);
+router.post("/group-users", protected, userGroupRegister);
+router.put("/group-users/:user_id", deleteUserFromGroup);
 
 module.exports = router;
