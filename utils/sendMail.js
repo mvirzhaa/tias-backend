@@ -4,16 +4,15 @@ const path = require("path");
 
 const sendEmail = async (subject, send_to, send_from, template, link) => {
   const transporter = nodemailer.createTransport({
+    service: "gmail",
     host: process.env.EMAIL_HOST,
     port: 587,
+    secure: false,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
     from: send_from,
-    tls: {
-      ciphers: "SSLv3",
-    },
   });
 
   const handlebarsOptions = {
