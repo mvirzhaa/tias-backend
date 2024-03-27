@@ -3,7 +3,6 @@ const hbs = require("nodemailer-express-handlebars");
 const path = require("path");
 
 const sendEmail = async (subject, send_to, send_from, template, link) => {
-  console.log(link);
   const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
     port: 587,
@@ -11,8 +10,9 @@ const sendEmail = async (subject, send_to, send_from, template, link) => {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
+    from: send_from,
     tls: {
-      rejectUnauthorized: false,
+      ciphers: "SSLv3",
     },
   });
 
