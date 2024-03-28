@@ -77,7 +77,7 @@ app.use("/bimbingan-akademik", bimbinganAkademikRoutes);
 
 app.use("/help", helpRoutes);
 app.get("/", (req, res) => {
-  res.send("Server Oke");
+  res.send("Server Oke. Database belum tentu oke");
 });
 
 // error handler
