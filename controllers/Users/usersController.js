@@ -292,6 +292,39 @@ exports.changePaswordUser = asyncHandler(async (req, res) => {
   }
 });
 
+exports.changeEmail = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const { email } = req.body;
+
+  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
+    userId,
+  ]);
+
+  if (!user.rows.length) {
+    res.status(404);
+    throw new Error("User not found.");
+  }
+
+  const findEmail = await DB.query("SELECT * FROM tb_users WHERE email = $1", [
+    email,
+  ]);
+
+  if (findEmail.rows.length) {
+    res.status(404);
+    throw new Error("email sudah terdaftar.");
+  }
+
+  const updateUser = await DB.query(
+    `UPDATE tb_users SET email = $1 WHERE user_id = $2 returning *`,
+    [email, userId]
+  );
+
+  res.status(200).json({
+    message: "Success Update Data",
+    data: updateUser.rows[0],
+  });
+});
+
 exports.papanPeringkat = asyncHandler(async (req, res) => {
   const { page, limit, searchQuery, nama_lengkap, npm } = req.query;
 
