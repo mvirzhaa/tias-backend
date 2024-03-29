@@ -169,10 +169,17 @@ exports.getDataPengabdian = asyncHandler(async (req, res) => {
     const page = dataQuery.page || 1;
     const limit = dataQuery.limit || 10;
 
+    const sortByName = dataQuery.sortByName;
+    const sorting = dataQuery.sorting;
+
     const offset = (page - 1) * limit;
 
-    const query = `SELECT tb_pengabdian.*, kategori_publikasi.nama_kategori, kategori_publikasi.tingkatan, kategori_publikasi.point FROM tb_pengabdian JOIN kategori_publikasi ON tb_pengabdian.kategori_id = kategori_publikasi.id WHERE user_id = $1 and is_deleted = $2 LIMIT $3 OFFSET $4`;
+    let query = `SELECT tb_pengabdian.*, kategori_publikasi.nama_kategori, kategori_publikasi.tingkatan, kategori_publikasi.point FROM tb_pengabdian JOIN kategori_publikasi ON tb_pengabdian.kategori_id = kategori_publikasi.id WHERE user_id = $1 and is_deleted = $2`;
 
+    if (sortByName && sorting) {
+      query += ` ORDER BY ${sortByName} ${sorting === "asc" ? "DESC" : "ASC"}`;
+    }
+    query += ` LIMIT $3 OFFSET $4`;
     const dataPengabdian = await DB.query(query, [
       userLoginId,
       false,

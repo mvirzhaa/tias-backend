@@ -146,7 +146,12 @@ exports.getDataPendidikan = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
   const dataQuery = req.query;
 
-  if (dataQuery.jenjang_studi || dataQuery.asal || dataQuery.tahun_lulus || dataQuery.status) {
+  if (
+    dataQuery.jenjang_studi ||
+    dataQuery.asal ||
+    dataQuery.tahun_lulus ||
+    dataQuery.status
+  ) {
     const jenjang_studi = dataQuery.jenjang_studi || null;
     const asal = dataQuery.asal || null;
     const tahun_lulus = dataQuery.tahun_lulus || null;
@@ -164,12 +169,17 @@ exports.getDataPendidikan = asyncHandler(async (req, res) => {
     const page = dataQuery.page || 1;
     const limit = dataQuery.limit || 10;
 
+    const sortByName = dataQuery.sortByName;
+    const sorting = dataQuery.sorting;
+
     const offset = (page - 1) * limit;
 
-    const dataPend = await DB.query(
-      "SELECT * FROM tb_pend_formal WHERE user_id = $1  and is_deleted = $2 LIMIT $3 OFFSET $4",
-      [userLoginId, false, limit, offset]
-    );
+    let query = `SELECT * FROM tb_pend_formal WHERE user_id = $1  and is_deleted = $2 `;
+    if (sortByName && sorting) {
+      query += ` ORDER BY ${sortByName} ${sorting === "asc" ? "DESC" : "ASC"}`;
+    }
+    query += ` LIMIT $3 OFFSET $4`;
+    const dataPend = await DB.query(query, [userLoginId, false, limit, offset]);
 
     const jumlahData = await DB.query(
       "SELECT COUNT(*) FROM tb_pend_formal WHERE user_id = $1  and is_deleted = $2",

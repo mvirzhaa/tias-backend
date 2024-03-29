@@ -376,23 +376,25 @@ exports.updateForAdmin = asyncHandler(async (req, res) => {
 
     if (mhsBimbingan && Array.isArray(mhsBimbingan)) {
       for (const opt of mhsBimbingan) {
-        if (opt.hasOwnProperty("id")) {
-          // Memeriksa keberadaan properti 'id'
-          await DB.query("UPDATE mhs_bk SET mhs_id = $1 WHERE id = $2", [
-            opt.mhs_id,
-            opt.id,
-          ]);
-        } else {
-          await DB.query(
-            "INSERT INTO mhs_bk(bk_id, mhs_id) VALUES ($1, $2) RETURNING id",
-            [idToUpdate, opt.mhs_id]
-          );
-
-          for (let i = 1; i <= 8; i++) {
+        if (opt.mhs_id) {
+          if (opt.hasOwnProperty("id")) {
+            // Memeriksa keberadaan properti 'id'
+            await DB.query("UPDATE mhs_bk SET mhs_id = $1 WHERE id = $2", [
+              opt.mhs_id,
+              opt.id,
+            ]);
+          } else {
             await DB.query(
-              "INSERT INTO semester_bk(id_mhs, semester, dok_frs) VALUES($1, $2, $3) returning *",
-              [opt.mhs_id, i, "index.pdf"]
+              "INSERT INTO mhs_bk(bk_id, mhs_id) VALUES ($1, $2) RETURNING id",
+              [idToUpdate, opt.mhs_id]
             );
+
+            for (let i = 1; i <= 8; i++) {
+              await DB.query(
+                "INSERT INTO semester_bk(id_mhs, semester, dok_frs) VALUES($1, $2, $3) returning *",
+                [opt.mhs_id, i, "index.pdf"]
+              );
+            }
           }
         }
       }

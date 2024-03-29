@@ -95,6 +95,8 @@ exports.getDataIP = asyncHandler(async (req, res) => {
   } else {
     const page = req.query.page || 1;
     const limit = req.query.limit || 10;
+    const sortByName = req.query.sortByName;
+    const sorting = req.query.sorting;
 
     const offset = (page - 1) * limit;
 
@@ -102,23 +104,34 @@ exports.getDataIP = asyncHandler(async (req, res) => {
       "SELECT COUNT(*) FROM tb_ip_mhs WHERE user_id = $1 and is_deleted = $2",
       [userLoginId, false]
     );
-    const findNpm = await DB.query('SELECT npm FROM tb_users WHERE user_id = $1', [userLoginId]);
+    const findNpm = await DB.query(
+      "SELECT npm FROM tb_users WHERE user_id = $1",
+      [userLoginId]
+    );
 
     const npm = findNpm.rows[0].npm;
 
-
-    if(jumlahData.rows[0].count > 0){
+    if (jumlahData.rows[0].count > 0) {
       const reqDeleteIp = await deleteIp(userLoginId);
       const reqInsertIp = await getIp(userLoginId, npm);
 
-      if(reqDeleteIp != 200 && reqInsertIp != 200){
+      if (reqDeleteIp != 200 && reqInsertIp != 200) {
         res.status(400);
         throw new Error("failed to delete and add ip data.");
       }
     }
 
-    const queryText =
-      "SELECT * FROM tb_ip_mhs JOIN kategori_ip ON tb_ip_mhs.kode_ip = kategori_ip.kode WHERE user_id = $1 AND is_deleted = $2 LIMIT $3 OFFSET $4";
+    let queryText =
+      "SELECT * FROM tb_ip_mhs JOIN kategori_ip ON tb_ip_mhs.kode_ip = kategori_ip.kode WHERE user_id = $1 AND is_deleted = $2";
+
+    if (sortByName && sorting) {
+      queryText += ` ORDER BY ${sortByName} ${
+        sorting === "desc" ? "DESC" : "ASC"
+      }`;
+    }
+
+    queryText += " LIMIT $3 OFFSET $4";
+
     const dataIP = await DB.query(queryText, [
       userLoginId,
       false,

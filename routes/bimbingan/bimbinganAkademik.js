@@ -26,6 +26,6 @@ router.patch("/:id", protected, updateForAdmin);
 router.patch("/edit-dosen/:id", protected, updateForDosen);
 router.patch("/edit-mhs/:id", protected, frsUpload, updateForMhs);
 
-router.patch("/mhs-bimbingan/:id", protected, deleteMhsBimbingan);
+router.delete("/mhs-bimbingan/:id", protected, deleteMhsBimbingan);
 
 module.exports = router;

@@ -103,7 +103,17 @@ exports.getPenghargaan = asyncHandler(async (req, res) => {
 
     const offset = (page - 1) * limit;
 
-    const queryText = `SELECT tb_penghargaan.*, kategori_prestasi.nama_kategori, kategori_prestasi.juara, kategori_prestasi.point FROM tb_penghargaan JOIN kategori_prestasi ON tb_penghargaan.kategori_id=kategori_prestasi.id WHERE tb_penghargaan.user_id = $1 and is_deleted = $2 LIMIT $3 OFFSET $4`;
+    const sortByName = query.sortByName;
+    const sorting = query.sorting;
+
+    let queryText = `SELECT tb_penghargaan.*, kategori_prestasi.nama_kategori, kategori_prestasi.juara, kategori_prestasi.point FROM tb_penghargaan JOIN kategori_prestasi ON tb_penghargaan.kategori_id=kategori_prestasi.id WHERE tb_penghargaan.user_id = $1 and is_deleted = $2`;
+
+    if (sortByName && sorting) {
+      queryText += ` ORDER BY ${sortByName} ${
+        sorting === "asc" ? "DESC" : "ASC"
+      }`;
+    }
+    queryText += ` LIMIT $3 OFFSET $4`;
 
     const dataPenghargaan = await DB.query(queryText, [
       userLoginId,

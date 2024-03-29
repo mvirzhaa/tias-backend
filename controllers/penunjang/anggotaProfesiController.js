@@ -94,11 +94,20 @@ exports.getAllDataProfesi = asyncHandler(async (req, res) => {
   } else {
     const page = query.page || 1;
     const limit = query.limit || 10;
+    const sortByName = query.sortByName;
+    const sorting = query.sorting;
 
     const offset = (page - 1) * limit;
 
-    const queryText =
-      "SELECT * FROM tb_anggota_prof WHERE user_id = $1 and is_deleted = $2 LIMIT $3 OFFSET $4";
+    let queryText =
+      "SELECT * FROM tb_anggota_prof WHERE user_id = $1 and is_deleted = $2";
+
+    if (sortByName && sorting) {
+      queryText += ` ORDER BY ${sortByName} ${
+        sorting === "asc" ? "DESC" : "ASC"
+      }`;
+    }
+    queryText += ` LIMIT $3 OFFSET $4`;
 
     const dataProf = await DB.query(queryText, [
       userLoginId,

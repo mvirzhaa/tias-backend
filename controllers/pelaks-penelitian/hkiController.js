@@ -136,7 +136,12 @@ exports.getDataHki = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
   const dataQuery = req.query;
 
-  if (dataQuery.judul_hki || dataQuery.jenis_hki || dataQuery.tgl_terbit_hki || dataQuery.status) {
+  if (
+    dataQuery.judul_hki ||
+    dataQuery.jenis_hki ||
+    dataQuery.tgl_terbit_hki ||
+    dataQuery.status
+  ) {
     const judul_hki = dataQuery.judul_hki || null;
     const jenis_hki = dataQuery.jenis_hki || null;
     const tgl_terbit_hki = dataQuery.tgl_terbit_hki || null;
@@ -154,9 +159,17 @@ exports.getDataHki = asyncHandler(async (req, res) => {
     const page = dataQuery.page || 1;
     const limit = dataQuery.limit || 10;
 
+    const sortByName = dataQuery.sortByName;
+    const sorting = dataQuery.sorting;
+
     const offset = (page - 1) * limit;
 
-    const query = `SELECT tb_hki.*, kategori_hki.nama_kategori, kategori_hki.point FROM tb_hki JOIN kategori_hki ON tb_hki.kategori_id=kategori_hki.id WHERE tb_hki.user_id = $1 and is_deleted = $2 LIMIT $3 OFFSET $4`;
+    let query = `SELECT tb_hki.*, kategori_hki.nama_kategori, kategori_hki.point FROM tb_hki JOIN kategori_hki ON tb_hki.kategori_id=kategori_hki.id WHERE tb_hki.user_id = $1 and is_deleted = $2`;
+
+    if (sortByName && sorting) {
+      query += ` ORDER BY ${sortByName} ${sorting === "desc" ? "DESC" : "ASC"}`;
+    }
+    query += ` LIMIT $3 OFFSET $4`;
 
     const dataHki = await DB.query(query, [userLoginId, false, limit, offset]);
 

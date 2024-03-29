@@ -98,7 +98,7 @@ exports.getDataSerti = asyncHandler(async (req, res) => {
     dataQuery.nama_serti ||
     dataQuery.jenis_serti ||
     dataQuery.bidang_studi ||
-    dataQuery.tgl_serti || 
+    dataQuery.tgl_serti ||
     dataQuery.status
   ) {
     const nomor_sk = dataQuery.nomor_sk || null;
@@ -110,7 +110,15 @@ exports.getDataSerti = asyncHandler(async (req, res) => {
 
     const findData = await DB.query(
       `SELECT * FROM filter_data_sertifikasi($1, $2, $3, $4, $5, $6, $7)`,
-      [nomor_sk, nama_serti, jenis_serti, bidang_studi, tgl_serti, userLoginId, status]
+      [
+        nomor_sk,
+        nama_serti,
+        jenis_serti,
+        bidang_studi,
+        tgl_serti,
+        userLoginId,
+        status,
+      ]
     );
 
     res.status(201).json({
@@ -122,7 +130,16 @@ exports.getDataSerti = asyncHandler(async (req, res) => {
 
     const offset = (page - 1) * limit;
 
-    const query = `SELECT tb_sertifikasi.*, kategori_sertifikasi.nama_kategori, kategori_sertifikasi.point FROM tb_sertifikasi JOIN kategori_sertifikasi ON tb_sertifikasi.kategori_id=kategori_sertifikasi.id WHERE tb_sertifikasi.user_id = $1 and is_deleted = $2 LIMIT $3 OFFSET $4`;
+    const sortByName = dataQuery.sortByName;
+    const sorting = dataQuery.sorting;
+
+    let query = `SELECT tb_sertifikasi.*, kategori_sertifikasi.nama_kategori, kategori_sertifikasi.point FROM tb_sertifikasi JOIN kategori_sertifikasi ON tb_sertifikasi.kategori_id=kategori_sertifikasi.id WHERE tb_sertifikasi.user_id = $1 and is_deleted = $2`;
+
+    if (sortByName && sorting) {
+      query += ` ORDER BY ${sortByName} ${sorting === "desc" ? "DESC" : "ASC"}`;
+    }
+
+    query += ` LIMIT $3 OFFSET $4`;
 
     const dataSerti = await DB.query(query, [
       userLoginId,

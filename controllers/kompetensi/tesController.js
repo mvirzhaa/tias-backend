@@ -118,11 +118,17 @@ exports.getDataTes = asyncHandler(async (req, res) => {
     const limit = dataQuery.limit || 10;
 
     const offset = (page - 1) * limit;
+    const sortByName = dataQuery.sortByName;
+    const sorting = dataQuery.sorting;
 
-    const dataTes = await DB.query(
-      "SELECT tb_tes.*, kategori_sertifikasi.nama_kategori, kategori_sertifikasi.point FROM tb_tes JOIN kategori_sertifikasi ON tb_tes.kategori_id = kategori_sertifikasi.id WHERE user_id = $1 and is_deleted = $2 LIMIT $3 OFFSET $4",
-      [userLoginId, false, limit, offset]
-    );
+    let query = `SELECT tb_tes.*, kategori_sertifikasi.nama_kategori, kategori_sertifikasi.point FROM tb_tes JOIN kategori_sertifikasi ON tb_tes.kategori_id = kategori_sertifikasi.id WHERE user_id = $1 and is_deleted = $2`;
+
+    if (sortByName && sorting) {
+      query += ` ORDER BY ${sortByName} ${sorting === "desc" ? "DESC" : "ASC"}`;
+    }
+
+    query += ` LIMIT $3 OFFSET $4`;
+    const dataTes = await DB.query(query, [userLoginId, false, limit, offset]);
 
     const jumlahData = await DB.query(
       "SELECT COUNT(*) FROM tb_tes WHERE user_id = $1 and is_deleted = $2",
@@ -145,9 +151,10 @@ exports.getDataTes = asyncHandler(async (req, res) => {
 exports.detailDataTes = asyncHandler(async (req, res) => {
   const { tesId } = req.params;
 
-  const findData = await DB.query("SELECT tb_tes.*, kategori_sertifikasi.* FROM tb_tes JOIN kategori_sertifikasi ON kategori_sertifikasi.id = tb_tes.kategori_id WHERE tes_id = $1", [
-    tesId,
-  ]);
+  const findData = await DB.query(
+    "SELECT tb_tes.*, kategori_sertifikasi.* FROM tb_tes JOIN kategori_sertifikasi ON kategori_sertifikasi.id = tb_tes.kategori_id WHERE tes_id = $1",
+    [tesId]
+  );
 
   if (!findData.rows.length) {
     res.status(404);

@@ -133,7 +133,14 @@ exports.getDataRiwayatPekerjaan = asyncHandler(async (req, res) => {
 
     const findData = await DB.query(
       `SELECT * FROM filter_data_riwayat_pekerjaan($1, $2, $3, $4, $5, $6)`,
-      [jenis_pekerjaan, area_kerja, mulai_kerja, selesai_Kerja, userLoginId, status]
+      [
+        jenis_pekerjaan,
+        area_kerja,
+        mulai_kerja,
+        selesai_Kerja,
+        userLoginId,
+        status,
+      ]
     );
 
     res.status(201).json({
@@ -143,12 +150,23 @@ exports.getDataRiwayatPekerjaan = asyncHandler(async (req, res) => {
     const page = dataQuery.page || 1;
     const limit = dataQuery.limit || 10;
 
+    const sortByName = dataQuery.sortByName;
+    const sorting = dataQuery.sorting;
+
     const offset = (page - 1) * limit;
 
-    const findData = await DB.query(
-      "SELECT * FROM tb_riwayat_pekerjaan WHERE user_id = $1 and is_deleted = $2 LIMIT $3 OFFSET $4",
-      [userLoginId, false, limit, offset]
-    );
+    let query = `SELECT * FROM tb_riwayat_pekerjaan WHERE user_id = $1 and is_deleted = $2`;
+
+    if (sortByName && sorting) {
+      query += ` ORDER BY ${sortByName} ${sorting === "asc" ? "DESC" : "ASC"}`;
+    }
+    query += ` LIMIT $3 OFFSET $4`;
+    const dataRiwayat = await DB.query(query, [
+      userLoginId,
+      false,
+      limit,
+      offset,
+    ]);
 
     const jumlahData = await DB.query(
       "SELECT COUNT(*) FROM tb_riwayat_pekerjaan WHERE user_id = $1 and is_deleted = $2",
@@ -156,7 +174,7 @@ exports.getDataRiwayatPekerjaan = asyncHandler(async (req, res) => {
     );
 
     res.status(201).json({
-      data: findData.rows,
+      data: dataRiwayat.rows,
       totalData: jumlahData.rows[0].count,
     });
   }

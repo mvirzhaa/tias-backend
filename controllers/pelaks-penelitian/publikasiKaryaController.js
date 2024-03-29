@@ -146,7 +146,12 @@ exports.getDataPublikasi = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
   const dataQuery = req.query;
 
-  if (dataQuery.judul_artikel || dataQuery.jenis || dataQuery.tgl_terbit || dataQuery.status) {
+  if (
+    dataQuery.judul_artikel ||
+    dataQuery.jenis ||
+    dataQuery.tgl_terbit ||
+    dataQuery.status
+  ) {
     const judul_artikel = dataQuery.judul_artikel || null;
     const jenis = dataQuery.jenis || null;
     const tgl_terbit = dataQuery.tgl_terbit || null;
@@ -163,11 +168,17 @@ exports.getDataPublikasi = asyncHandler(async (req, res) => {
   } else {
     const page = dataQuery.page || 1;
     const limit = dataQuery.limit || 10;
+    const sortByName = dataQuery.sortByName;
+    const sorting = dataQuery.sorting;
 
     const offset = (page - 1) * limit;
 
-    const query = `SELECT tb_publikasi_karya.*, kategori_publikasi.nama_kategori, kategori_publikasi.tingkatan, kategori_publikasi.point FROM tb_publikasi_karya JOIN kategori_publikasi ON tb_publikasi_karya.kategori_id=kategori_publikasi.id WHERE tb_publikasi_karya.user_id = $1 and is_deleted = $2 LIMIT $3 OFFSET $4`;
+    let query = `SELECT tb_publikasi_karya.*, kategori_publikasi.nama_kategori, kategori_publikasi.tingkatan, kategori_publikasi.point FROM tb_publikasi_karya JOIN kategori_publikasi ON tb_publikasi_karya.kategori_id=kategori_publikasi.id WHERE tb_publikasi_karya.user_id = $1 and is_deleted = $2`;
 
+    if (sortByName && sorting) {
+      query += ` ORDER BY ${sortByName} ${sorting === "desc" ? "DESC" : "ASC"}`;
+    }
+    query += ` LIMIT $3 OFFSET $4`;
     const dataPublikasi = await DB.query(query, [
       userLoginId,
       false,
