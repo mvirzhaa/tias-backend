@@ -31,6 +31,7 @@ const skpiRoutes = require("./routes/skpi/skpiRoutes");
 const votingRoutes = require("./routes/e-voting/eVotingRoutes");
 const bimbinganAkademikRoutes = require("./routes/bimbingan/bimbinganAkademik");
 const validasiRoutes = require("./routes/validasi/validasiRoutes");
+const jabatanRoutes = require("./routes/jabatan/jabatanRoutes");
 const errorHandler = require("./helper/errorHandler");
 
 const app = express();
@@ -74,6 +75,7 @@ app.use("/skpi", skpiRoutes);
 app.use("/voting", votingRoutes);
 app.use("/validasi", validasiRoutes);
 app.use("/bimbingan-akademik", bimbinganAkademikRoutes);
+app.use("/jabatan", jabatanRoutes);
 
 app.use("/help", helpRoutes);
 app.get("/", (req, res) => {
