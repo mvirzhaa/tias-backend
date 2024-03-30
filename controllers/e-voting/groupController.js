@@ -217,7 +217,27 @@ exports.detailToCreateUserGroup = asyncHandler(async (req, res) => {
 });
 
 exports.getGroupUsersAgain = asyncHandler(async (req, res) => {
-  const findUsersGroup = await DB.query("SELECT * FROM tb_group_user");
+  const { filter, filterValue } = req.query;
+
+  let query = "SELECT * FROM tb_group_user";
+
+  if (filter && filterValue) {
+    if (Array.isArray(filter) && Array.isArray(filterValue)) {
+      for (let i = 0; i < filter.length; i++) {
+        query += ` WHERE ${filter[i]} = '${filterValue[i]}'`;
+        if (i !== filter.length - 1) {
+          query += " AND";
+        }
+      }
+    } else {
+      res
+        .status(400)
+        .json({ message: "Filter and filterValue must be arrays." });
+      return;
+    }
+  }
+
+  const findUsersGroup = await DB.query(query);
   const findGroup = await DB.query("SELECT * FROM tb_group");
 
   const result = findUsersGroup.rows.map((user) => {
