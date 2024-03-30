@@ -216,6 +216,26 @@ exports.detailToCreateUserGroup = asyncHandler(async (req, res) => {
   });
 });
 
+exports.getGroupUsersAgain = asyncHandler(async (req, res) => {
+  const findUsersGroup = await DB.query("SELECT * FROM tb_group_user");
+  const findGroup = await DB.query("SELECT * FROM tb_group");
+
+  const result = findUsersGroup.rows.map((user) => {
+    const groups = user.id_group.map((groupId) => {
+      return findGroup.rows.find((group) => group.id === parseInt(groupId));
+    });
+
+    return {
+      id: user.id,
+      user_id: user.user_id,
+      code: user.code,
+      group: groups,
+    };
+  });
+
+  res.json(result);
+});
+
 exports.getGroupUsers = asyncHandler(async (req, res) => {
   const {
     filter,
