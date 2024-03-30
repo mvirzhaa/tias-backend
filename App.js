@@ -32,6 +32,7 @@ const votingRoutes = require("./routes/e-voting/eVotingRoutes");
 const bimbinganAkademikRoutes = require("./routes/bimbingan/bimbinganAkademik");
 const validasiRoutes = require("./routes/validasi/validasiRoutes");
 const jabatanRoutes = require("./routes/jabatan/jabatanRoutes");
+const strukturalRoutes = require("./routes/jabatan/strukturalRoutes");
 const errorHandler = require("./helper/errorHandler");
 
 const app = express();
@@ -76,6 +77,7 @@ app.use("/voting", votingRoutes);
 app.use("/validasi", validasiRoutes);
 app.use("/bimbingan-akademik", bimbinganAkademikRoutes);
 app.use("/jabatan", jabatanRoutes);
+app.use("/struktural", strukturalRoutes);
 
 app.use("/help", helpRoutes);
 app.get("/", (req, res) => {

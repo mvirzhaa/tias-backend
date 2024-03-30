@@ -3,6 +3,7 @@ const {
   getInformaticsStudent,
   getDosen,
   getPmmStudent,
+  getDepartemen,
 } = require("../helper/informatics");
 const { getIp, deleteIp, queryIpByNpm } = require("../helper/ipk");
 const { getKategoriIp } = require("../helper/kategori_ip");
@@ -222,6 +223,19 @@ exports.getPmmStudent = asyncHandler(async (req, res) => {
     });
   } catch (error) {
     console.error("Error retrieving skpi sertfikasi:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+exports.getDepartemenController = asyncHandler(async (req, res) => {
+  try {
+    const results = await getDepartemen();
+
+    res.status(201).json({
+      data: results,
+    });
+  } catch (error) {
+    console.error("Error retrieving departemen code:", error);
     res.status(500).send("Internal Server Error");
   }
 });

@@ -15,6 +15,7 @@ const {
   getSkpiPerkuliahan,
   tesGetMatkul,
   getPmmStudent,
+  getDepartemenController,
 } = require("../controllers/helperController");
 
 const router = express.Router();
@@ -36,5 +37,7 @@ router.get("/skpi-perkuliahan", protected, getSkpiPerkuliahan);
 router.get("/tes-get-matkul", tesGetMatkul);
 
 router.get("/pmm-student", getPmmStudent);
+
+router.get("/departemen", getDepartemenController);
 
 module.exports = router;

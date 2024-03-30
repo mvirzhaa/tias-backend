@@ -58,9 +58,20 @@ async function getDosen(division) {
   }
 }
 
+async function getDepartemen() {
+  const query = "SELECT * FROM siak_department";
+  try {
+    const results = await executeQuery(query);
+    return results;
+  } catch (error) {
+    throw new Error("failed to retrieve data.");
+  }
+}
+
 module.exports = {
   executeQuery,
   getInformaticsStudent,
   getDosen,
   getPmmStudent,
+  getDepartemen,
 };

@@ -11,7 +11,7 @@ const {
 
 const router = express.Router();
 
-router.get("/", protected, adminOnly, getJabatan);
+router.get("/", getJabatan);
 router.get("/:id", protected, adminOnly, detailJabatan);
 router.post("/", protected, adminOnly, createJabatan);
 router.delete("/:id", protected, adminOnly, deleteJabatan);

@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const DB = require("../../database");
 
-exports.tambahJabatan = asyncHandler(async (req, res) => {
+exports.tambahStruktural = asyncHandler(async (req, res) => {
   const newData = req.body;
 
   if (
@@ -16,7 +16,7 @@ exports.tambahJabatan = asyncHandler(async (req, res) => {
   }
 
   const findNewData = await DB.query(
-    "SELECT * FROM master_jabatan WHERE nip = $1",
+    "SELECT * FROM struktural_prodi WHERE nip = $1",
     [newData.nip]
   );
 
@@ -37,7 +37,7 @@ exports.tambahJabatan = asyncHandler(async (req, res) => {
   });
 });
 
-exports.getJabatan = asyncHandler(async (req, res) => {
+exports.getStruktural = asyncHandler(async (req, res) => {
   const {
     filter,
     filterValue,
@@ -53,7 +53,8 @@ exports.getJabatan = asyncHandler(async (req, res) => {
 
   const offset = (pageNumber - 1) * itemsPerPage;
 
-  let query = "SELECT * FROM master_jabatan";
+  let query =
+    "SELECT struktural_prodi.*, tb_data_pribadi.user_id, tb_data_pribadi.nama_lengkap, master_jabatan.nama_jabatan FROM struktural_prodi JOIN tb_data_pribadi ON struktural_prodi.user_id = tb_data_pribadi.user_id JOIN master_jabatan ON struktural_prodi.id_jabatan = master_jabatan.id";
 
   if (filter && filterValue) {
     if (Array.isArray(filter) && Array.isArray(filterValue)) {
@@ -73,7 +74,7 @@ exports.getJabatan = asyncHandler(async (req, res) => {
 
   if (orderField && orderValue) {
     if (typeof orderField === "string" && typeof orderValue === "string") {
-      query += ` ORDER BY ${orderField} ${orderValue}`;
+      query += ` ORDER BY struktural_prodi.${orderField} ${orderValue}`;
     } else {
       res
         .status(400)
@@ -88,7 +89,7 @@ exports.getJabatan = asyncHandler(async (req, res) => {
 
   let responseData = result.rows;
 
-  const totalRecordsQuery = "SELECT COUNT(*) AS total FROM master_jabatan";
+  const totalRecordsQuery = "SELECT COUNT(*) AS total FROM struktural_prodi";
   const totalRecordsResult = await DB.query(totalRecordsQuery);
   const totalRecords = totalRecordsResult.rows[0].total;
 
@@ -110,7 +111,7 @@ exports.getJabatan = asyncHandler(async (req, res) => {
   res.status(200).json(responseData);
 });
 
-exports.deleteJabatan = asyncHandler(async (req, res) => {
+exports.deleteStruktural = asyncHandler(async (req, res) => {
   const idToDelete = req.params.id;
 
   if (!idToDelete) {
@@ -119,7 +120,7 @@ exports.deleteJabatan = asyncHandler(async (req, res) => {
   }
 
   const deleteQuery = await DB.query(
-    "DELETE FROM master_jabatan WHERE id = $1",
+    "DELETE FROM struktural_prodi WHERE id = $1",
     [idToDelete]
   );
 
@@ -133,11 +134,11 @@ exports.deleteJabatan = asyncHandler(async (req, res) => {
   });
 });
 
-exports.detailJabatan = asyncHandler(async (req, res) => {
+exports.detailStruktural = asyncHandler(async (req, res) => {
   const id = req.params.id;
 
   const findData = await DB.query(
-    "SELECT * FROM master_jabatan WHERE id = $1",
+    "SELECT * FROM struktural_prodi WHERE id = $1",
     [id]
   );
 
@@ -153,11 +154,12 @@ exports.detailJabatan = asyncHandler(async (req, res) => {
   });
 });
 
-exports.editJabatan = asyncHandler(async (req, res) => {
+exports.editStruktural = asyncHandler(async (req, res) => {
   const id = req.params.id;
+  const newData = req.body;
 
   const findData = await DB.query(
-    "SELECT * FROM master_jabatan WHERE id = $1",
+    "SELECT * FROM struktural_prodi WHERE id = $1",
     [id]
   );
 
@@ -167,11 +169,9 @@ exports.editJabatan = asyncHandler(async (req, res) => {
     });
   }
 
-  const { nama_jabatan } = req.body;
-
   const updatedData = await DB.query(
-    "UPDATE master_jabatan SET nama_jabatan = $1 WHERE id = $2 RETURNING *",
-    [nama_jabatan, id]
+    "UPDATE struktural_prodi SET user_id = $1, nip = $2, kode_prodi = $3, id_jabatan = $4 WHERE id = $5 RETURNING *",
+    [newData.user_id, newData.nip, newData.kode_prodi, newData.id_jabatan, id]
   );
 
   res.status(200).json({
