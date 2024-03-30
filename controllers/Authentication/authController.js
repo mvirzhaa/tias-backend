@@ -544,18 +544,24 @@ exports.loginUser = asyncHandler(async (req, res) => {
       secure: true,
     });
 
-    const dataResponse = user.rows.map((iterate) => ({
-      ...iterate,
-      imgUrl: `${process.env.API_URL}/foto-profile/${iterate.image}`,
-      nip: getPersonalData.rows[0].nip,
-      nama_lengkap: getPersonalData.rows[0].nama_lengkap,
-      image: getPersonalData.rows[0].image,
-      total_point: getPersonalData.rows[0].total_point,
-    }));
-
     res.status(200).json({
       message: "Login Success.",
-      data: dataResponse[0],
+      data: {
+        user_id,
+        npm,
+        nidn,
+        username,
+        email,
+        role,
+        nip: getPersonalData.rows[0].nip,
+        nama_lengkap: getPersonalData.rows[0].nama_lengkap,
+        image: getPersonalData.rows[0].image,
+        total_point: getPersonalData.rows[0].total_point,
+        imageUrl: `${process.env.API_URL}/foto-profile/${getPersonalData.rows[0].image}`,
+        isverified,
+        created_at,
+        token,
+      },
     });
   } else {
     res.status(500);
