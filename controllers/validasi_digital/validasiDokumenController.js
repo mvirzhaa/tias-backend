@@ -1,5 +1,6 @@
 const expressAsyncHandler = require("express-async-handler");
-const DB_VALIDASI = require("../../db-validasi-digital");
+const DB = require("../../database");
+const QRCode = require("qrcode-svg");
 
 exports.getValidasiDokumen = expressAsyncHandler(async (req, res) => {
   const {
@@ -42,9 +43,30 @@ exports.getValidasiDokumen = expressAsyncHandler(async (req, res) => {
 
   query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
 
-  const result = await DB_VALIDASI.query(query);
+  const result = await DB.query(query);
 
-  let responseData = result.rows;
+  // let responseData = result.rows;
+
+  const findName = await DB.query(
+    "SELECT user_id, nama_lengkap FROM tb_data_pribadi"
+  );
+
+  let responseData = result.rows.map((row) => {
+    const dosen = findName.rows.find((item) => item.user_id === row.dosen_id);
+    const mahasiswa = findName.rows.find((item) => item.user_id === row.mhs_id);
+
+    return {
+      id: row.id,
+      dosen_id: row.dosen_id,
+      mhs_id: row.mhs_id,
+      nama_dosen: dosen ? dosen.nama_lengkap : "",
+      nama_mhs: mahasiswa ? mahasiswa.nama_lengkap : "",
+      nama_kegiatan: row.nama_kegiatan,
+      link_kegiatan: row.link_kegiatan,
+      link_validasi: row.link_validasi,
+      created_at: row.created_at,
+    };
+  });
 
   if (dataTable === "true") {
     res.status(200).json({
@@ -60,4 +82,32 @@ exports.getValidasiDokumen = expressAsyncHandler(async (req, res) => {
       data: responseData,
     });
   }
+});
+
+exports.showQr = expressAsyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const findData = await DB.query(
+    "SELECT * FROM validasi_dokumen WHERE id = $1",
+    [id]
+  );
+
+  if (!findData.rows.length) {
+    res.status(400);
+    throw new Error("Data Not Found.");
+  }
+
+  const link = findData.rows[0].link_validasi;
+
+  const qr = new QRCode({
+    content: link,
+    container: "svg-viewbox",
+    join: true,
+  });
+
+  const svg = qr.svg();
+
+  res.setHeader("Content-Type", "image/svg+xml");
+
+  res.status(200).send(svg);
 });

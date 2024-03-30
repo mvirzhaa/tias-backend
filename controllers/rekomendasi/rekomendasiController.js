@@ -81,7 +81,7 @@ exports.addRekomendasi = asyncHandler(async (req, res) => {
       await insertValidasiDokumen({
         dosen_id: userLoginId,
         mhs_id: data.mahasiswa_id,
-        nama_kegiatan: `Dosen ${req.user.nama_lengkap}-${req.user.nidn} telah memberikan rekomendasi kepada mahasiswa ${user.rows[0].nama_lengkap}-${user.rows[0].npm}`,
+        nama_kegiatan: `Memberikan Rekomendasi Mahasiswa`,
         link_kegiatan: `${process.env.FRONTEND_URL}/dosen/rek-mhs/detail-mhs/${data.mahasiswa_id}`,
         link_validasi: `${process.env.FRONTEND_URL}`,
       });
