@@ -27,8 +27,14 @@ exports.tambahStruktural = asyncHandler(async (req, res) => {
   }
 
   const saveData = await DB.query(
-    "INSERT INTO struktural_prodi(user_id, nip, kode_prodi, id_jabatan) VALUES($1, $2, $3, $4)",
-    [newData.user_id, newData.nip, newData.kode_prodi, newData.id_jabatan]
+    "INSERT INTO struktural_prodi(user_id, nip, kode_prodi, id_jabatan, keterangan) VALUES($1, $2, $3, $4, $5)",
+    [
+      newData.user_id,
+      newData.nip,
+      newData.kode_prodi,
+      newData.id_jabatan,
+      newData.keterangan,
+    ]
   );
 
   res.status(200).json({
@@ -170,8 +176,15 @@ exports.editStruktural = asyncHandler(async (req, res) => {
   }
 
   const updatedData = await DB.query(
-    "UPDATE struktural_prodi SET user_id = $1, nip = $2, kode_prodi = $3, id_jabatan = $4 WHERE id = $5 RETURNING *",
-    [newData.user_id, newData.nip, newData.kode_prodi, newData.id_jabatan, id]
+    "UPDATE struktural_prodi SET user_id = $1, nip = $2, kode_prodi = $3, id_jabatan = $4, keterangan =$5 WHERE id = $6 RETURNING *",
+    [
+      newData.user_id,
+      newData.nip,
+      newData.kode_prodi,
+      newData.id_jabatan,
+      newData.keterangan,
+      id,
+    ]
   );
 
   res.status(200).json({
