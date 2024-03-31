@@ -7,6 +7,176 @@ const {
   isoToDateId,
 } = require("../../helper/dateTimeToId");
 
+const fs = require("fs-extra");
+
+// exports.exportsRekapPertemuan = asyncHandler(async (req, res) => {
+//   const id_matkul = req.query.id_matkul;
+//   const kelas = req.query.kelas;
+
+//   const API_URL = `${process.env.API_LOCAL_ABSEN}/pembelajaran`;
+
+//   const response = await axios.get(API_URL, {
+//     params: {
+//       orderField: "id",
+//       orderValue: "asc",
+//     },
+//   });
+
+//   let data = response.data.data;
+
+//   data = data.filter(
+//     (item) => item.id_matkul === id_matkul && item.kelas === kelas
+//   );
+
+//   if (data.length === 0) {
+//     res.status(404);
+//     throw new Error("Data not found");
+//   }
+
+//   const workbook = new excel.Workbook();
+//   const worksheet = workbook.addWorksheet("Absensi");
+
+//   worksheet.properties.defaultRowHeight = 15;
+//   worksheet.mergeCells("A1", "B1");
+//   worksheet.getCell("A1").value = "Nama Dosen/Tenaga Pengajar:";
+//   worksheet.getCell(
+//     "C1"
+//   ).value = `${data[0].dosen.nama}${data[0].dosen.gelar_belakang}`;
+
+//   worksheet.mergeCells("D1", "E1");
+//   worksheet.getCell("D1").value = "Jumlah SKS:";
+//   worksheet.getCell("F1").value = `${data[0].matkul.credit}`;
+
+//   worksheet.mergeCells("A2", "B2");
+//   worksheet.getCell("A2").value = "Nama Matakuliah:";
+//   worksheet.getCell("C2").value = `${data[0].matkul.name}`;
+
+//   worksheet.mergeCells("D2", "E2");
+//   worksheet.getCell("D2").value = "Program Studi:";
+//   worksheet.getCell("F2").value = `${data[0].matkul.department_code}`;
+
+//   worksheet.mergeCells("A3", "B3");
+//   worksheet.getCell("A3").value = "Kode Matakuliah:";
+//   worksheet.getCell("C3").value = `${data[0].id_matkul}`;
+
+//   worksheet.mergeCells("D3", "E3");
+//   worksheet.getCell("D3").value = "Semester/Kelas:";
+//   worksheet.getCell("F3").value = `${data[0].kelas}`;
+
+//   for (let i = 1; i <= 3; i++) {
+//     for (let j = 1; j <= 6; j++) {
+//       const cell = worksheet.getCell(`${String.fromCharCode(65 + j)}${i}`);
+//       cell.border = {
+//         top: { style: "thin" },
+//         left: { style: "thin" },
+//         bottom: { style: "thin" },
+//         right: { style: "thin" },
+//       };
+//     }
+//   }
+//   worksheet.addRow([]);
+
+//   const tableHeader = [
+//     "kuliah ke-",
+//     "Hari",
+//     "Tanggal",
+//     "Waktu Mulai",
+//     "Waktu Selesai",
+//     "RPS",
+//     "Realisasi RPS",
+//     "Paraf Dosen / TP",
+//     "Wakil Mahasiswa",
+//     "Paraf",
+//     "Jumlah Mahasiswa",
+//     "Paraf Prodi",
+//     "Dosen Pengganti/Tamu",
+//   ];
+
+//   const headerRow = worksheet.addRow(tableHeader);
+//   headerRow.eachCell((cell) => {
+//     cell.border = {
+//       top: { style: "thin" },
+//       left: { style: "thin" },
+//       bottom: { style: "thin" },
+//       right: { style: "thin" },
+//     };
+//     cell.font = { bold: true };
+//   });
+
+//   const queries = [];
+//   for (const row of data) {
+//     let learningDone;
+//     learningDone = row.learning_done
+//       ? formatDateToIndonesian(row.learning_done)
+//       : "";
+
+//     const createdAt = isoToDateId(row.created_at);
+//     const hari = createdAt.dayOfWeek;
+//     const tgl = `${createdAt.day} ${createdAt.month} ${createdAt.year}`;
+//     const learningStart = `${createdAt.hours}:${createdAt.minutes}`;
+//     const dosenPenganti = row.dosen_pengganti ? row.dosen_pengganti.nama : "";
+//     const dosenTamu = row.dosen_tamu ? row.dosen_tamu : "";
+
+//     const getDosen = await DB.query(
+//       "SELECT * FROM tb_data_pribadi WHERE nip = ANY($1)",
+//       [[row.nik_dosen]]
+//     );
+//     const getKomti = await DB.query(
+//       "SELECT tb_users.*, tb_data_pribadi.* FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.npm = ANY($1)",
+//       [[row.npm_komti]]
+//     );
+
+//     const ttdDosen = `${process.env.API_URL}/ttd/${getDosen.rows[0].ttd}`;
+//     const ttdKomti = getKomti.rows.length
+//       ? `${process.env.API_URL}/ttd/${getDosen.rows[0].ttd}`
+//       : "";
+
+//     const rowData = [
+//       row.pertemuan,
+//       hari,
+//       tgl,
+//       learningStart,
+//       learningDone,
+//       row.rps_dasar || "",
+//       row.rps_pelaksanaan || "",
+//       ttdDosen,
+//       getKomti.rows.length ? getKomti.rows[0].nama_lengkap : "",
+//       ttdKomti,
+//       "",
+//       "",
+//       `${dosenPenganti}${dosenTamu}`,
+//     ];
+//     const dataRow = worksheet.addRow(rowData);
+
+//     dataRow.eachCell((cell) => {
+//       cell.border = {
+//         top: { style: "thin" },
+//         left: { style: "thin" },
+//         bottom: { style: "thin" },
+//         right: { style: "thin" },
+//       };
+//     });
+//   }
+
+//   await Promise.all(queries);
+
+//   res.setHeader(
+//     "Content-Type",
+//     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+//   );
+
+//   res.set("Access-Control-Expose-Headers", "Content-Disposition");
+
+//   res.set(
+//     "Content-Disposition",
+//     "attachment; filename=" +
+//       `${data[0].dosen.nama}-${data[0].matkul.name}-${data[0].kelas}.xlsx`
+//   );
+
+//   await workbook.xlsx.write(res);
+//   res.end();
+// });
+
 exports.exportsRekapPertemuan = asyncHandler(async (req, res) => {
   const id_matkul = req.query.id_matkul;
   const kelas = req.query.kelas;
@@ -25,8 +195,6 @@ exports.exportsRekapPertemuan = asyncHandler(async (req, res) => {
   data = data.filter(
     (item) => item.id_matkul === id_matkul && item.kelas === kelas
   );
-
-  // return res.json(data);
 
   if (data.length === 0) {
     res.status(404);
@@ -103,7 +271,8 @@ exports.exportsRekapPertemuan = asyncHandler(async (req, res) => {
     cell.font = { bold: true };
   });
 
-  data.forEach((row, index) => {
+  const queries = [];
+  for (const row of data) {
     let learningDone;
     learningDone = row.learning_done
       ? formatDateToIndonesian(row.learning_done)
@@ -113,10 +282,23 @@ exports.exportsRekapPertemuan = asyncHandler(async (req, res) => {
     const hari = createdAt.dayOfWeek;
     const tgl = `${createdAt.day} ${createdAt.month} ${createdAt.year}`;
     const learningStart = `${createdAt.hours}:${createdAt.minutes}`;
-
     const dosenPenganti = row.dosen_pengganti ? row.dosen_pengganti.nama : "";
-
     const dosenTamu = row.dosen_tamu ? row.dosen_tamu : "";
+
+    const getDosen = await DB.query(
+      "SELECT * FROM tb_data_pribadi WHERE nip = ANY($1)",
+      [[row.nik_dosen]]
+    );
+    const getKomti = await DB.query(
+      "SELECT tb_users.*, tb_data_pribadi.* FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.npm = ANY($1)",
+      [[row.npm_komti]]
+    );
+
+    const ttdDosen = `public/ttd/${getDosen.rows[0].ttd}`;
+    const ttdKomti =
+      getKomti.rows.length && getKomti.rows[0].ttd
+        ? `public/ttd/${getKomti.rows[0].ttd}`
+        : "";
 
     const rowData = [
       row.pertemuan,
@@ -127,12 +309,13 @@ exports.exportsRekapPertemuan = asyncHandler(async (req, res) => {
       row.rps_dasar || "",
       row.rps_pelaksanaan || "",
       "",
-      "",
+      getKomti.rows.length ? getKomti.rows[0].nama_lengkap : "",
       "",
       "",
       "",
       `${dosenPenganti}${dosenTamu}`,
     ];
+
     const dataRow = worksheet.addRow(rowData);
 
     dataRow.eachCell((cell) => {
@@ -143,7 +326,35 @@ exports.exportsRekapPertemuan = asyncHandler(async (req, res) => {
         right: { style: "thin" },
       };
     });
-  });
+
+    if (ttdDosen) {
+      const imageIdDosen = workbook.addImage({
+        filename: ttdDosen,
+        extension: "png",
+      });
+
+      worksheet.addImage(imageIdDosen, {
+        tl: { col: 7, row: dataRow.number },
+        br: { col: 8, row: dataRow.number - 1 },
+        editAs: "oneCell",
+      });
+    }
+
+    if (ttdKomti) {
+      const imageIdKomti = workbook.addImage({
+        filename: ttdKomti,
+        extension: "png",
+      });
+
+      worksheet.addImage(imageIdKomti, {
+        tl: { col: 9, row: dataRow.number },
+        br: { col: 10, row: dataRow.number - 1 },
+        editAs: "oneCell",
+      });
+    }
+  }
+
+  await Promise.all(queries);
 
   res.setHeader(
     "Content-Type",

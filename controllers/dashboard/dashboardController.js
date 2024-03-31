@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const DB = require("../../database");
 const { getMkForMhs } = require("../../helper/skpi");
-
+const { default: axios } = require("axios");
 
 const getCount = async (table, userLoginId) => {
   try {
@@ -31,28 +31,32 @@ exports.dashboardData = asyncHandler(async (req, res) => {
     const publikasi = await getCount("tb_publikasi_karya", userLoginId);
     const hki = await getCount("tb_hki", userLoginId);
 
-    const responseData = await DB.query(`SELECT tb_data_pribadi.*, tb_users.nidn, tb_users.npm, tb_users.role
+    const responseData = await DB.query(
+      `SELECT tb_data_pribadi.*, tb_users.nidn, tb_users.npm, tb_users.role
       FROM tb_data_pribadi
       JOIN tb_users ON tb_data_pribadi.user_id = tb_users.user_id
-      WHERE tb_data_pribadi.user_id = $1`, [userLoginId]);
+      WHERE tb_data_pribadi.user_id = $1`,
+      [userLoginId]
+    );
 
-    const sks = 0;
-    const pertemuanPerkuliahan = 0;
     const belum_kolo = 0;
     const besum_sidang = 0;
     const belum_revisi = 0;
     const kp_selesai = 0;
 
-    const queryIp = await DB.query("SELECT * FROM tb_ip_mhs WHERE user_id = $1", [userLoginId]);
+    const queryIp = await DB.query(
+      "SELECT * FROM tb_ip_mhs WHERE user_id = $1",
+      [userLoginId]
+    );
 
     const dataIp = queryIp.rows;
 
     const dataChart = {
       label: [],
-      data: []
+      data: [],
     };
-    
-    dataIp.forEach(entry => {
+
+    dataIp.forEach((entry) => {
       const label = `${entry.semester}-${entry.tahun}`;
       dataChart.label.push(label);
       dataChart.data.push(entry.ip);
@@ -62,7 +66,12 @@ exports.dashboardData = asyncHandler(async (req, res) => {
 
     if (role === "Mahasiswa") {
       const matkulMhs = await getMkForMhs(npm);
-      let status_frs = responseData.rows[0].kode_mhs === "ACTIVE" ? (!matkulMhs.Data && !matkulMhs.Total && !matkulMhs.SKS) ? 0 : 1 : null;
+      let status_frs =
+        responseData.rows[0].kode_mhs === "ACTIVE"
+          ? !matkulMhs.Data && !matkulMhs.Total && !matkulMhs.SKS
+            ? 0
+            : 1
+          : null;
 
       data = {
         tes,
@@ -75,12 +84,28 @@ exports.dashboardData = asyncHandler(async (req, res) => {
         hki,
         userData: responseData.rows[0],
         dataChart,
-        status_frs
+        status_frs,
       };
     } else {
+      const SKS_URL = `${process.env.API_LOCAL_ABSEN}/dosen-for-mk`;
+      const requestSks = await axios.get(SKS_URL, {
+        params: {
+          code: req.user.nip,
+        },
+      });
+
+      const PEMBELAJARAN_URI = `${process.env.API_LOCAL_ABSEN}/pembelajaran`;
+      const reqPembelajaran = await axios.get(PEMBELAJARAN_URI, {
+        params: {
+          dataTable: true,
+          filter: ["nik_dosen"],
+          filterValue: [req.user.nip],
+        },
+      });
+
       data = {
-        sks,
-        pertemuanPerkuliahan,
+        sks: requestSks.data.SKS,
+        pertemuanPerkuliahan: reqPembelajaran.data.recordsTotal,
         belum_kolo,
         besum_sidang,
         belum_revisi,
@@ -99,7 +124,6 @@ exports.dashboardData = asyncHandler(async (req, res) => {
   }
 });
 
-
 const getCountPending = async (table) => {
   try {
     const result = await DB.query(
@@ -112,7 +136,6 @@ const getCountPending = async (table) => {
     throw error; // Re-throw the error to propagate it up the call stack
   }
 };
-
 
 exports.dashboardDataAdmin = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
@@ -127,21 +150,22 @@ exports.dashboardDataAdmin = asyncHandler(async (req, res) => {
     const publikasi = await getCountPending("tb_publikasi_karya");
     const hki = await getCountPending("tb_hki");
 
-
-    const userAdmin = await DB.query("SELECT tb_data_pribadi.*, tb_users.npm, tb_users.nidn, tb_users.role FROM tb_data_pribadi JOIN tb_users ON tb_data_pribadi.user_id = tb_users.user_id WHERE tb_data_pribadi.user_id = $1", [userLoginId])
+    const userAdmin = await DB.query(
+      "SELECT tb_data_pribadi.*, tb_users.npm, tb_users.nidn, tb_users.role FROM tb_data_pribadi JOIN tb_users ON tb_data_pribadi.user_id = tb_users.user_id WHERE tb_data_pribadi.user_id = $1",
+      [userLoginId]
+    );
 
     const data = {
-        tes,
-        sertifikasi,
-        pembicara,
-        pengabdian,
-        penghargaan,
-        penelitian,
-        publikasi,
-        hki,
-        userData: userAdmin.rows[0],
-    }
-
+      tes,
+      sertifikasi,
+      pembicara,
+      pengabdian,
+      penghargaan,
+      penelitian,
+      publikasi,
+      hki,
+      userData: userAdmin.rows[0],
+    };
 
     res.status(200).json({
       status: "success",
