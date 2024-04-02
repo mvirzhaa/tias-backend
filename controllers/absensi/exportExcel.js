@@ -103,6 +103,12 @@ exports.exportsRekapPertemuan = asyncHandler(async (req, res) => {
     cell.font = { bold: true };
   });
 
+  const getTtdProdi = await DB.query(
+    "SELECT * FROM tb_data_pribadi WHERE nip = $1",
+    ["410100569"]
+  );
+  const ttdProdi = `public/ttd/${getTtdProdi.rows[0].ttd}`;
+
   const queries = [];
   for (const row of data) {
     let learningDone;
@@ -183,6 +189,17 @@ exports.exportsRekapPertemuan = asyncHandler(async (req, res) => {
         editAs: "oneCell",
       });
     }
+
+    const imageIdProdi = workbook.addImage({
+      filename: ttdProdi,
+      extension: "png",
+    });
+
+    worksheet.addImage(imageIdProdi, {
+      tl: { col: 11, row: dataRow.number },
+      br: { col: 12, row: dataRow.number - 1 },
+      editAs: "oneCell",
+    });
   }
 
   await Promise.all(queries);
