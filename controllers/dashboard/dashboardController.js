@@ -87,14 +87,14 @@ exports.dashboardData = asyncHandler(async (req, res) => {
         status_frs,
       };
     } else {
-      const SKS_URL = `${process.env.API_LOCAL_ABSEN}/dosen-for-mk`;
+      const SKS_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/dosen-for-mk`;
       const requestSks = await axios.get(SKS_URL, {
         params: {
           code: req.user.nip,
         },
       });
 
-      const PEMBELAJARAN_URI = `${process.env.API_LOCAL_ABSEN}/pembelajaran`;
+      const PEMBELAJARAN_URI = `${process.env.API_LOCAL_ABSEN_AGAIN}/pembelajaran`;
       const reqPembelajaran = await axios.get(PEMBELAJARAN_URI, {
         params: {
           dataTable: true,
