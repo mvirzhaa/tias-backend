@@ -30,6 +30,7 @@ const helpRoutes = require("./routes/helperRoutes");
 const skpiRoutes = require("./routes/skpi/skpiRoutes");
 const votingRoutes = require("./routes/e-voting/eVotingRoutes");
 const bimbinganAkademikRoutes = require("./routes/bimbingan/bimbinganAkademik");
+const tugasAkhirRoutes = require("./routes/bimbingan/tugasAkhirRoutes");
 const validasiRoutes = require("./routes/validasi/validasiRoutes");
 const jabatanRoutes = require("./routes/jabatan/jabatanRoutes");
 const strukturalRoutes = require("./routes/jabatan/strukturalRoutes");
@@ -76,6 +77,7 @@ app.use("/skpi", skpiRoutes);
 app.use("/voting", votingRoutes);
 app.use("/validasi", validasiRoutes);
 app.use("/bimbingan-akademik", bimbinganAkademikRoutes);
+app.use("/tugas-akhir", tugasAkhirRoutes);
 app.use("/jabatan", jabatanRoutes);
 app.use("/struktural", strukturalRoutes);
 
