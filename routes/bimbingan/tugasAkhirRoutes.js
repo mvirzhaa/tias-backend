@@ -23,7 +23,7 @@ router.get("/detail-for-dosen/:id", protected, detailPengajuanSkForDosen);
 router.get("/get-by-mhs", protected, getByUserLogin);
 router.get("/get-for-admin", protected, adminOnly, getForAdmin);
 router.get("/get-for-dosen", protected, getForDosen);
-router.put("/approve/:id", approvedStatus);
+router.put("/approve/:id", protected, approvedStatus);
 
 router.patch("/update-sk/:id", protected, updatePengajuanSk);
 
