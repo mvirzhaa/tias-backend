@@ -334,15 +334,15 @@ exports.updatePengajuanSk = asyncHandler(async (req, res) => {
 
   if (findData.rows[0].pembimbing_1 && !findData.rows[0].status_pem_1) {
     res.status(400);
-    throw new Error("Status pembimbing 1 belum acc.");
+    throw new Error("Status pembimbing belum acc.");
   }
   if (findData.rows[0].pembimbing_2 && !findData.rows[0].status_pem_2) {
     res.status(400);
-    throw new Error("Status pembimbing 2 belum acc.");
+    throw new Error("Status pembimbing belum acc.");
   }
   if (findData.rows[0].pembimbing_3 && !findData.rows[0].status_pem_3) {
     res.status(400);
-    throw new Error("Status pembimbing 3 belum acc.");
+    throw new Error("Status pembimbing belum acc.");
   }
   if (!findData.rows[0].status_kepala_lab) {
     res.status(400);
