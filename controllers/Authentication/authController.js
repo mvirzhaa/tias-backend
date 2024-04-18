@@ -557,6 +557,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
         nama_lengkap: getPersonalData.rows[0].nama_lengkap,
         image: getPersonalData.rows[0].image,
         total_point: getPersonalData.rows[0].total_point,
+        no_hp: getPersonalData.rows[0].no_hp,
         imageUrl: `${process.env.API_URL}/foto-profile/${getPersonalData.rows[0].image}`,
         isverified,
         created_at,
