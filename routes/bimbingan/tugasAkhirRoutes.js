@@ -16,10 +16,27 @@ const {
   pengajuanKolokium,
   getPengajuanKolokiumById,
   updatePengajuanKolokium,
+  penilaianKolo,
+  getNilaiKoloForDosen,
+  getNilaiKolo,
+  getPengajuanSidangById,
+  pengajuanSidang,
+  updatePengajuanSidang,
+  penilaianSidang,
+  getNilaiSidang,
+  getNilaiSidangForDosen,
+  getFinalSkripsi,
+  uploadFinalSkripsiController,
 } = require("../../controllers/bimbingan/tugasAkhirController");
 const {
   makalahKolokiumUpload,
 } = require("../../middleware/tugas-akhir/makalahKolokiumUpload");
+const {
+  pengajuanSidangUpload,
+} = require("../../middleware/tugas-akhir/pengajuanSidangUpload");
+const {
+  uploadFinalSkripsi,
+} = require("../../middleware/tugas-akhir/uploadFinalSkripsi");
 
 const router = express.Router();
 
@@ -32,7 +49,10 @@ router.get("/get-for-dosen", protected, getForDosen);
 router.put("/approve/:id", protected, approvedStatus);
 router.patch("/update-sk/:id", protected, updatePengajuanSk);
 
+// KOLOKIUM
 router.get("/detail-pengajuan-kolo/:id", protected, getPengajuanKolokiumById);
+router.get("/detail-penilaian-kolo/:id", protected, getNilaiKolo);
+router.get("/detail-penilaian-kolo-dosen/:id", protected, getNilaiKoloForDosen);
 router.patch(
   "/pengajuan-kolokium/:id",
   protected,
@@ -43,6 +63,33 @@ router.patch(
   "/update-pengajuan-kolokium/:id",
   protected,
   updatePengajuanKolokium
+);
+router.post("/penilaian-kolo", protected, penilaianKolo);
+
+// SIDANG
+router.get("/detail-pengajuan-sidang/:id", protected, getPengajuanSidangById);
+router.patch(
+  "/pengajuan-sidang/:id",
+  protected,
+  pengajuanSidangUpload,
+  pengajuanSidang
+);
+router.patch("/update-pengajuan-sidang/:id", protected, updatePengajuanSidang);
+router.post("/penilaian-sidang", protected, penilaianSidang);
+router.get("/detail-penilaian-sidang/:id", protected, getNilaiSidang);
+router.get(
+  "/detail-penilaian-sidang-dosen/:id",
+  protected,
+  getNilaiSidangForDosen
+);
+
+// Final Skripsi
+router.get("/detail-dokumen-skripsi/:id", protected, getFinalSkripsi);
+router.patch(
+  "/upload-final-skripsi/:id",
+  protected,
+  uploadFinalSkripsi,
+  uploadFinalSkripsiController
 );
 
 module.exports = router;
