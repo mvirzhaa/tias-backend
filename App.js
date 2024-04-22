@@ -35,6 +35,9 @@ const validasiRoutes = require("./routes/validasi/validasiRoutes");
 const jabatanRoutes = require("./routes/jabatan/jabatanRoutes");
 const strukturalRoutes = require("./routes/jabatan/strukturalRoutes");
 const errorHandler = require("./helper/errorHandler");
+const {
+  getJabatanByquery,
+} = require("./controllers/jabatan/strukturalProdiController");
 
 const app = express();
 app.use(express.json());
@@ -80,6 +83,8 @@ app.use("/bimbingan-akademik", bimbinganAkademikRoutes);
 app.use("/tugas-akhir", tugasAkhirRoutes);
 app.use("/jabatan", jabatanRoutes);
 app.use("/struktural", strukturalRoutes);
+
+app.get("/get-jabatan", getJabatanByquery);
 
 app.use("/help", helpRoutes);
 app.get("/", (req, res) => {

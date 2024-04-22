@@ -12,6 +12,7 @@ const {
   getUserDosenAgain,
   getUsers,
   changeEmail,
+  getUsersForNotaDinas,
 } = require("../../controllers/Users/usersController");
 
 const router = express.Router();
@@ -27,5 +28,7 @@ router.get("/all", protected, getUsesDsnMhs);
 router.get("/all-mhs", protected, getUserMhsAgain);
 router.get("/all-dosen", protected, getUserDosenAgain);
 router.get("/all-users", getUsers);
+
+router.get("/all-mhs-skripsi", protected, getUsersForNotaDinas);
 
 module.exports = router;

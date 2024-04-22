@@ -473,3 +473,16 @@ exports.getUsers = asyncHandler(async (req, res) => {
     data: resultsUsers,
   });
 });
+
+exports.getUsersForNotaDinas = asyncHandler(async (req, res) => {
+  const findUsers = await DB.query(
+    "SELECT tb_users.user_id, tb_users.npm, tb_data_pribadi.nama_lengkap, tb_data_pribadi.image, ta_pengajuan_sk.* FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id  JOIN ta_pengajuan_sk ON tb_users.user_id = ta_pengajuan_sk.mhs_id WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true"
+  );
+
+  const resultsUsers = findUsers.rows;
+
+  res.status(200).json({
+    message: "Success get data.",
+    data: resultsUsers,
+  });
+});

@@ -192,3 +192,27 @@ exports.editStruktural = asyncHandler(async (req, res) => {
     data: updatedData.rows[0],
   });
 });
+
+exports.getJabatanByquery = asyncHandler(async (req, res) => {
+  const queryParam = req.query;
+
+  const dataStruktural = await DB.query(
+    "SELECT struktural_prodi.*, master_jabatan.* FROM struktural_prodi JOIN master_jabatan ON struktural_prodi.id_jabatan = master_jabatan.id WHERE struktural_prodi.kode_prodi = $1 AND master_jabatan.nama_jabatan = $2",
+    [queryParam.prodi, queryParam.nama_jabatan]
+  );
+
+  const dataLengkap = await DB.query(
+    "SELECT tb_users.*, tb_data_pribadi.* FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.user_id = $1",
+    [dataStruktural.rows[0].user_id]
+  );
+
+  const data = {
+    ...dataStruktural.rows[0],
+    ...dataLengkap.rows[0],
+  };
+
+  res.status(200).json({
+    message: "Successfully get data",
+    data: data,
+  });
+});
