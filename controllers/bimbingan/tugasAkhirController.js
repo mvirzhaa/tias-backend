@@ -566,10 +566,10 @@ exports.updatePengajuanSk = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { nomor_sk, tgl_sk, link_dokumen_sk } = req.body;
 
-  if (!nomor_sk || !tgl_sk || !link_dokumen_sk) {
-    res.status(400);
-    throw new Error("Pleas fill in all the required fields.");
-  }
+  // if (!nomor_sk || !tgl_sk || !link_dokumen_sk) {
+  //   res.status(400);
+  //   throw new Error("Pleas fill in all the required fields.");
+  // }
 
   const findData = await DB.query(
     "SELECT * FROM ta_pengajuan_sk WHERE id = $1",
