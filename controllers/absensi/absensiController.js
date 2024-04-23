@@ -154,7 +154,7 @@ exports.dosenForMk = asyncHandler(async (req, res) => {
 
 exports.absensiForMhs = asyncHandler(async (req, res) => {
   const npm = req.user.npm;
-  const API_URL = `${process.env.API_LOCAL_ABSEN}/absensi`;
+  const API_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/absensi`;
 
   const { id_matkul, kelas } = req.query;
 
