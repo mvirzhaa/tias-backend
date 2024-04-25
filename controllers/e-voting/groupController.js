@@ -76,6 +76,14 @@ exports.getGroupVoting = asyncHandler(async (req, res) => {
   res.status(200).json(responseData);
 });
 
+exports.getAllGroup = asyncHandler(async (req, res) => {
+  const data = await DB.query("SELECT * FROM tb_group");
+  res.status(200).json({
+    message: "Successfully get data",
+    data: data.rows,
+  });
+});
+
 exports.createGroup = asyncHandler(async (req, res) => {
   const newData = req.body;
 

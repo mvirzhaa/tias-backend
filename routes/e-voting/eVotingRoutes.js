@@ -30,6 +30,7 @@ const {
   userGroupRegister,
   deleteUserFromGroup,
   getGroupUsersAgain,
+  getAllGroup,
 } = require("../../controllers/e-voting/groupController");
 
 const router = express.Router();
@@ -62,5 +63,7 @@ router.get("/group-users", protected, getGroupUsers);
 router.get("/group-users-all", getGroupUsersAgain);
 router.post("/group-users", protected, userGroupRegister);
 router.put("/group-users/:user_id", deleteUserFromGroup);
+
+router.get("/group-all", protected, getAllGroup);
 
 module.exports = router;

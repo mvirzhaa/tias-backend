@@ -1,10 +1,9 @@
 const asyncHandler = require("express-async-handler");
 const axios = require("axios");
-const FormData = require('form-data');
-
+const FormData = require("form-data");
 
 exports.storeMeeting = asyncHandler(async (req, res) => {
-  const API_URL = `${process.env.API_LOCAL_ABSEN}/meeting/store`;
+  const API_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting/store`;
 
   const {
     nm_kegiatan,
@@ -15,6 +14,7 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
     tanggal,
     waktu,
     peserta,
+    id_group_tias,
   } = req.body;
 
   const pesertaData = JSON.parse(peserta);
@@ -30,6 +30,7 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
     formData.append("status_ruangan", status_ruangan);
     formData.append("tanggal", tanggal);
     formData.append("waktu", waktu);
+    formData.append("id_group_tias", id_group_tias);
 
     const response = await axios.post(API_URL, formData, {
       headers: {
@@ -39,9 +40,8 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
 
     const id = response.data.data.id;
 
-    const INSERT_MEET_URL = `${process.env.API_LOCAL_ABSEN}/meeting-invite/store`;
+    const INSERT_MEET_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting-invite/store`;
 
-    // Pengiriman data peserta mahasiswa jika ada
     if (pesertaMhs && pesertaMhs.length > 0) {
       for (const mahasiswa of pesertaMhs) {
         const { npm } = mahasiswa;
