@@ -17,6 +17,20 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
     id_group_tias,
   } = req.body;
 
+  if (
+    !nm_kegiatan ||
+    !nm_pengundang ||
+    !pertemuan ||
+    !ruangan ||
+    !status_ruangan ||
+    !tanggal ||
+    !waktu ||
+    !peserta
+  ) {
+    res.status(400);
+    throw new Error("Pleas fill in all the required fields.");
+  }
+
   const pesertaData = JSON.parse(peserta);
   const pesertaMhs = pesertaData.peserta_mhs;
   const pesertaDosen = pesertaData.peserta_dosen;
