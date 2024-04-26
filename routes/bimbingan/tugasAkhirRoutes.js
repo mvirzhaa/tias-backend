@@ -27,6 +27,7 @@ const {
   getNilaiSidangForDosen,
   getFinalSkripsi,
   uploadFinalSkripsiController,
+  getNomorNota,
 } = require("../../controllers/bimbingan/tugasAkhirController");
 const {
   makalahKolokiumUpload,
@@ -91,5 +92,7 @@ router.patch(
   uploadFinalSkripsi,
   uploadFinalSkripsiController
 );
+
+router.post("/get-nomor-nota", protected, getNomorNota);
 
 module.exports = router;

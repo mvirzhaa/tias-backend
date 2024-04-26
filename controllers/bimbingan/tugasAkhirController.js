@@ -164,7 +164,7 @@ exports.getForAdmin = asyncHandler(async (req, res) => {
   const offset = (pageNumber - 1) * itemsPerPage;
 
   let query =
-    "SELECT ta_pengajuan_sk.*, tb_data_pribadi.nama_lengkap, tb_users.npm, ta_pendaftaran_kolokium.id AS kolo_id, ta_pendaftaran_sidang.id AS sidang_id FROM ta_pengajuan_sk JOIN tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id LEFT JOIN ta_pendaftaran_kolokium ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id LEFT JOIN ta_pendaftaran_sidang ON ta_pendaftaran_sidang.pengajuan_sk_id = ta_pengajuan_sk.id";
+    "SELECT ta_pengajuan_sk.*, tb_data_pribadi.nama_lengkap, tb_users.npm, ta_pendaftaran_kolokium.id AS kolo_id, ta_pendaftaran_kolokium.kolo_status_pem_1, ta_pendaftaran_kolokium.kolo_status_pem_2, ta_pendaftaran_kolokium.kolo_status_pem_3, ta_pendaftaran_sidang.sidang_status_pem_1, ta_pendaftaran_sidang.sidang_status_pem_2, ta_pendaftaran_sidang.sidang_status_pem_3, ta_pendaftaran_sidang.id AS sidang_id FROM ta_pengajuan_sk JOIN tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id LEFT JOIN ta_pendaftaran_kolokium ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id LEFT JOIN ta_pendaftaran_sidang ON ta_pendaftaran_sidang.pengajuan_sk_id = ta_pengajuan_sk.id";
 
   if (filter && filterValue) {
     if (Array.isArray(filter) && Array.isArray(filterValue)) {
@@ -254,18 +254,46 @@ exports.getForAdmin = asyncHandler(async (req, res) => {
     });
   }
 
+  const dataWithStatusDosen = dataWithStatusPenilaian.map((row) => {
+    let statusDospem = "Belum Acc";
+
+    if (row.status == "pengajuan-sk") {
+      if (row.sk_status_pem_1 && row.sk_status_pem_2 && row.status_kepala_lab) {
+        statusDospem = "ACC";
+      }
+    } else if (row.status == "menuju-kolokium") {
+      if (row.kolo_status_pem_1 && row.kolo_status_pem_2) {
+        statusDospem = "ACC";
+      }
+    } else if (row.status == "menuju-sidang") {
+      if (row.sidang_status_pem_1 && row.sidang_status_pem_2) {
+        statusDospem = "ACC";
+      }
+    } else if (
+      row.status == "menyelesaikan-revisi" ||
+      row.status == "selesai"
+    ) {
+      statusDospem = "ACC";
+    }
+
+    return {
+      ...row,
+      statusDospem,
+    };
+  });
+
   if (dataTable === "true") {
     responseData = {
       message: "success",
       draw: 1,
       recordsTotal: totalRecords,
       recordsFiltered: totalRecords,
-      data: dataWithStatusPenilaian,
+      data: dataWithStatusDosen,
     };
   } else {
     responseData = {
       message: "success",
-      data: dataWithStatusPenilaian,
+      data: dataWithStatusDosen,
     };
   }
 
@@ -1460,4 +1488,35 @@ exports.uploadFinalSkripsiController = asyncHandler(async (req, res) => {
     message: "Successfully created data.",
     data: insertedData.rows[0],
   });
+});
+
+exports.getNomorNota = asyncHandler(async (req, res) => {
+  const { nomorNota, data } = req.body;
+
+  const updatePromises = data.map(async (row) => {
+    try {
+      const updateData = await DB.query(
+        `UPDATE ta_pengajuan_sk 
+         SET nomor_nota_dinas = $1
+         WHERE mhs_id = $2`,
+        [nomorNota, row.mhs_id]
+      );
+      return updateData;
+    } catch (error) {
+      throw new Error(error);
+    }
+  });
+
+  try {
+    const updateResults = await Promise.all(updatePromises);
+    res.status(200).json({
+      message: "Success updating nomor nota dinas.",
+      data: updateResults,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error updating nomor nota dinas.",
+      error: error.message,
+    });
+  }
 });
