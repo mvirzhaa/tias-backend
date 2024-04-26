@@ -32,6 +32,9 @@ const {
   getGroupUsersAgain,
   getAllGroup,
 } = require("../../controllers/e-voting/groupController");
+const {
+  getGroupUserMeet,
+} = require("../../controllers/jadwal-rapat/jadwalRapatController");
 
 const router = express.Router();
 
@@ -65,5 +68,6 @@ router.post("/group-users", protected, userGroupRegister);
 router.put("/group-users/:user_id", deleteUserFromGroup);
 
 router.get("/group-all", protected, getAllGroup);
+router.get("/group-meet", getGroupUserMeet);
 
 module.exports = router;

@@ -1,4 +1,6 @@
 const asyncHandler = require("express-async-handler");
+const DB = require("../../db-evoting");
+const DB_TIAS = require("../../database");
 const axios = require("axios");
 const FormData = require("form-data");
 
@@ -14,7 +16,6 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
     tanggal,
     waktu,
     peserta,
-    id_group_tias,
   } = req.body;
 
   if (
@@ -34,6 +35,19 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
   const pesertaData = JSON.parse(peserta);
   const pesertaMhs = pesertaData.peserta_mhs;
   const pesertaDosen = pesertaData.peserta_dosen;
+  const groups = pesertaData.groups;
+
+  let id_group_tias = 0;
+
+  if (groups && groups.length > 0) {
+    const groupArray = groups.map((obj) => Object.values(obj)[0]);
+    const saveGroupMeet = await DB.query(
+      "INSERT INTO tb_group_meet(id_meet, id_group) VALUES($1, $2) RETURNING *",
+      [0, groupArray]
+    );
+
+    id_group_tias = saveGroupMeet.rows[0].id;
+  }
 
   try {
     const formData = new FormData();
@@ -53,6 +67,13 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
     });
 
     const id = response.data.data.id;
+
+    if (groups && groups.length > 0) {
+      await DB.query("UPDATE tb_group_meet SET id_meet = $1 WHERE id = $2", [
+        id,
+        id_group_tias,
+      ]);
+    }
 
     const INSERT_MEET_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting-invite/store`;
 
@@ -87,9 +108,77 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
       }
     }
 
+    // Pengiriman data groups jika ada
+
     res.status(201).json(response.data);
   } catch (error) {
     console.error("Error retrieving add pembelajaran Absensi:", error);
     res.status(500).send("Internal Server Error");
   }
+});
+
+exports.getGroupUserMeet = asyncHandler(async (req, res) => {
+  const { filter, filterValue } = req.query;
+
+  let query = "SELECT * FROM tb_group_meet";
+
+  if (filter && filterValue) {
+    if (Array.isArray(filter) && Array.isArray(filterValue)) {
+      for (let i = 0; i < filter.length; i++) {
+        query += ` WHERE ${filter[i]} = '${filterValue[i]}'`;
+        if (i !== filter.length - 1) {
+          query += " AND";
+        }
+      }
+    } else {
+      res
+        .status(400)
+        .json({ message: "Filter and filterValue must be arrays." });
+      return;
+    }
+  }
+
+  const findMeetGroup = await DB.query(query);
+  const findGroup = await DB.query("SELECT * FROM tb_group");
+  const findGroupUsers = await DB.query("SELECT * FROM tb_group_user");
+  const findDataPribadi = await DB_TIAS.query(
+    "SELECT user_id, nama_lengkap FROM tb_data_pribadi"
+  );
+
+  const result = findMeetGroup.rows.map((meet) => {
+    const groups = meet.id_group.map((groupId) => {
+      const group = findGroup.rows.find(
+        (group) => group.id === parseInt(groupId)
+      );
+      const users = findGroupUsers.rows.filter((user) =>
+        user.id_group.includes(groupId)
+      );
+      const formattedUsers = users.map((user) => {
+        const userDataPribadi = findDataPribadi.rows.find(
+          (data) => data.user_id === user.user_id
+        );
+        return {
+          user_id: user.user_id,
+          code: user.code,
+          nama_lengkap: userDataPribadi ? userDataPribadi.nama_lengkap : null,
+        };
+      });
+      return {
+        ...group,
+        users: formattedUsers,
+      };
+    });
+
+    const data = {
+      id: meet.id,
+      id_meet: meet.id_meet,
+      groups: groups,
+    };
+
+    return {
+      ...data,
+    };
+  });
+
+  res.json(result);
 });
