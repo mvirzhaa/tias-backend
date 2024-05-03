@@ -68,10 +68,37 @@ async function getDepartemen() {
   }
 }
 
+async function getMatkulKp(npm) {
+  const query = `SELECT * FROM siak_frs WHERE student_code = '${npm}' AND course_code = 'IFK325';`;
+
+  try {
+    const results = await executeQuery(query);
+    return results[0];
+  } catch (error) {
+    throw new Error("failed to retrieve  kerja praktikum.");
+  }
+}
+
+async function getAllMatkulByMhs(npm) {
+  const query = `SELECT SUM(siak_course.credit) AS total_credit
+  FROM siak_frs
+  LEFT JOIN siak_course ON siak_frs.course_code = siak_course.code
+  WHERE student_code = '${npm}' AND siak_course.department_code = 'FT_TI' AND siak_course.active = "Y" AND siak_course.curr_code = 'TIF2018';`;
+
+  try {
+    const results = await executeQuery(query);
+    return results[0];
+  } catch (error) {
+    throw new Error("failed to retrieve all matkul by mhs");
+  }
+}
+
 module.exports = {
   executeQuery,
   getInformaticsStudent,
   getDosen,
   getPmmStudent,
   getDepartemen,
+  getMatkulKp,
+  getAllMatkulByMhs,
 };

@@ -7,6 +7,7 @@ exports.formRegisterValidation = (data) => {
     npm_nidn: Joi.number().label("npm_nidn"),
     email: Joi.string().email().required().label("Email"),
     password: PasswordComplexity().required().label("Password"),
+    password2: PasswordComplexity().required().label("Password2"),
   });
   return schema.validate(data);
 };

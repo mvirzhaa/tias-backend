@@ -2,10 +2,13 @@ const asyncHandler = require("express-async-handler");
 const DB = require("../../database");
 const path = require("path");
 const fs = require("fs-extra");
+const { getMatkulKp, getAllMatkulByMhs } = require("../../helper/informatics");
 
 exports.pengajuanSk = asyncHandler(async (req, res) => {
   const data = req.body;
   const userLoginId = req.user.user_id;
+  const npm = req.user.npm;
+  const ipk = req.user.ipk;
 
   if (
     !data.judul_skripsi ||
@@ -39,14 +42,33 @@ exports.pengajuanSk = asyncHandler(async (req, res) => {
     values
   );
 
-  await DB.query(
-    `INSERT INTO ta_pendaftaran_kolokium(mhs_id, pengajuan_sk_id) VALUES($1, $2)`,
-    [userLoginId, saveData.rows[0].id]
+  const getKp = await getMatkulKp(npm);
+  const statusKp = getKp.grade != null ? true : false;
+
+  const dataSks = await getAllMatkulByMhs(npm);
+
+  const statusSksIpk = dataSks.total_credit >= 138 && ipk > 2.0 ? true : false;
+
+  const insertPendaftaranKolo = await DB.query(
+    `INSERT INTO ta_pendaftaran_kolokium(mhs_id, pengajuan_sk_id, status_kp, status_sks_ipk, jumlah_sks, ipk) VALUES($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [
+      userLoginId,
+      saveData.rows[0].id,
+      statusKp,
+      statusSksIpk,
+      dataSks.total_credit,
+      ipk,
+    ]
   );
 
   await DB.query(
-    `INSERT INTO ta_pendaftaran_sidang(mhs_id, pengajuan_sk_id) VALUES($1, $2)`,
-    [userLoginId, saveData.rows[0].id]
+    `INSERT INTO ta_nilai_akhir_kolo(kolo_id, mhs_id) VALUES ($1, $2)`,
+    [insertPendaftaranKolo.rows[0].id, userLoginId]
+  );
+
+  await DB.query(
+    `INSERT INTO ta_pendaftaran_sidang(mhs_id, pengajuan_sk_id, status_kp) VALUES ($1, $2, $3)`,
+    [userLoginId, saveData.rows[0].id, statusKp]
   );
 
   await DB.query(
@@ -672,6 +694,8 @@ exports.getPengajuanKolokiumById = asyncHandler(async (req, res) => {
       statusDosen = "evaluator_1";
     } else if (dataPengajuanKolo.rows[0].evaluator_2 == userLoginId) {
       statusDosen = "evaluator_2";
+    } else if (dataPengajuanKolo.rows[0].kolo_kepala_lab == userLoginId) {
+      statusDosen = "kepala_lab";
     }
 
     res.status(201).json({
@@ -709,6 +733,7 @@ exports.pengajuanKolokium = asyncHandler(async (req, res) => {
     link_dok_pembayaran: data.link_dok_pembayaran,
     kolo_pembimbing_1: data.kolo_pembimbing_1,
     kolo_pembimbing_2: data.kolo_pembimbing_2,
+    kolo_kepala_lab: data.kolo_kepala_lab,
   };
 
   const requiredPropsExist = Object.values(requiredData).every(
@@ -716,13 +741,6 @@ exports.pengajuanKolokium = asyncHandler(async (req, res) => {
   );
 
   if (!requiredPropsExist) {
-    console.log(file);
-    // fs.unlink(file.path, (err) => {
-    //   if (err) {
-    //     console.log(err);
-    //   }
-    //   return;
-    // });
     res.status(400);
     throw new Error("Pleas fill in all the required fields.");
   }
@@ -775,7 +793,7 @@ exports.updatePengajuanKolokium = asyncHandler(async (req, res) => {
   };
 
   const requiredPropsExist = Object.values(requiredData).every(
-    (val) => val !== undefined && val !== ""
+    (val) => val !== undefined && val !== "" && val !== null
   );
 
   if (!requiredPropsExist) {
@@ -905,6 +923,60 @@ exports.penilaianKolo = asyncHandler(async (req, res) => {
     values
   );
 
+  const resultPenilaian = await DB.query(
+    "SELECT * FROM ta_penilaian_kolokium WHERE kolo_id = $1",
+    [saveData.rows[0].kolo_id]
+  );
+  const totalData = resultPenilaian.rowCount;
+
+  const calculateAverage = (columnName) => {
+    const jumlahPenilaian = resultPenilaian.rows.reduce(
+      (acc, current) => acc + current[columnName],
+      0
+    );
+    const averagePenilaian = Math.round(jumlahPenilaian / totalData);
+    return averagePenilaian;
+  };
+
+  const nilaiAkhir1 = calculateAverage("penilaian_1");
+  const nilaiAkhir2 = calculateAverage("penilaian_2");
+  const nilaiAkhir3 = calculateAverage("penilaian_3");
+  const nilaiAkhir4 = calculateAverage("penilaian_4");
+  const nilaiAkhir5 = calculateAverage("penilaian_5");
+  const finalNilaiAkhir = calculateAverage("final_nilai");
+
+  let hurufMutuAkhir;
+  if (finalNilaiAkhir >= 80 && finalNilaiAkhir <= 100) {
+    hurufMutuAkhir = "A";
+  } else if (finalNilaiAkhir >= 73 && finalNilaiAkhir < 80) {
+    hurufMutuAkhir = "AB";
+  } else if (finalNilaiAkhir >= 65 && finalNilaiAkhir < 73) {
+    hurufMutuAkhir = "B";
+  } else if (finalNilaiAkhir >= 60 && finalNilaiAkhir < 65) {
+    hurufMutuAkhir = "BC";
+  } else if (finalNilaiAkhir >= 55 && finalNilaiAkhir < 60) {
+    hurufMutuAkhir = "C";
+  } else if (finalNilaiAkhir >= 50 && finalNilaiAkhir < 55) {
+    hurufMutuAkhir = "CD";
+  } else if (finalNilaiAkhir >= 45 && finalNilaiAkhir < 50) {
+    hurufMutuAkhir = "D";
+  } else if (finalNilaiAkhir < 45) {
+    hurufMutuAkhir = "E";
+  }
+
+  await DB.query(
+    "UPDATE ta_nilai_akhir_kolo SET penilaian_1 = $1, penilaian_2 = $2, penilaian_3 = $3, penilaian_4 = $4, penilaian_5 = $5, nilai_akhir = $6, huruf_mutu = $7 WHERE kolo_id = $8",
+    [
+      Math.round(nilaiAkhir1),
+      Math.round(nilaiAkhir2),
+      Math.round(nilaiAkhir3),
+      Math.round(nilaiAkhir4),
+      Math.round(nilaiAkhir5),
+      Math.round(finalNilaiAkhir),
+      hurufMutuAkhir,
+      data.kolo_id,
+    ]
+  );
   await DB.query(`UPDATE ta_pengajuan_sk SET status = $1 WHERE id = $2`, [
     "menuju-sidang",
     data.pengajuan_sk_id,
@@ -948,6 +1020,8 @@ exports.getNilaiKoloForDosen = asyncHandler(async (req, res) => {
       statusDosen = "evaluator_1";
     } else if (dataPengajuanKolo.rows[0].evaluator_2 == userLoginId) {
       statusDosen = "evaluator_2";
+    } else if (dataPengajuanKolo.rows[0].kolo_kepala_lab == userLoginId) {
+      statusDosen = "kepala_lab";
     }
 
     const penilaianKolo = await DB.query(
@@ -1003,6 +1077,11 @@ exports.getNilaiKolo = asyncHandler(async (req, res) => {
     [dataPengajuanKolo.rows[0].id]
   );
 
+  const penilaianKoloAkhir = await DB.query(
+    "SELECT * FROM ta_nilai_akhir_kolo WHERE kolo_id = $1",
+    [dataPengajuanKolo.rows[0].id]
+  );
+
   res.status(201).json({
     data: {
       ...dataPengajuanSk.rows[0],
@@ -1012,6 +1091,7 @@ exports.getNilaiKolo = asyncHandler(async (req, res) => {
         ? `${dataPengajuanKolo.rows[0].id}`
         : null,
       penilaian_kolo: penilaianKolo.rows,
+      nilai_akhir: penilaianKoloAkhir.rows[0],
     },
   });
 });
@@ -1422,6 +1502,67 @@ exports.getNilaiSidangForDosen = asyncHandler(async (req, res) => {
       },
     });
   }
+});
+
+// Update penilaian
+exports.updatePenilaian = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { db, ...updateData } = req.body;
+
+  const findData = await DB.query(`SELECT * FROM ${db} WHERE id = $1`, [id]);
+  if (!findData.rows.length) {
+    res.status(404);
+    throw new Error("Data not found.");
+  }
+
+  const setQuery = Object.keys(updateData)
+    .map((key, index) => `${key} = $${index + 2}`)
+    .join(", ");
+
+  const updateValues = Object.values(updateData);
+  updateValues.unshift(id);
+
+  const saveData = await DB.query(
+    `UPDATE ${db} SET ${setQuery} WHERE id = $1 RETURNING *`,
+    updateValues
+  );
+
+  const nilai1 = Math.round(0.2 * parseInt(saveData.rows[0].penilaian_1));
+  const nilai2 = Math.round(0.4 * parseInt(saveData.rows[0].penilaian_2));
+  const nilai3 = Math.round(0.1 * parseInt(saveData.rows[0].penilaian_3));
+  const nilai4 = Math.round(0.1 * parseInt(saveData.rows[0].penilaian_4));
+  const nilai5 = Math.round(0.2 * parseInt(saveData.rows[0].penilaian_5));
+
+  const finalNilai = nilai1 + nilai2 + nilai3 + nilai4 + nilai5;
+
+  let hurufMutu;
+  if (finalNilai >= 80 && finalNilai <= 100) {
+    hurufMutu = "A";
+  } else if (finalNilai >= 73 && finalNilai < 80) {
+    hurufMutu = "AB";
+  } else if (finalNilai >= 65 && finalNilai < 73) {
+    hurufMutu = "B";
+  } else if (finalNilai >= 60 && finalNilai < 65) {
+    hurufMutu = "BC";
+  } else if (finalNilai >= 55 && finalNilai < 60) {
+    hurufMutu = "C";
+  } else if (finalNilai >= 50 && finalNilai < 55) {
+    hurufMutu = "CD";
+  } else if (finalNilai >= 45 && finalNilai < 50) {
+    hurufMutu = "D";
+  } else if (finalNilai < 45) {
+    hurufMutu = "E";
+  }
+
+  const updateFinalNilai = await DB.query(
+    `UPDATE ${db} SET final_nilai = $1, huruf_mutu = $2 WHERE id = $3 RETURNING *`,
+    [finalNilai, hurufMutu, id]
+  );
+
+  res.status(201).json({
+    message: "Successfully update data.",
+    data: updateFinalNilai.rows[0],
+  });
 });
 
 // FINAL SKRIPSI
