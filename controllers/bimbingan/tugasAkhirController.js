@@ -50,7 +50,7 @@ exports.pengajuanSk = asyncHandler(async (req, res) => {
   const statusSksIpk = dataSks.total_credit >= 138 && ipk >= 2.0 ? true : false;
 
   const insertPendaftaranKolo = await DB.query(
-    `INSERT INTO ta_pendaftaran_kolokium(mhs_id, pengajuan_sk_id, status_kp, status_sks_ipk, jumlah_sks, ipk) VALUES($1, $2, $3, $4, $5, $6) RETURNING *`,
+    `INSERT INTO ta_pendaftaran_kolokium(mhs_id, pengajuan_sk_id, status_kp, status_sks_ipk, jumlah_sks, ipk, kolo_pembimbing_1, kolo_pembimbing_2, kolo_kepala_lab, judul) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
     [
       userLoginId,
       saveData.rows[0].id,
@@ -58,6 +58,10 @@ exports.pengajuanSk = asyncHandler(async (req, res) => {
       statusSksIpk,
       dataSks.total_credit,
       ipk,
+      data.sk_pembimbing_1,
+      data.sk_pembimbing_2,
+      data.kepala_lab,
+      data.judul_skripsi,
     ]
   );
 
@@ -69,7 +73,7 @@ exports.pengajuanSk = asyncHandler(async (req, res) => {
   const statusIPk = ipk >= 2.0 ? true : false;
 
   const insertPendaftaranSidang = await DB.query(
-    `INSERT INTO ta_pendaftaran_sidang(mhs_id, pengajuan_sk_id, status_kp, jumlah_sks, status_min_ipk, ipk) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    `INSERT INTO ta_pendaftaran_sidang(mhs_id, pengajuan_sk_id, status_kp, jumlah_sks, status_min_ipk, ipk, sidang_pembimbing_1, sidang_pembimbing_2, sidang_kepala_lab, judul) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
     [
       userLoginId,
       saveData.rows[0].id,
@@ -77,6 +81,10 @@ exports.pengajuanSk = asyncHandler(async (req, res) => {
       dataSks.total_credit,
       statusIPk,
       ipk,
+      data.sk_pembimbing_1,
+      data.sk_pembimbing_2,
+      data.kepala_lab,
+      data.judul_skripsi,
     ]
   );
 
@@ -765,6 +773,7 @@ exports.pengajuanKolokium = asyncHandler(async (req, res) => {
     kolo_pembimbing_2: data.kolo_pembimbing_2,
     kolo_kepala_lab: data.kolo_kepala_lab,
     link_dok_makalah: data.link_dok_makalah,
+    judul: data.judul,
   };
 
   const requiredPropsExist = Object.values(requiredData).every(
@@ -811,8 +820,13 @@ exports.pengajuanKolokium = asyncHandler(async (req, res) => {
     .join(", ");
 
   const insertedData = await DB.query(
-    `UPDATE ta_pendaftaran_kolokium SET ${setQuery} WHERE id = '${id}' `,
+    `UPDATE ta_pendaftaran_kolokium SET ${setQuery} WHERE id = '${id}' RETURNING *`,
     entries.map(([_, value]) => value)
+  );
+
+  await DB.query(
+    "UPDATE ta_pendaftaran_sidang SET judul=$1 WHERE pengajuan_sk_id = $2",
+    [data.judul, insertedData.rows[0].pengajuan_sk_id]
   );
 
   res.status(201).json({
@@ -1233,6 +1247,7 @@ exports.pengajuanSidang = asyncHandler(async (req, res) => {
     sidang_kepala_lab: data.sidang_kepala_lab,
     peminatan: data.peminatan,
     program_studi: data.program_studi,
+    judul: data.judul,
   };
 
   const requiredPropsExist = Object.values(requiredData).every(
