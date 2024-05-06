@@ -27,13 +27,22 @@ const storage = multer.diskStorage({
 const fileUpload = multer({
   storage: storage,
   fileFilter: (req, file, cb) => {
-    if (
-      file.mimetype.startsWith("image/") ||
-      file.mimetype === "application/pdf"
-    ) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only image and PDF files are allowed."));
+    if (file.fieldname === "pas_foto") {
+      if (file.mimetype.startsWith("image/")) {
+        cb(null, true);
+      } else {
+        cb(new Error("Pas Foto Only image files are allowed."));
+      }
+    } else if (file.fieldname === "draft_final_skripsi") {
+      if (
+        file.mimetype === "application/msword" ||
+        file.mimetype ===
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ) {
+        cb(null, true);
+      } else {
+        cb(new Error("Draft Skripsi Only Word documents are allowed."));
+      }
     }
   },
   limits: {

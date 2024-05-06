@@ -47,7 +47,7 @@ exports.pengajuanSk = asyncHandler(async (req, res) => {
 
   const dataSks = await getAllMatkulByMhs(npm);
 
-  const statusSksIpk = dataSks.total_credit >= 138 && ipk > 2.0 ? true : false;
+  const statusSksIpk = dataSks.total_credit >= 138 && ipk >= 2.0 ? true : false;
 
   const insertPendaftaranKolo = await DB.query(
     `INSERT INTO ta_pendaftaran_kolokium(mhs_id, pengajuan_sk_id, status_kp, status_sks_ipk, jumlah_sks, ipk) VALUES($1, $2, $3, $4, $5, $6) RETURNING *`,
@@ -66,9 +66,23 @@ exports.pengajuanSk = asyncHandler(async (req, res) => {
     [insertPendaftaranKolo.rows[0].id, userLoginId]
   );
 
+  const statusIPk = ipk >= 2.0 ? true : false;
+
+  const insertPendaftaranSidang = await DB.query(
+    `INSERT INTO ta_pendaftaran_sidang(mhs_id, pengajuan_sk_id, status_kp, jumlah_sks, status_min_ipk, ipk) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [
+      userLoginId,
+      saveData.rows[0].id,
+      statusKp,
+      dataSks.total_credit,
+      statusIPk,
+      ipk,
+    ]
+  );
+
   await DB.query(
-    `INSERT INTO ta_pendaftaran_sidang(mhs_id, pengajuan_sk_id, status_kp) VALUES ($1, $2, $3)`,
-    [userLoginId, saveData.rows[0].id, statusKp]
+    `INSERT INTO ta_nilai_akhir_sidang(sidang_id, mhs_id) VALUES ($1, $2)`,
+    [insertPendaftaranSidang.rows[0].id, userLoginId]
   );
 
   await DB.query(
@@ -369,9 +383,11 @@ exports.getForDosen = asyncHandler(async (req, res) => {
       CASE WHEN ta_pendaftaran_kolokium.kolo_pembimbing_1 = '${userLoginId}' THEN 'Pembimbing Kolokium 1 | ' ELSE '' END,
       CASE WHEN ta_pendaftaran_kolokium.kolo_pembimbing_2 = '${userLoginId}' THEN 'Pembimbing Kolokium 2 | ' ELSE '' END,
       CASE WHEN ta_pendaftaran_kolokium.kolo_pembimbing_3 = '${userLoginId}' THEN 'Pembimbing Kolokium 3 | ' ELSE '' END,
+      CASE WHEN ta_pendaftaran_kolokium.kolo_kepala_lab = '${userLoginId}' THEN 'Kepala Lab | ' ELSE '' END,
       CASE WHEN ta_pendaftaran_sidang.sidang_pembimbing_1 = '${userLoginId}' THEN 'Pembimbing Sidang 1 | ' ELSE '' END,
       CASE WHEN ta_pendaftaran_sidang.sidang_pembimbing_2 = '${userLoginId}' THEN 'Pembimbing Sidang 2 | ' ELSE '' END,
-      CASE WHEN ta_pendaftaran_sidang.sidang_pembimbing_3 = '${userLoginId}' THEN 'Pembimbing Sidang 3 | ' ELSE '' END
+      CASE WHEN ta_pendaftaran_sidang.sidang_pembimbing_3 = '${userLoginId}' THEN 'Pembimbing Sidang 3 | ' ELSE '' END,
+      CASE WHEN ta_pendaftaran_sidang.sidang_kepala_lab = '${userLoginId}' THEN 'Kepala Lab | ' ELSE '' END
   ) AS peran 
 FROM  
   ta_pengajuan_sk 
@@ -391,11 +407,13 @@ WHERE
   ta_pendaftaran_kolokium.kolo_pembimbing_1 = '${userLoginId}' OR 
   ta_pendaftaran_kolokium.kolo_pembimbing_2 = '${userLoginId}' OR 
   ta_pendaftaran_kolokium.kolo_pembimbing_3 = '${userLoginId}' OR
+  ta_pendaftaran_kolokium.kolo_kepala_lab = '${userLoginId}' OR
   ta_pendaftaran_kolokium.evaluator_1 = '${userLoginId}' OR
   ta_pendaftaran_kolokium.evaluator_2 = '${userLoginId}' OR
   ta_pendaftaran_sidang.sidang_pembimbing_1 = '${userLoginId}' OR 
   ta_pendaftaran_sidang.sidang_pembimbing_2 = '${userLoginId}' OR 
   ta_pendaftaran_sidang.sidang_pembimbing_3 = '${userLoginId}' OR
+  ta_pendaftaran_sidang.sidang_kepala_lab = '${userLoginId}' OR
   ta_pendaftaran_sidang.penguji_1 = '${userLoginId}' OR
   ta_pendaftaran_sidang.penguji_2 = '${userLoginId}'
 `;
@@ -614,12 +632,17 @@ exports.approvedStatus = asyncHandler(async (req, res) => {
 
 exports.updatePengajuanSk = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { nomor_sk, tgl_sk, link_dokumen_sk } = req.body;
+  const { nomor_sk, tgl_sk, link_dokumen_sk, nomor_nota_dinas } = req.body;
 
   // if (!nomor_sk || !tgl_sk || !link_dokumen_sk) {
   //   res.status(400);
   //   throw new Error("Pleas fill in all the required fields.");
   // }
+
+  if (!nomor_nota_dinas) {
+    res.status(400);
+    throw new Error("Silahkan cetak nomor nota dinas terlebih dahulu");
+  }
 
   const findData = await DB.query(
     "SELECT * FROM ta_pengajuan_sk WHERE id = $1",
@@ -728,26 +751,36 @@ exports.pengajuanKolokium = asyncHandler(async (req, res) => {
   const file = req.file;
   const { id } = req.params;
 
+  const getDataKolo = await DB.query(
+    "SELECT * FROM ta_pendaftaran_kolokium WHERE id = $1",
+    [id]
+  );
+
+  const existsFileMakalah = getDataKolo.rows[0].file_makalah ? true : false;
+
   const requiredData = {
     link_dok_mhs_aktif: data.link_dok_mhs_aktif,
     link_dok_pembayaran: data.link_dok_pembayaran,
     kolo_pembimbing_1: data.kolo_pembimbing_1,
     kolo_pembimbing_2: data.kolo_pembimbing_2,
     kolo_kepala_lab: data.kolo_kepala_lab,
+    link_dok_makalah: data.link_dok_makalah,
   };
 
   const requiredPropsExist = Object.values(requiredData).every(
-    (val) => val !== undefined && val !== ""
+    (val) => val !== undefined && val !== "" && val !== null && val != "null"
   );
 
   if (!requiredPropsExist) {
     res.status(400);
-    throw new Error("Pleas fill in all the required fields.");
+    throw new Error("Pleas fill in all the (*) required fields.");
   }
 
-  if (!file) {
-    res.status(400);
-    throw new Error("Please fill one file.");
+  if (!existsFileMakalah) {
+    if (!file) {
+      res.status(400);
+      throw new Error("Please fill one file.");
+    }
   }
 
   if (
@@ -759,10 +792,18 @@ exports.pengajuanKolokium = asyncHandler(async (req, res) => {
     throw new Error("Invalid data.");
   }
 
-  const saveData = {
-    file_makalah: file.filename,
-    ...requiredData,
-  };
+  let saveData;
+
+  if (!existsFileMakalah) {
+    saveData = {
+      file_makalah: file.filename,
+      ...requiredData,
+    };
+  } else {
+    saveData = {
+      ...requiredData,
+    };
+  }
 
   const entries = Object.entries(saveData);
   const setQuery = entries
@@ -798,7 +839,7 @@ exports.updatePengajuanKolokium = asyncHandler(async (req, res) => {
 
   if (!requiredPropsExist) {
     res.status(400);
-    throw new Error("Please fill in all the required fields.");
+    throw new Error("Please fill in all the (*) required fields.");
   }
 
   const findData = await DB.query(
@@ -1129,6 +1170,8 @@ exports.getPengajuanSidangById = asyncHandler(async (req, res) => {
       statusDosen = "penguji_1";
     } else if (dataPengajuanSidang.rows[0].penguji_2 == userLoginId) {
       statusDosen = "penguji_2";
+    } else if (dataPengajuanSidang.rows[0].sidang_kepala_lab == userLoginId) {
+      statusDosen = "kepala_lab";
     }
 
     res.status(201).json({
@@ -1161,6 +1204,16 @@ exports.pengajuanSidang = asyncHandler(async (req, res) => {
   const file = req.files;
   const { id } = req.params;
 
+  const getDataById = await DB.query(
+    "SELECT * FROM ta_pendaftaran_sidang WHERE id = $1",
+    [id]
+  );
+
+  const existsPasFoto = getDataById.rows[0].pas_foto ? true : false;
+  const existsDraftFinal = getDataById.rows[0].draft_final_skripsi
+    ? true
+    : false;
+
   const requiredData = {
     link_khs: data.link_khs,
     link_ijazah_terakhir: data.link_ijazah_terakhir,
@@ -1171,81 +1224,109 @@ exports.pengajuanSidang = asyncHandler(async (req, res) => {
     link_bukti_upload_jurnal: data.link_bukti_upload_jurnal,
     link_serti_toefl: data.link_serti_toefl,
     link_bukti_keuangan: data.link_bukti_keuangan,
-    link_lainya: data.link_lainya,
+    link_draft_final_skripsi: data.link_draft_final_skripsi,
     jumlah_sks: data.jumlah_sks,
     link_transkip_nilai: data.link_transkip_nilai,
     link_administrasi_sidang: data.link_administrasi_sidang,
     sidang_pembimbing_1: data.sidang_pembimbing_1,
     sidang_pembimbing_2: data.sidang_pembimbing_2,
+    sidang_kepala_lab: data.sidang_kepala_lab,
+    peminatan: data.peminatan,
+    program_studi: data.program_studi,
   };
 
   const requiredPropsExist = Object.values(requiredData).every(
-    (val) => val !== undefined && val !== null && val !== ""
+    (val) => val !== undefined && val !== null && val !== "" && val !== "null"
   );
 
   if (!requiredPropsExist) {
-    fs.unlink(file.pas_foto[0].path, (err) => {
-      if (err) {
-        console.log(err);
-      }
-      return;
-    });
-    fs.unlink(file.draft_final_skripsi[0].path, (err) => {
-      if (err) {
-        console.log(err);
-      }
-      return;
-    });
     res.status(400);
-    throw new Error("Pleas fill in all the required fields.");
+    throw new Error("Pleas fill in all the (*) required fields.");
   }
 
-  if (Object.keys(file).length === 0) {
-    res.status(400);
-    throw new Error("Please fill in one file.");
-  }
+  if (!existsDraftFinal && !existsPasFoto) {
+    if (!requiredPropsExist) {
+      fs.unlink(file.pas_foto[0].path, (err) => {
+        if (err) {
+          console.log(err);
+        }
+        return;
+      });
+      fs.unlink(file.draft_final_skripsi[0].path, (err) => {
+        if (err) {
+          console.log(err);
+        }
+        return;
+      });
+      res.status(400);
+      throw new Error("Pleas fill in all the required fields.");
+    }
+    if (Object.keys(file).length === 0) {
+      res.status(400);
+      throw new Error("Please fill in one file.");
+    }
 
-  if (
-    data.sidang_pembimbing_1 == data.sidang_pembimbing_2 ||
-    data.sidang_pembimbing_1 == data.sidang_pembimbing_3 ||
-    data.sidang_pembimbing_2 == data.sidang_pembimbing_3
-  ) {
-    fs.unlink(file.pas_foto[0].path, (err) => {
-      if (err) {
-        console.log(err);
-      }
-      return;
+    if (
+      data.sidang_pembimbing_1 == data.sidang_pembimbing_2 ||
+      data.sidang_pembimbing_1 == data.sidang_pembimbing_3 ||
+      data.sidang_pembimbing_2 == data.sidang_pembimbing_3
+    ) {
+      fs.unlink(file.pas_foto[0].path, (err) => {
+        if (err) {
+          console.log(err);
+        }
+        return;
+      });
+      fs.unlink(file.draft_final_skripsi[0].path, (err) => {
+        if (err) {
+          console.log(err);
+        }
+        return;
+      });
+      res.status(400);
+      throw new Error("Invalid Data.");
+    }
+
+    const saveData = {
+      pas_foto: file.pas_foto[0].filename,
+      link_lainya: data.link_lainya,
+      draft_final_skripsi: file.draft_final_skripsi[0].filename,
+      ...requiredData,
+    };
+
+    const entries = Object.entries(saveData);
+    const setQuery = entries
+      .map(([key, _], index) => `${key} = $${index + 1}`)
+      .join(", ");
+
+    const insertedData = await DB.query(
+      `UPDATE ta_pendaftaran_sidang SET ${setQuery} WHERE id = '${id}' RETURNING *`,
+      entries.map(([_, value]) => value)
+    );
+    res.status(201).json({
+      message: "Successfully created data.",
+      data: insertedData.rows[0],
     });
-    fs.unlink(file.draft_final_skripsi[0].path, (err) => {
-      if (err) {
-        console.log(err);
-      }
-      return;
+  } else {
+    const saveData = {
+      link_lainya: data.link_lainya,
+      ...requiredData,
+    };
+
+    const entries = Object.entries(saveData);
+    const setQuery = entries
+      .map(([key, _], index) => `${key} = $${index + 1}`)
+      .join(", ");
+
+    const insertedData = await DB.query(
+      `UPDATE ta_pendaftaran_sidang SET ${setQuery} WHERE id = '${id}' RETURNING *`,
+      entries.map(([_, value]) => value)
+    );
+    res.status(201).json({
+      message: "Successfully created data.",
+      data: insertedData.rows[0],
     });
-    res.status(400);
-    throw new Error("Invalid Data.");
   }
-
-  const saveData = {
-    pas_foto: file.pas_foto[0].filename,
-    draft_final_skripsi: file.draft_final_skripsi[0].filename,
-    ...requiredData,
-  };
-
-  const entries = Object.entries(saveData);
-  const setQuery = entries
-    .map(([key, _], index) => `${key} = $${index + 1}`)
-    .join(", ");
-
-  const insertedData = await DB.query(
-    `UPDATE ta_pendaftaran_sidang SET ${setQuery} WHERE id = '${id}' RETURNING *`,
-    entries.map(([_, value]) => value)
-  );
-
-  res.status(201).json({
-    message: "Successfully created data.",
-    data: insertedData.rows[0],
-  });
 });
 
 exports.updatePengajuanSidang = asyncHandler(async (req, res) => {
@@ -1268,7 +1349,7 @@ exports.updatePengajuanSidang = asyncHandler(async (req, res) => {
 
   if (!requiredPropsExist) {
     res.status(400);
-    throw new Error("Please fill in all the required fields.");
+    throw new Error("Please fill in all the (*) required fields.");
   }
 
   const findData = await DB.query(
@@ -1393,6 +1474,61 @@ exports.penilaianSidang = asyncHandler(async (req, res) => {
     values
   );
 
+  const resultPenilaian = await DB.query(
+    "SELECT * FROM ta_penilaian_sidang WHERE sidang_id = $1",
+    [saveData.rows[0].sidang_id]
+  );
+  const totalData = resultPenilaian.rowCount;
+
+  const calculateAverage = (columnName) => {
+    const jumlahPenilaian = resultPenilaian.rows.reduce(
+      (acc, current) => acc + current[columnName],
+      0
+    );
+    const averagePenilaian = Math.round(jumlahPenilaian / totalData);
+    return averagePenilaian;
+  };
+
+  const nilaiAkhir1 = calculateAverage("penilaian_1");
+  const nilaiAkhir2 = calculateAverage("penilaian_2");
+  const nilaiAkhir3 = calculateAverage("penilaian_3");
+  const nilaiAkhir4 = calculateAverage("penilaian_4");
+  const nilaiAkhir5 = calculateAverage("penilaian_5");
+  const finalNilaiAkhir = calculateAverage("final_nilai");
+
+  let hurufMutuAkhir;
+  if (finalNilaiAkhir >= 80 && finalNilaiAkhir <= 100) {
+    hurufMutuAkhir = "A";
+  } else if (finalNilaiAkhir >= 73 && finalNilaiAkhir < 80) {
+    hurufMutuAkhir = "AB";
+  } else if (finalNilaiAkhir >= 65 && finalNilaiAkhir < 73) {
+    hurufMutuAkhir = "B";
+  } else if (finalNilaiAkhir >= 60 && finalNilaiAkhir < 65) {
+    hurufMutuAkhir = "BC";
+  } else if (finalNilaiAkhir >= 55 && finalNilaiAkhir < 60) {
+    hurufMutuAkhir = "C";
+  } else if (finalNilaiAkhir >= 50 && finalNilaiAkhir < 55) {
+    hurufMutuAkhir = "CD";
+  } else if (finalNilaiAkhir >= 45 && finalNilaiAkhir < 50) {
+    hurufMutuAkhir = "D";
+  } else if (finalNilaiAkhir < 45) {
+    hurufMutuAkhir = "E";
+  }
+
+  await DB.query(
+    "UPDATE ta_nilai_akhir_sidang SET penilaian_1 = $1, penilaian_2 = $2, penilaian_3 = $3, penilaian_4 = $4, penilaian_5 = $5, nilai_akhir = $6, huruf_mutu = $7 WHERE sidang_id = $8",
+    [
+      Math.round(nilaiAkhir1),
+      Math.round(nilaiAkhir2),
+      Math.round(nilaiAkhir3),
+      Math.round(nilaiAkhir4),
+      Math.round(nilaiAkhir5),
+      Math.round(finalNilaiAkhir),
+      hurufMutuAkhir,
+      data.sidang_id,
+    ]
+  );
+
   await DB.query(`UPDATE ta_pengajuan_sk SET status = $1 WHERE id = $2`, [
     "menyelesaikan-revisi",
     data.pengajuan_sk_id,
@@ -1426,6 +1562,11 @@ exports.getNilaiSidang = asyncHandler(async (req, res) => {
     [dataPengajuanSidang.rows[0].id]
   );
 
+  const penilaianSidangAkhir = await DB.query(
+    "SELECT * FROM ta_nilai_akhir_sidang WHERE sidang_id = $1",
+    [dataPengajuanSidang.rows[0].id]
+  );
+
   res.status(201).json({
     data: {
       ...dataPengajuanSk.rows[0],
@@ -1435,6 +1576,7 @@ exports.getNilaiSidang = asyncHandler(async (req, res) => {
         ? `${dataPengajuanSidang.rows[0].id}`
         : null,
       penilaian_sidang: penilaianSidang.rows,
+      nilai_akhir: penilaianSidangAkhir.rows[0],
     },
   });
 });
@@ -1471,6 +1613,8 @@ exports.getNilaiSidangForDosen = asyncHandler(async (req, res) => {
       statusDosen = "penguji_1";
     } else if (dataPengajuanSidang.rows[0].penguji_2 == userLoginId) {
       statusDosen = "penguji_2";
+    } else if (dataPengajuanSidang.rows[0].sidang_kepala_lab == userLoginId) {
+      statusDosen = "kepala_lab";
     }
 
     const penilaianSidang = await DB.query(
