@@ -1718,6 +1718,83 @@ exports.updatePenilaian = asyncHandler(async (req, res) => {
     [finalNilai, hurufMutu, id]
   );
 
+  const dbAkhir =
+    db === "ta_penilaian_sidang"
+      ? "ta_nilai_akhir_sidang"
+      : db === "ta_penilaian_kolokium"
+      ? "ta_nilai_akhir_kolo"
+      : "";
+
+  const queryId =
+    db === "ta_penilaian_sidang"
+      ? "sidang_id"
+      : db === "ta_penilaian_kolokium"
+      ? "kolo_id"
+      : "";
+
+  const dataQueryId =
+    db === "ta_penilaian_sidang"
+      ? saveData.rows[0].sidang_id
+      : db === "ta_penilaian_kolokium"
+      ? saveData.rows[0].kolo_id
+      : "";
+
+  const resultPenilaian = await DB.query(
+    `SELECT * FROM ${db} WHERE ${queryId} = $1`,
+    [dataQueryId]
+  );
+
+  const totalData = resultPenilaian.rowCount;
+
+  const calculateAverage = (columnName) => {
+    const jumlahPenilaian = resultPenilaian.rows.reduce(
+      (acc, current) => acc + current[columnName],
+      0
+    );
+    const averagePenilaian = Math.round(jumlahPenilaian / totalData);
+    return averagePenilaian;
+  };
+
+  const nilaiAkhir1 = calculateAverage("penilaian_1");
+  const nilaiAkhir2 = calculateAverage("penilaian_2");
+  const nilaiAkhir3 = calculateAverage("penilaian_3");
+  const nilaiAkhir4 = calculateAverage("penilaian_4");
+  const nilaiAkhir5 = calculateAverage("penilaian_5");
+  const finalNilaiAkhir = calculateAverage("final_nilai");
+
+  let hurufMutuAkhir;
+  if (finalNilaiAkhir >= 80 && finalNilaiAkhir <= 100) {
+    hurufMutuAkhir = "A";
+  } else if (finalNilaiAkhir >= 73 && finalNilaiAkhir < 80) {
+    hurufMutuAkhir = "AB";
+  } else if (finalNilaiAkhir >= 65 && finalNilaiAkhir < 73) {
+    hurufMutuAkhir = "B";
+  } else if (finalNilaiAkhir >= 60 && finalNilaiAkhir < 65) {
+    hurufMutuAkhir = "BC";
+  } else if (finalNilaiAkhir >= 55 && finalNilaiAkhir < 60) {
+    hurufMutuAkhir = "C";
+  } else if (finalNilaiAkhir >= 50 && finalNilaiAkhir < 55) {
+    hurufMutuAkhir = "CD";
+  } else if (finalNilaiAkhir >= 45 && finalNilaiAkhir < 50) {
+    hurufMutuAkhir = "D";
+  } else if (finalNilaiAkhir < 45) {
+    hurufMutuAkhir = "E";
+  }
+
+  await DB.query(
+    `UPDATE ${dbAkhir} SET penilaian_1 = $1, penilaian_2 = $2, penilaian_3 = $3, penilaian_4 = $4, penilaian_5 = $5, nilai_akhir = $6, huruf_mutu = $7 WHERE ${queryId} = $8 RETURNING *`,
+    [
+      Math.round(nilaiAkhir1),
+      Math.round(nilaiAkhir2),
+      Math.round(nilaiAkhir3),
+      Math.round(nilaiAkhir4),
+      Math.round(nilaiAkhir5),
+      Math.round(finalNilaiAkhir),
+      hurufMutuAkhir,
+      dataQueryId,
+    ]
+  );
+
   res.status(201).json({
     message: "Successfully update data.",
     data: updateFinalNilai.rows[0],
