@@ -43,7 +43,11 @@ exports.pengajuanSk = asyncHandler(async (req, res) => {
   );
 
   const getKp = await getMatkulKp(npm);
-  const statusKp = getKp.grade != null ? true : false;
+  console.log(getKp);
+  let statusKp = true;
+  if (getKp) {
+    statusKp = getKp.grade != null ? true : false;
+  }
 
   const dataSks = await getAllMatkulByMhs(npm);
 
