@@ -59,8 +59,6 @@ exports.register = asyncHandler(async (req, res) => {
     throw new Error("Pleas fill in all the required fields.");
   }
 
-  const departmentCode = "FT_TI";
-
   // Get userAgent
   const ua = parser(req.headers["user-agent"]);
   const userAgent = [ua.ua];
@@ -74,14 +72,23 @@ exports.register = asyncHandler(async (req, res) => {
     const created_at = unixTimestamp;
     const convert = convertDate(created_at);
 
-    const results = await getInformaticsStudent(departmentCode);
+    const results = await getInformaticsStudent();
     const studentWithNpm = results.find((student) => student.code === npm_nidn);
 
     if (studentWithNpm) {
       // Save user to DB
       const saveUser = await DB.query(
-        `INSERT INTO tb_users(npm, email, password, role, user_agent, created_at) VALUES ($1, $2, $3, $4, $5, $6) returning *`,
-        [npm_nidn, email, hashedPassword, role, userAgent, convert]
+        `INSERT INTO tb_users(npm, email, password, role, user_agent, created_at, curr_code, department_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) returning *`,
+        [
+          npm_nidn,
+          email,
+          hashedPassword,
+          role,
+          userAgent,
+          convert,
+          studentWithNpm.curr_code,
+          studentWithNpm.department_code,
+        ]
       );
 
       const jenkelSiak =
@@ -187,14 +194,22 @@ exports.register = asyncHandler(async (req, res) => {
     const role = "Dosen";
     const convert = convertDate(unixTimestamp);
 
-    const resultsDosen = await getDosen(departmentCode);
+    const resultsDosen = await getDosen();
     const dosenWithNidn = resultsDosen.find((dosen) => dosen.nidn === npm_nidn);
 
     if (dosenWithNidn) {
       // Save user to DB
       const saveUser = await DB.query(
-        `INSERT INTO tb_users(nidn, email, password, role, user_agent, created_at) VALUES ($1, $2, $3, $4, $5, $6) returning *`,
-        [npm_nidn, email, hashedPassword, role, userAgent, convert]
+        `INSERT INTO tb_users(nidn, email, password, role, user_agent, created_at, department_code) VALUES ($1, $2, $3, $4, $5, $6, $7) returning *`,
+        [
+          npm_nidn,
+          email,
+          hashedPassword,
+          role,
+          userAgent,
+          convert,
+          dosenWithNidn.lookup_id,
+        ]
       );
 
       const jenkelSiak =

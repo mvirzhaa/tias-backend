@@ -7,8 +7,8 @@ const { getMatkulKp, getAllMatkulByMhs } = require("../../helper/informatics");
 exports.pengajuanSk = asyncHandler(async (req, res) => {
   const data = req.body;
   const userLoginId = req.user.user_id;
-  const npm = req.user.npm;
-  const ipk = req.user.ipk;
+
+  const { npm, ipk, curr_code } = req.user;
 
   if (
     !data.judul_skripsi ||
@@ -42,14 +42,13 @@ exports.pengajuanSk = asyncHandler(async (req, res) => {
     values
   );
 
-  const getKp = await getMatkulKp(npm);
-  console.log(getKp);
-  let statusKp = true;
+  const getKp = await getMatkulKp(npm, curr_code);
+  let statusKp;
   if (getKp) {
     statusKp = getKp.grade != null ? true : false;
   }
 
-  const dataSks = await getAllMatkulByMhs(npm);
+  const dataSks = await getAllMatkulByMhs(npm, curr_code);
 
   const statusSksIpk = dataSks.total_credit >= 138 && ipk >= 2.0 ? true : false;
 

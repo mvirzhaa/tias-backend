@@ -20,10 +20,10 @@ function executeQuery(query, params = []) {
   });
 }
 
-async function getInformaticsStudent(departmentCode) {
-  const query = "SELECT * FROM siak_student WHERE department_code = ?";
+async function getInformaticsStudent() {
+  const query = "SELECT * FROM siak_student";
   try {
-    const results = await executeQuery(query, [departmentCode]);
+    const results = await executeQuery(query);
     return results;
   } catch (error) {
     throw new Error("failed to retrieve student data.");
@@ -47,11 +47,11 @@ async function getPmmStudent(npm) {
   } catch (error) {}
 }
 
-async function getDosen(division) {
+async function getDosen() {
   const query =
-    "SELECT adm_lookup.lookup_id, adm_lookup.lookup_value, simpeg_pegawai.* FROM simpeg_pegawai JOIN adm_lookup ON adm_lookup.lookup_id = simpeg_pegawai.division WHERE adm_lookup.lookup_name = 'DIVISION' AND simpeg_pegawai.klasi_pegawai = 'PENDIDIK (DOSEN)' AND adm_lookup.lookup_id != 'AKADEMIK' AND simpeg_pegawai.status_kerja = 'AKTIF' AND adm_lookup.lookup_id = ?;";
+    "SELECT adm_lookup.lookup_id, adm_lookup.lookup_value, simpeg_pegawai.* FROM simpeg_pegawai JOIN adm_lookup ON adm_lookup.lookup_id = simpeg_pegawai.division WHERE adm_lookup.lookup_name = 'DIVISION' AND simpeg_pegawai.klasi_pegawai = 'PENDIDIK (DOSEN)' AND adm_lookup.lookup_id != 'AKADEMIK' AND simpeg_pegawai.status_kerja = 'AKTIF'";
   try {
-    const results = await executeQuery(query, [division]);
+    const results = await executeQuery(query);
     return results;
   } catch (error) {
     throw new Error("failed to retrieve data.");
@@ -68,8 +68,18 @@ async function getDepartemen() {
   }
 }
 
-async function getMatkulKp(npm) {
-  const query = `SELECT * FROM siak_frs WHERE student_code = '${npm}' AND course_code = 'IFK325';`;
+async function getMatkulKp(npm, curr_code) {
+  let courseCode;
+
+  if (curr_code === "TIF2015") {
+    courseCode = "IFK432";
+  } else if (curr_code == "TIF2018") {
+    courseCode = "IFK325";
+  } else if (curr_code == "TIF2021") {
+    courseCode = "TIF392";
+  }
+
+  const query = `SELECT * FROM siak_frs WHERE student_code = '${npm}' AND course_code = '${courseCode}';`;
 
   try {
     const results = await executeQuery(query);
@@ -79,14 +89,15 @@ async function getMatkulKp(npm) {
   }
 }
 
-async function getAllMatkulByMhs(npm) {
+async function getAllMatkulByMhs(npm, curr_code) {
   const query = `SELECT SUM(siak_course.credit) AS total_credit
   FROM siak_frs
   LEFT JOIN siak_course ON siak_frs.course_code = siak_course.code
-  WHERE student_code = '${npm}' AND siak_course.department_code = 'FT_TI' AND siak_course.active = "Y" AND siak_course.curr_code = 'TIF2018';`;
+  WHERE student_code = '${npm}' AND siak_course.department_code = 'FT_TI' AND siak_course.active = "Y" AND siak_course.curr_code = '${curr_code}';`;
 
   try {
     const results = await executeQuery(query);
+
     return results[0];
   } catch (error) {
     throw new Error("failed to retrieve all matkul by mhs");
