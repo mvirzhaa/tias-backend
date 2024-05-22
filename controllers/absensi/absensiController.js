@@ -3,6 +3,8 @@ const axios = require("axios");
 const FormData = require("form-data");
 const DB = require("../../database/index");
 const async = require("async");
+const path = require("path");
+const fs = require("fs-extra");
 
 exports.getAbsensi = asyncHandler(async (req, res) => {
   const API_URL = `${process.env.API_LOCAL_ABSEN}/absensi`;
@@ -233,7 +235,6 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
 
     queue.push(resultsDosen);
   } catch (error) {
-    console.log(error);
     res.status(500).send("Internal Server Error");
   }
 });
@@ -256,3 +257,83 @@ function calculatePersentase(pertemuanData) {
 
   return `${rataRataPersentase.toFixed(2)}%`;
 }
+
+exports.getRekapPerkuliahan = asyncHandler(async (req, res) => {
+  const API_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/pembelajaran/list-pertemuan`;
+
+  const { dataTable, filter, filterValue, code } = req.query;
+
+  try {
+    const response = await axios.get(API_URL, {
+      params: {
+        dataTable,
+        filter: filter,
+        filterValue: filterValue,
+        code,
+      },
+    });
+
+    res.status(200).json(response.data);
+  } catch (error) {
+    console.error("Error retrieving Absensi:", error.message);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+exports.uploadDokumenSkPerkuliahan = asyncHandler(async (req, res) => {
+  const { nip, academic_year, semester } = req.body;
+  const file = req.file;
+
+  if (!file) {
+    res.status(400);
+    throw new Error("Please upload a file.");
+  }
+
+  try {
+    const existingData = await DB.query(
+      `SELECT * FROM dokumen_sk_pembelajaran WHERE nip = $1 AND academic_year = $2 AND semester = $3`,
+      [nip, academic_year, semester]
+    );
+
+    if (existingData.rows.length > 0) {
+      const deleteQuery = await DB.query(
+        `DELETE FROM dokumen_sk_pembelajaran WHERE nip = $1 AND academic_year = $2 AND semester = $3 returning *`,
+        [nip, academic_year, semester]
+      );
+
+      for (const iterate of deleteQuery.rows) {
+        await fs.remove(
+          path.join(`public/dokumen-sk-perkuliahan/${iterate.file}`)
+        );
+      }
+    }
+
+    const insertDok = await DB.query(
+      `INSERT INTO dokumen_sk_pembelajaran (nip, academic_year, semester, file)
+       VALUES ($1, $2, $3, $4) returning *`,
+      [nip, academic_year, semester, file.filename]
+    );
+
+    res.status(201).json({
+      message: "Successfully created data.",
+      data: insertDok.rows[0],
+    });
+  } catch (error) {
+    console.error("Error uploading document:", error);
+    res.status(500).json({ message: "Failed to upload document." });
+  }
+});
+
+exports.getDokumenSkPerkuliahan = asyncHandler(async (req, res) => {
+  const { nip, academic_year, semester } = req.query;
+
+  const getDok = await DB.query(
+    `SELECT * FROM dokumen_sk_pembelajaran WHERE nip = $1 AND academic_year = $2 AND semester = $3`,
+    [nip, academic_year, semester]
+  );
+
+  res.status(200).json({
+    message: "succes",
+    data: getDok.rows[0],
+  });
+});

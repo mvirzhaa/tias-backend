@@ -18,6 +18,9 @@ const {
   dosenForMk,
   absensiForMhs,
   getDosenForAbsensi,
+  getRekapPerkuliahan,
+  uploadDokumenSkPerkuliahan,
+  getDokumenSkPerkuliahan,
 } = require("../../controllers/absensi/absensiController");
 const {
   exportListPertemuan,
@@ -25,6 +28,9 @@ const {
   exportsRekapPertemuan,
   exportsPersentaseDosen,
 } = require("../../controllers/absensi/exportExcel");
+const {
+  dokumenSkPerkuliahanUpload,
+} = require("../../middleware/dokumenSkPerkuliahanUpload");
 
 const router = express.Router();
 
@@ -44,6 +50,14 @@ router.delete("/delete-absensi/:id", deleteAbsensi);
 router.post("/update-absensi/:id", updateAbsensi);
 
 router.get("/dosen-mk", dosenForMk);
+router.get("/rekap-perkuliahan", getRekapPerkuliahan);
+
+router.post(
+  "/upload-dokumen-sk",
+  dokumenSkPerkuliahanUpload,
+  uploadDokumenSkPerkuliahan
+);
+router.get("/dokumen-sk", getDokumenSkPerkuliahan);
 
 router.get("/list-pertemuan/excel", exportListPertemuan);
 router.get("/list-absensi/excel", exportListAbsensi);
