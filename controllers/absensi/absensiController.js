@@ -261,7 +261,7 @@ function calculatePersentase(pertemuanData) {
 exports.getRekapPerkuliahan = asyncHandler(async (req, res) => {
   const API_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/pembelajaran/list-pertemuan`;
 
-  const { dataTable, filter, filterValue, code } = req.query;
+  const { dataTable, filter, filterValue, code, academic_year } = req.query;
 
   try {
     const response = await axios.get(API_URL, {
@@ -270,6 +270,7 @@ exports.getRekapPerkuliahan = asyncHandler(async (req, res) => {
         filter: filter,
         filterValue: filterValue,
         code,
+        academic_year: academic_year,
       },
     });
 
