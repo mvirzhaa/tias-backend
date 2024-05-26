@@ -46,7 +46,7 @@ router.post("/", protected, pengajuanSk);
 router.get("/detail/:id", protected, detailPengajuanSk);
 router.get("/detail-for-dosen/:id", protected, detailPengajuanSkForDosen);
 router.get("/get-by-mhs", protected, getByUserLogin);
-router.get("/get-for-admin", protected, adminOnly, getForAdmin);
+router.get("/get-for-admin", getForAdmin);
 router.get("/get-for-dosen", protected, getForDosen);
 router.put("/approve/:id", protected, approvedStatus);
 router.patch("/update-sk/:id", protected, updatePengajuanSk);
@@ -64,6 +64,7 @@ router.patch(
 router.patch(
   "/update-pengajuan-kolokium/:id",
   protected,
+  makalahKolokiumUpload,
   updatePengajuanKolokium
 );
 router.post("/penilaian-kolo", protected, penilaianKolo);
@@ -76,7 +77,12 @@ router.patch(
   pengajuanSidangUpload,
   pengajuanSidang
 );
-router.patch("/update-pengajuan-sidang/:id", protected, updatePengajuanSidang);
+router.patch(
+  "/update-pengajuan-sidang/:id",
+  protected,
+  pengajuanSidangUpload,
+  updatePengajuanSidang
+);
 router.post("/penilaian-sidang", protected, penilaianSidang);
 router.get("/detail-penilaian-sidang/:id", protected, getNilaiSidang);
 router.get(

@@ -841,6 +841,51 @@ exports.pengajuanKolokium = asyncHandler(async (req, res) => {
 exports.updatePengajuanKolokium = asyncHandler(async (req, res) => {
   const data = req.body;
   const { id } = req.params;
+  const file = req.file;
+
+  const findData = await DB.query(
+    "SELECT * FROM ta_pendaftaran_kolokium WHERE id = $1",
+    [id]
+  );
+
+  const existsFileMakalah = findData.rows[0].file_makalah ? true : false;
+
+  const dataMahasiswa = {
+    link_dok_mhs_aktif: data.link_dok_mhs_aktif,
+    link_dok_pembayaran: data.link_dok_pembayaran,
+    kolo_pembimbing_1: data.kolo_pembimbing_1,
+    kolo_pembimbing_2: data.kolo_pembimbing_2,
+    kolo_kepala_lab: data.kolo_kepala_lab,
+    link_dok_makalah: data.link_dok_makalah,
+    judul: data.judul,
+  };
+
+  let saveDataMhs;
+  if (!existsFileMakalah) {
+    saveDataMhs = {
+      file_makalah: file.filename,
+      ...dataMahasiswa,
+    };
+  } else {
+    saveDataMhs = {
+      ...dataMahasiswa,
+    };
+  }
+
+  const entriesMhs = Object.entries(saveDataMhs);
+  const setQueryMhs = entriesMhs
+    .map(([key, _], index) => `${key} = $${index + 1}`)
+    .join(", ");
+
+  const insertedDataMhs = await DB.query(
+    `UPDATE ta_pendaftaran_kolokium SET ${setQueryMhs} WHERE id = '${id}' RETURNING *`,
+    entriesMhs.map(([_, value]) => value)
+  );
+
+  await DB.query(
+    "UPDATE ta_pendaftaran_sidang SET judul=$1 WHERE pengajuan_sk_id = $2",
+    [data.judul, insertedDataMhs.rows[0].pengajuan_sk_id]
+  );
 
   const requiredData = {
     evaluator_1: data.evaluator_1,
@@ -858,11 +903,6 @@ exports.updatePengajuanKolokium = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("Please fill in all the (*) required fields.");
   }
-
-  const findData = await DB.query(
-    "SELECT * FROM ta_pendaftaran_kolokium WHERE id = $1",
-    [id]
-  );
 
   if (
     findData.rows[0].kolo_pembimbing_1 &&
@@ -1351,6 +1391,102 @@ exports.updatePengajuanSidang = asyncHandler(async (req, res) => {
   const data = req.body;
   const { id } = req.params;
 
+  const file = req.files;
+
+  const findData = await DB.query(
+    "SELECT * FROM ta_pendaftaran_sidang WHERE id = $1",
+    [id]
+  );
+
+  const existsPasFoto = findData.rows[0].pas_foto ? true : false;
+  const existsDraftFinal = findData.rows[0].draft_final_skripsi ? true : false;
+
+  const requiredDataMhs = {
+    link_khs: data.link_khs,
+    link_ijazah_terakhir: data.link_ijazah_terakhir,
+    link_serti_taaruf: data.link_serti_taaruf,
+    link_serti_lkkm: data.link_serti_lkkm,
+    link_serti_kkn: data.link_serti_kkn,
+    link_serti_kompetensi: data.link_serti_kompetensi,
+    link_bukti_upload_jurnal: data.link_bukti_upload_jurnal,
+    link_serti_toefl: data.link_serti_toefl,
+    link_bukti_keuangan: data.link_bukti_keuangan,
+    link_draft_final_skripsi: data.link_draft_final_skripsi,
+    jumlah_sks: data.jumlah_sks,
+    link_transkip_nilai: data.link_transkip_nilai,
+    link_administrasi_sidang: data.link_administrasi_sidang,
+    sidang_pembimbing_1: data.sidang_pembimbing_1,
+    sidang_pembimbing_2: data.sidang_pembimbing_2,
+    sidang_kepala_lab: data.sidang_kepala_lab,
+    peminatan: data.peminatan,
+    program_studi: data.program_studi,
+    judul: data.judul,
+  };
+
+  const requiredPropsExistMhs = Object.values(requiredDataMhs).every(
+    (val) => val !== undefined && val !== null && val !== "" && val !== "null"
+  );
+
+  if (!requiredPropsExistMhs) {
+    res.status(400);
+    throw new Error("Pleas fill in all the (*) required fields mahasiswa.");
+  }
+
+  if (!existsDraftFinal && !existsPasFoto) {
+    if (!requiredPropsExistMhs) {
+      fs.unlink(file.pas_foto[0].path, (err) => {
+        if (err) {
+          console.log(err);
+        }
+        return;
+      });
+      fs.unlink(file.draft_final_skripsi[0].path, (err) => {
+        if (err) {
+          console.log(err);
+        }
+        return;
+      });
+      res.status(400);
+      throw new Error("Pleas fill in all the required fields mahasiswa.");
+    }
+    if (Object.keys(file).length === 0) {
+      res.status(400);
+      throw new Error("Please fill in one file.");
+    }
+
+    const saveData = {
+      pas_foto: file.pas_foto[0].filename,
+      link_lainya: data.link_lainya,
+      draft_final_skripsi: file.draft_final_skripsi[0].filename,
+      ...requiredDataMhs,
+    };
+
+    const entries = Object.entries(saveData);
+    const setQuery = entries
+      .map(([key, _], index) => `${key} = $${index + 1}`)
+      .join(", ");
+
+    await DB.query(
+      `UPDATE ta_pendaftaran_sidang SET ${setQuery} WHERE id = '${id}' RETURNING *`,
+      entries.map(([_, value]) => value)
+    );
+  } else {
+    const saveData = {
+      link_lainya: data.link_lainya,
+      ...requiredDataMhs,
+    };
+
+    const entries = Object.entries(saveData);
+    const setQuery = entries
+      .map(([key, _], index) => `${key} = $${index + 1}`)
+      .join(", ");
+
+    await DB.query(
+      `UPDATE ta_pendaftaran_sidang SET ${setQuery} WHERE id = '${id}' RETURNING *`,
+      entries.map(([_, value]) => value)
+    );
+  }
+
   const requiredData = {
     status_mk: data.status_mk,
     max_nilai_d: data.max_nilai_d,
@@ -1367,13 +1503,8 @@ exports.updatePengajuanSidang = asyncHandler(async (req, res) => {
 
   if (!requiredPropsExist) {
     res.status(400);
-    throw new Error("Please fill in all the (*) required fields.");
+    throw new Error("Please fill in all the (*) required fields pengajuan.");
   }
-
-  const findData = await DB.query(
-    "SELECT * FROM ta_pendaftaran_sidang WHERE id = $1",
-    [id]
-  );
 
   if (
     findData.rows[0].sidang_pembimbing_1 &&
