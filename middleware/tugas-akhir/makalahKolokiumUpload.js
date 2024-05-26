@@ -24,7 +24,7 @@ const fileUpload = multer({
     }
   },
   limits: {
-    fileSize: 20000000,
+    fileSize: 100 * 1024 * 1024,
   },
 }).single("file_makalah");
 

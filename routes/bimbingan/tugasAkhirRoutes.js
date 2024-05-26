@@ -46,7 +46,7 @@ router.post("/", protected, pengajuanSk);
 router.get("/detail/:id", protected, detailPengajuanSk);
 router.get("/detail-for-dosen/:id", protected, detailPengajuanSkForDosen);
 router.get("/get-by-mhs", protected, getByUserLogin);
-router.get("/get-for-admin", getForAdmin);
+router.get("/get-for-admin", protected, getForAdmin);
 router.get("/get-for-dosen", protected, getForDosen);
 router.put("/approve/:id", protected, approvedStatus);
 router.patch("/update-sk/:id", protected, updatePengajuanSk);

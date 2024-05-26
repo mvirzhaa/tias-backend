@@ -37,7 +37,7 @@ const fileUpload = multer({
     }
   },
   limits: {
-    fileSize: 10000000,
+    fileSize: 100 * 1024 * 1024,
   },
 }).fields([
   { name: "lembar_pengesahan", maxCount: 1 },

@@ -203,6 +203,7 @@ exports.getForAdmin = asyncHandler(async (req, res) => {
     orderValue,
     page,
     perPage,
+    search,
   } = req.query;
 
   const pageNumber = parseInt(page, 10) || 1;
@@ -227,6 +228,16 @@ exports.getForAdmin = asyncHandler(async (req, res) => {
         .json({ message: "Filter and filterValue must be arrays." });
       return;
     }
+  }
+
+  if (search) {
+    // Menambahkan kondisi WHERE jika ada pencarian
+    if (filter || filterValue) {
+      query += " AND";
+    } else {
+      query += " WHERE";
+    }
+    query += ` LOWER(nama_lengkap) LIKE '%${search.toLowerCase()}%'`; // Menyesuaikan dengan kolom yang akan dicari
   }
 
   if (orderField && orderValue) {
@@ -357,6 +368,7 @@ exports.getForDosen = asyncHandler(async (req, res) => {
     orderValue,
     page,
     perPage,
+    search,
   } = req.query;
 
   const pageNumber = parseInt(page, 10) || 1;
@@ -364,8 +376,8 @@ exports.getForDosen = asyncHandler(async (req, res) => {
 
   const offset = (pageNumber - 1) * itemsPerPage;
 
-  let query = `SELECT 
-  ta_pengajuan_sk.*, 
+  let query = `SELECT
+  ta_pengajuan_sk.*,
   ta_pendaftaran_kolokium.kolo_pembimbing_1,
   ta_pendaftaran_kolokium.id AS kolo_id,
   ta_pendaftaran_kolokium.kolo_pembimbing_2,
@@ -380,7 +392,7 @@ exports.getForDosen = asyncHandler(async (req, res) => {
   ta_pendaftaran_sidang.pengajuan_sk_id AS sidang_sk_id,
   ta_pendaftaran_sidang.penguji_1,
   ta_pendaftaran_sidang.penguji_2,
-  tb_data_pribadi.nama_lengkap, 
+  tb_data_pribadi.nama_lengkap,
   tb_users.npm,
   CONCAT(
       CASE WHEN ta_pengajuan_sk.sk_pembimbing_1 = '${userLoginId}' THEN 'SK Pembimbing 1 | ' ELSE '' END,
@@ -399,34 +411,34 @@ exports.getForDosen = asyncHandler(async (req, res) => {
       CASE WHEN ta_pendaftaran_sidang.sidang_pembimbing_2 = '${userLoginId}' THEN 'Pembimbing Sidang 2 | ' ELSE '' END,
       CASE WHEN ta_pendaftaran_sidang.sidang_pembimbing_3 = '${userLoginId}' THEN 'Pembimbing Sidang 3 | ' ELSE '' END,
       CASE WHEN ta_pendaftaran_sidang.sidang_kepala_lab = '${userLoginId}' THEN 'Kepala Lab | ' ELSE '' END
-  ) AS peran 
-FROM  
-  ta_pengajuan_sk 
-JOIN 
-  tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id 
-JOIN 
-  tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id 
-JOIN 
-  ta_pendaftaran_kolokium ON ta_pengajuan_sk.id = ta_pendaftaran_kolokium.pengajuan_sk_id  
-JOIN 
+  ) AS peran
+FROM
+  ta_pengajuan_sk
+JOIN
+  tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id
+JOIN
+  tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id
+JOIN
+  ta_pendaftaran_kolokium ON ta_pengajuan_sk.id = ta_pendaftaran_kolokium.pengajuan_sk_id
+JOIN
   ta_pendaftaran_sidang ON ta_pengajuan_sk.id = ta_pendaftaran_sidang.pengajuan_sk_id
-WHERE 
-  ta_pengajuan_sk.sk_pembimbing_1 = '${userLoginId}' OR 
-  ta_pengajuan_sk.sk_pembimbing_2 = '${userLoginId}' OR 
-  ta_pengajuan_sk.sk_pembimbing_3 = '${userLoginId}' OR 
-  ta_pengajuan_sk.kepala_lab = '${userLoginId}' OR 
-  ta_pendaftaran_kolokium.kolo_pembimbing_1 = '${userLoginId}' OR 
-  ta_pendaftaran_kolokium.kolo_pembimbing_2 = '${userLoginId}' OR 
+WHERE
+ ( ta_pengajuan_sk.sk_pembimbing_1 = '${userLoginId}' OR
+  ta_pengajuan_sk.sk_pembimbing_2 = '${userLoginId}' OR
+  ta_pengajuan_sk.sk_pembimbing_3 = '${userLoginId}' OR
+  ta_pengajuan_sk.kepala_lab = '${userLoginId}' OR
+  ta_pendaftaran_kolokium.kolo_pembimbing_1 = '${userLoginId}' OR
+  ta_pendaftaran_kolokium.kolo_pembimbing_2 = '${userLoginId}' OR
   ta_pendaftaran_kolokium.kolo_pembimbing_3 = '${userLoginId}' OR
   ta_pendaftaran_kolokium.kolo_kepala_lab = '${userLoginId}' OR
   ta_pendaftaran_kolokium.evaluator_1 = '${userLoginId}' OR
   ta_pendaftaran_kolokium.evaluator_2 = '${userLoginId}' OR
-  ta_pendaftaran_sidang.sidang_pembimbing_1 = '${userLoginId}' OR 
-  ta_pendaftaran_sidang.sidang_pembimbing_2 = '${userLoginId}' OR 
+  ta_pendaftaran_sidang.sidang_pembimbing_1 = '${userLoginId}' OR
+  ta_pendaftaran_sidang.sidang_pembimbing_2 = '${userLoginId}' OR
   ta_pendaftaran_sidang.sidang_pembimbing_3 = '${userLoginId}' OR
   ta_pendaftaran_sidang.sidang_kepala_lab = '${userLoginId}' OR
   ta_pendaftaran_sidang.penguji_1 = '${userLoginId}' OR
-  ta_pendaftaran_sidang.penguji_2 = '${userLoginId}'
+  ta_pendaftaran_sidang.penguji_2 = '${userLoginId}')
 `;
 
   if (filter && filterValue) {
@@ -443,6 +455,10 @@ WHERE
         .json({ message: "Filter and filterValue must be arrays." });
       return;
     }
+  }
+
+  if (search) {
+    query += ` AND LOWER(tb_data_pribadi.nama_lengkap) LIKE '%${search.toLowerCase()}%'`;
   }
 
   if (orderField && orderValue) {
@@ -467,7 +483,41 @@ WHERE
   if (result.rows.length > 0) {
     responseData = result.rows;
 
-    const totalRecordsQuery = "SELECT COUNT(*) AS total FROM ta_pengajuan_sk";
+    let totalRecordsQuery = `
+    SELECT COUNT(*) AS total
+    FROM
+      ta_pengajuan_sk
+    JOIN
+      tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id
+    JOIN
+      tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id
+    JOIN
+      ta_pendaftaran_kolokium ON ta_pengajuan_sk.id = ta_pendaftaran_kolokium.pengajuan_sk_id
+    JOIN
+      ta_pendaftaran_sidang ON ta_pengajuan_sk.id = ta_pendaftaran_sidang.pengajuan_sk_id
+    WHERE
+      ( ta_pengajuan_sk.sk_pembimbing_1 = '${userLoginId}' OR
+      ta_pengajuan_sk.sk_pembimbing_2 = '${userLoginId}' OR
+      ta_pengajuan_sk.sk_pembimbing_3 = '${userLoginId}' OR
+      ta_pengajuan_sk.kepala_lab = '${userLoginId}' OR
+      ta_pendaftaran_kolokium.kolo_pembimbing_1 = '${userLoginId}' OR
+      ta_pendaftaran_kolokium.kolo_pembimbing_2 = '${userLoginId}' OR
+      ta_pendaftaran_kolokium.kolo_pembimbing_3 = '${userLoginId}' OR
+      ta_pendaftaran_kolokium.kolo_kepala_lab = '${userLoginId}' OR
+      ta_pendaftaran_kolokium.evaluator_1 = '${userLoginId}' OR
+      ta_pendaftaran_kolokium.evaluator_2 = '${userLoginId}' OR
+      ta_pendaftaran_sidang.sidang_pembimbing_1 = '${userLoginId}' OR
+      ta_pendaftaran_sidang.sidang_pembimbing_2 = '${userLoginId}' OR
+      ta_pendaftaran_sidang.sidang_pembimbing_3 = '${userLoginId}' OR
+      ta_pendaftaran_sidang.sidang_kepala_lab = '${userLoginId}' OR
+      ta_pendaftaran_sidang.penguji_1 = '${userLoginId}' OR
+      ta_pendaftaran_sidang.penguji_2 = '${userLoginId}')
+  `;
+
+    if (search) {
+      totalRecordsQuery += ` AND LOWER(tb_data_pribadi.nama_lengkap) LIKE '%${search.toLowerCase()}%'`;
+    }
+
     const totalRecordsResult = await DB.query(totalRecordsQuery);
     totalRecords = totalRecordsResult.rows[0].total;
 
