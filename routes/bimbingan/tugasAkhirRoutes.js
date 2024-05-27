@@ -29,6 +29,7 @@ const {
   uploadFinalSkripsiController,
   getNomorNota,
   updatePenilaian,
+  deleteData,
 } = require("../../controllers/bimbingan/tugasAkhirController");
 const {
   makalahKolokiumUpload,
@@ -101,7 +102,7 @@ router.patch(
 );
 
 router.post("/get-nomor-nota", protected, getNomorNota);
-
 router.put("/update-nilai/:id", protected, adminDosenOnly, updatePenilaian);
+router.delete("/:id", protected, deleteData);
 
 module.exports = router;

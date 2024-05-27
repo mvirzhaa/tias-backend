@@ -3,6 +3,7 @@ const DB = require("../../database");
 const path = require("path");
 const fs = require("fs-extra");
 const { getMatkulKp, getAllMatkulByMhs } = require("../../helper/informatics");
+const { unixTimestamp, convertDate } = require("../../utils");
 
 exports.pengajuanSk = asyncHandler(async (req, res) => {
   const data = req.body;
@@ -126,7 +127,7 @@ exports.getByUserLogin = asyncHandler(async (req, res) => {
     FROM ta_pengajuan_sk AS sk
     LEFT JOIN ta_pendaftaran_kolokium AS kolo ON sk.id = kolo.pengajuan_sk_id
     LEFT JOIN ta_pendaftaran_sidang AS sidang ON sk.id = sidang.pengajuan_sk_id
-    WHERE sk.mhs_id = $1
+    WHERE sk.mhs_id = $1 AND sk.deleted_at IS NULL
   `;
 
   const result = await DB.query(query, [userLoginId]);
@@ -195,49 +196,40 @@ exports.getByUserLogin = asyncHandler(async (req, res) => {
 });
 
 exports.getForAdmin = asyncHandler(async (req, res) => {
-  const {
-    filter,
-    filterValue,
-    dataTable,
-    orderField,
-    orderValue,
-    page,
-    perPage,
-    search,
-  } = req.query;
+  const { dataTable, orderField, orderValue, page, perPage, search, status } =
+    req.query;
 
   const pageNumber = parseInt(page, 10) || 1;
   const itemsPerPage = parseInt(perPage, 10) || 10;
-
   const offset = (pageNumber - 1) * itemsPerPage;
 
-  let query =
-    "SELECT ta_pengajuan_sk.*, tb_data_pribadi.nama_lengkap, tb_users.npm, ta_pendaftaran_kolokium.id AS kolo_id, ta_pendaftaran_kolokium.kolo_status_pem_1, ta_pendaftaran_kolokium.kolo_status_pem_2, ta_pendaftaran_kolokium.kolo_status_pem_3, ta_pendaftaran_sidang.jadwal_pelaksanaan, ta_pendaftaran_sidang.sidang_status_pem_1, ta_pendaftaran_sidang.sidang_status_pem_2, ta_pendaftaran_sidang.sidang_status_pem_3, ta_pendaftaran_sidang.id AS sidang_id FROM ta_pengajuan_sk JOIN tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id LEFT JOIN ta_pendaftaran_kolokium ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id LEFT JOIN ta_pendaftaran_sidang ON ta_pendaftaran_sidang.pengajuan_sk_id = ta_pengajuan_sk.id";
+  let query = `
+    SELECT 
+      ta_pengajuan_sk.*, 
+      tb_data_pribadi.nama_lengkap, 
+      tb_users.npm, 
+      ta_pendaftaran_kolokium.id AS kolo_id, 
+      ta_pendaftaran_kolokium.kolo_status_pem_1, 
+      ta_pendaftaran_kolokium.kolo_status_pem_2, 
+      ta_pendaftaran_kolokium.kolo_status_pem_3, 
+      ta_pendaftaran_sidang.jadwal_pelaksanaan, 
+      ta_pendaftaran_sidang.sidang_status_pem_1, 
+      ta_pendaftaran_sidang.sidang_status_pem_2, 
+      ta_pendaftaran_sidang.sidang_status_pem_3, 
+      ta_pendaftaran_sidang.id AS sidang_id 
+    FROM ta_pengajuan_sk 
+    JOIN tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id 
+    JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id 
+    LEFT JOIN ta_pendaftaran_kolokium ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id 
+    LEFT JOIN ta_pendaftaran_sidang ON ta_pendaftaran_sidang.pengajuan_sk_id = ta_pengajuan_sk.id 
+    WHERE ta_pengajuan_sk.deleted_at IS NULL`;
 
-  if (filter && filterValue) {
-    if (Array.isArray(filter) && Array.isArray(filterValue)) {
-      for (let i = 0; i < filter.length; i++) {
-        query += ` WHERE ${filter[i]} = '${filterValue[i]}'`;
-        if (i !== filter.length - 1) {
-          query += " AND";
-        }
-      }
-    } else {
-      res
-        .status(400)
-        .json({ message: "Filter and filterValue must be arrays." });
-      return;
-    }
+  if (status) {
+    query += ` AND ta_pengajuan_sk.status = '${status}'`;
   }
 
   if (search) {
-    // Menambahkan kondisi WHERE jika ada pencarian
-    if (filter || filterValue) {
-      query += " AND";
-    } else {
-      query += " WHERE";
-    }
-    query += ` LOWER(nama_lengkap) LIKE '%${search.toLowerCase()}%'`; // Menyesuaikan dengan kolom yang akan dicari
+    query += ` AND LOWER(tb_data_pribadi.nama_lengkap) LIKE '%${search.toLowerCase()}%'`;
   }
 
   if (orderField && orderValue) {
@@ -253,109 +245,125 @@ exports.getForAdmin = asyncHandler(async (req, res) => {
 
   query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
 
-  const result = await DB.query(query);
+  try {
+    const result = await DB.query(query);
 
-  let responseData = [];
-  let dataWithStatusPenilaian = [];
-  let totalRecords = 0;
+    let responseData = [];
+    let dataWithStatusPenilaian = [];
+    let totalRecords = 0;
 
-  if (result.rows.length > 0) {
-    responseData = result.rows;
+    if (result.rows.length > 0) {
+      responseData = result.rows;
 
-    const totalRecordsQuery = "SELECT COUNT(*) AS total FROM ta_pengajuan_sk";
-    const totalRecordsResult = await DB.query(totalRecordsQuery);
-    totalRecords = totalRecordsResult.rows[0].total;
+      const totalRecordsQuery =
+        "SELECT COUNT(*) AS total FROM ta_pengajuan_sk WHERE ta_pengajuan_sk.deleted_at IS NULL";
+      const totalRecordsResult = await DB.query(totalRecordsQuery);
+      totalRecords = totalRecordsResult.rows[0].total;
 
-    const koloIds = responseData.map((row) => row.kolo_id);
-    const countQuery = `
-      SELECT kolo_id, COUNT(*) AS count
-      FROM ta_penilaian_kolokium
-      WHERE kolo_id IN (${koloIds.join(",")})
-      GROUP BY kolo_id
-    `;
-    const countResult = await DB.query(countQuery);
+      const koloIds = responseData.map((row) => row.kolo_id).filter(Boolean);
+      const sidangIds = responseData
+        .map((row) => row.sidang_id)
+        .filter(Boolean);
 
-    const penilaianMap = {};
-    countResult.rows.forEach((row) => {
-      penilaianMap[row.kolo_id] = row.count;
-    });
+      let penilaianMap = {};
+      if (koloIds.length > 0) {
+        const countQuery = `
+          SELECT kolo_id, COUNT(*) AS count
+          FROM ta_penilaian_kolokium
+          WHERE kolo_id IN (${koloIds.join(",")})
+          GROUP BY kolo_id
+        `;
+        const countResult = await DB.query(countQuery);
+        penilaianMap = countResult.rows.reduce((acc, row) => {
+          acc[row.kolo_id] = row.count;
+          return acc;
+        }, {});
+      }
 
-    const sidangIds = responseData.map((row) => row.sidang_id);
-    const countQuerySidang = `
-      SELECT sidang_id, COUNT(*) AS count
-      FROM ta_penilaian_sidang
-      WHERE sidang_id IN (${sidangIds.join(",")})
-      GROUP BY sidang_id
-    `;
-    const countResultSidang = await DB.query(countQuerySidang);
+      let penilaianSidangMap = {};
+      if (sidangIds.length > 0) {
+        const countQuerySidang = `
+          SELECT sidang_id, COUNT(*) AS count
+          FROM ta_penilaian_sidang
+          WHERE sidang_id IN (${sidangIds.join(",")})
+          GROUP BY sidang_id
+        `;
+        const countResultSidang = await DB.query(countQuerySidang);
+        penilaianSidangMap = countResultSidang.rows.reduce((acc, row) => {
+          acc[row.sidang_id] = row.count;
+          return acc;
+        }, {});
+      }
 
-    const penilaianSidangMap = {};
-    countResultSidang.rows.forEach((row) => {
-      penilaianSidangMap[row.sidang_id] = row.count;
-    });
+      dataWithStatusPenilaian = responseData.map((row) => {
+        const koloId = row.kolo_id;
+        const jumlahPenilaian = penilaianMap[koloId] || 0;
+        const statusPenilaian = jumlahPenilaian >= 1 && jumlahPenilaian <= 5;
 
-    dataWithStatusPenilaian = responseData.map((row) => {
-      const koloId = row.kolo_id;
-      const jumlahPenilaian = penilaianMap[koloId] || 0;
-      const statusPenilaian = jumlahPenilaian >= 1 && jumlahPenilaian <= 5;
+        const sidangId = row.sidang_id;
+        const jumlahPenilaianSidang = penilaianSidangMap[sidangId] || 0;
+        const statusPenilaianSidang =
+          jumlahPenilaianSidang >= 1 && jumlahPenilaianSidang <= 5;
 
-      const sidangId = row.sidang_id;
-      const jumlahPenilaianSidang = penilaianSidangMap[sidangId] || 0;
-      const statusPenilaianSidang =
-        jumlahPenilaianSidang >= 1 && jumlahPenilaianSidang <= 5;
+        return {
+          ...row,
+          status_penilaian: statusPenilaian,
+          status_penilaian_sidang: statusPenilaianSidang,
+        };
+      });
+    }
+
+    const dataWithStatusDosen = dataWithStatusPenilaian.map((row) => {
+      let statusDospem = "Belum Acc";
+
+      if (row.status == "pengajuan-sk") {
+        if (
+          row.sk_status_pem_1 &&
+          row.sk_status_pem_2 &&
+          row.status_kepala_lab
+        ) {
+          statusDospem = "ACC";
+        }
+      } else if (row.status == "menuju-kolokium") {
+        if (row.kolo_status_pem_1 && row.kolo_status_pem_2) {
+          statusDospem = "ACC";
+        }
+      } else if (row.status == "menuju-sidang") {
+        if (row.sidang_status_pem_1 && row.sidang_status_pem_2) {
+          statusDospem = "ACC";
+        }
+      } else if (
+        row.status == "menyelesaikan-revisi" ||
+        row.status == "selesai"
+      ) {
+        statusDospem = "ACC";
+      }
 
       return {
         ...row,
-        status_penilaian: statusPenilaian,
-        status_penilaian_sidang: statusPenilaianSidang,
+        statusDospem,
       };
     });
-  }
 
-  const dataWithStatusDosen = dataWithStatusPenilaian.map((row) => {
-    let statusDospem = "Belum Acc";
-
-    if (row.status == "pengajuan-sk") {
-      if (row.sk_status_pem_1 && row.sk_status_pem_2 && row.status_kepala_lab) {
-        statusDospem = "ACC";
-      }
-    } else if (row.status == "menuju-kolokium") {
-      if (row.kolo_status_pem_1 && row.kolo_status_pem_2) {
-        statusDospem = "ACC";
-      }
-    } else if (row.status == "menuju-sidang") {
-      if (row.sidang_status_pem_1 && row.sidang_status_pem_2) {
-        statusDospem = "ACC";
-      }
-    } else if (
-      row.status == "menyelesaikan-revisi" ||
-      row.status == "selesai"
-    ) {
-      statusDospem = "ACC";
+    if (dataTable === "true") {
+      responseData = {
+        message: "success",
+        draw: 1,
+        recordsTotal: totalRecords,
+        recordsFiltered: totalRecords,
+        data: dataWithStatusDosen,
+      };
+    } else {
+      responseData = {
+        message: "success",
+        data: dataWithStatusDosen,
+      };
     }
 
-    return {
-      ...row,
-      statusDospem,
-    };
-  });
-
-  if (dataTable === "true") {
-    responseData = {
-      message: "success",
-      draw: 1,
-      recordsTotal: totalRecords,
-      recordsFiltered: totalRecords,
-      data: dataWithStatusDosen,
-    };
-  } else {
-    responseData = {
-      message: "success",
-      data: dataWithStatusDosen,
-    };
+    res.status(200).json(responseData);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-
-  res.status(200).json(responseData);
 });
 
 exports.getForDosen = asyncHandler(async (req, res) => {
@@ -438,7 +446,7 @@ WHERE
   ta_pendaftaran_sidang.sidang_pembimbing_3 = '${userLoginId}' OR
   ta_pendaftaran_sidang.sidang_kepala_lab = '${userLoginId}' OR
   ta_pendaftaran_sidang.penguji_1 = '${userLoginId}' OR
-  ta_pendaftaran_sidang.penguji_2 = '${userLoginId}')
+  ta_pendaftaran_sidang.penguji_2 = '${userLoginId}') AND ta_pengajuan_sk.deleted_at IS NULL
 `;
 
   if (filter && filterValue) {
@@ -511,7 +519,7 @@ WHERE
       ta_pendaftaran_sidang.sidang_pembimbing_3 = '${userLoginId}' OR
       ta_pendaftaran_sidang.sidang_kepala_lab = '${userLoginId}' OR
       ta_pendaftaran_sidang.penguji_1 = '${userLoginId}' OR
-      ta_pendaftaran_sidang.penguji_2 = '${userLoginId}')
+      ta_pendaftaran_sidang.penguji_2 = '${userLoginId}') AND ta_pengajuan_sk.deleted_at IS NULL
   `;
 
     if (search) {
@@ -693,8 +701,16 @@ exports.approvedStatus = asyncHandler(async (req, res) => {
 
 exports.updatePengajuanSk = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { nomor_sk, tgl_sk, link_dokumen_sk, nomor_nota_dinas, status } =
-    req.body;
+  const {
+    nomor_sk,
+    tgl_sk,
+    link_dokumen_sk,
+    nomor_nota_dinas,
+    judul_skripsi,
+    semester,
+    lokasi_kegiatan,
+    status,
+  } = req.body;
 
   if (!nomor_nota_dinas) {
     res.status(400);
@@ -730,9 +746,19 @@ exports.updatePengajuanSk = asyncHandler(async (req, res) => {
 
   const updateData = await DB.query(
     `UPDATE ta_pengajuan_sk 
-     SET nomor_sk = $1, tgl_sk = $2, link_dokumen_sk = $3, status = $4, status_approved = $5
-     WHERE id = $6`,
-    [nomor_sk, tgl_sk, link_dokumen_sk, status, true, id]
+     SET nomor_sk = $1, tgl_sk = $2, link_dokumen_sk = $3, status = $4, status_approved = $5, judul_skripsi = $6, semester = $7, lokasi_kegiatan = $8
+     WHERE id = $9`,
+    [
+      nomor_sk,
+      tgl_sk,
+      link_dokumen_sk,
+      status,
+      true,
+      judul_skripsi,
+      semester,
+      lokasi_kegiatan,
+      id,
+    ]
   );
 
   res.status(201).json({
@@ -2067,4 +2093,31 @@ exports.getNomorNota = asyncHandler(async (req, res) => {
       error: error.message,
     });
   }
+});
+
+// delete
+exports.deleteData = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const findData = await DB.query(
+    `SELECT * FROM ta_pengajuan_sk WHERE id = $1`,
+    [id]
+  );
+
+  if (!findData.rows.length) {
+    res.status(404);
+    throw new Error("Data not found.");
+  }
+
+  const created_at = unixTimestamp;
+  const convert = convertDate(created_at);
+
+  await DB.query(
+    "UPDATE ta_pengajuan_sk SET deleted_at = $1 WHERE id = $2 RETURNING *",
+    [convert, id]
+  );
+
+  res.status(201).json({
+    message: "Successfully update data.",
+  });
 });
