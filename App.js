@@ -35,6 +35,11 @@ const validasiRoutes = require("./routes/validasi/validasiRoutes");
 const jabatanRoutes = require("./routes/jabatan/jabatanRoutes");
 const strukturalRoutes = require("./routes/jabatan/strukturalRoutes");
 const errorHandler = require("./helper/errorHandler");
+
+const moment = require("moment-timezone");
+const cron = require("node-cron");
+const { deleteExpiredToken } = require("./utils/deleteToken");
+
 const {
   getJabatanByquery,
 } = require("./controllers/jabatan/strukturalProdiController");
@@ -91,11 +96,22 @@ app.get("/", (req, res) => {
   res.send("Server Oke. Database belum tentu oke");
 });
 
+// CRON JOB
+const runAtSpecificTime = (task) => {
+  return () => {
+    const now = moment().tz("Asia/Jakarta");
+    if (now.date() % 5 === 3 && now.hours() === 0 && now.minutes() === 0) {
+      task();
+    }
+  };
+};
+cron.schedule("* * * * *", runAtSpecificTime(deleteExpiredToken));
+
 // error handler
 app.use(errorHandler);
 
 const startServer = () => {
-  const PORT = process.env.PORT || 5000;
+  const PORT = process.env.PORT || 4242;
   try {
     app.listen(PORT, () => {
       console.log(`Server Running On Port: ${PORT}`);
