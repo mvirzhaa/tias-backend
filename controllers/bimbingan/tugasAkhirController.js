@@ -1068,7 +1068,7 @@ exports.penilaianKolo = asyncHandler(async (req, res) => {
     komentar_singkat: data.komentar_singkat,
     final_nilai: finalNilai,
     huruf_mutu: hurufMutu,
-    komentar_singkat: "",
+    komentar_singkat: data.komentar_singkat ? data.komentar_singkat : "",
   };
 
   const keys = [...Object.keys(dataToCreate)];
