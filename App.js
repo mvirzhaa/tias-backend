@@ -111,7 +111,7 @@ app.get("/", (req, res) => {
 app.use(errorHandler);
 
 const startServer = () => {
-  const PORT = process.env.PORT || 4242;
+  const PORT = process.env.PORT || 5000;
   try {
     app.listen(PORT, () => {
       console.log(`Server Running On Port: ${PORT}`);
