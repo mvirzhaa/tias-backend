@@ -255,8 +255,15 @@ exports.getForAdmin = asyncHandler(async (req, res) => {
     if (result.rows.length > 0) {
       responseData = result.rows;
 
-      const totalRecordsQuery =
-        "SELECT COUNT(*) AS total FROM ta_pengajuan_sk WHERE ta_pengajuan_sk.deleted_at IS NULL";
+      let totalRecordsQuery = `
+  SELECT COUNT(*) AS total 
+  FROM ta_pengajuan_sk 
+  WHERE ta_pengajuan_sk.deleted_at IS NULL`;
+
+      if (status) {
+        totalRecordsQuery += ` AND ta_pengajuan_sk.status = '${status}'`;
+      }
+
       const totalRecordsResult = await DB.query(totalRecordsQuery);
       totalRecords = totalRecordsResult.rows[0].total;
 
