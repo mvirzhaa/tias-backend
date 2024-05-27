@@ -1802,7 +1802,7 @@ exports.getNilaiSidangForDosen = asyncHandler(async (req, res) => {
     [id]
   );
 
-  let query = `SELECT ta_pengajuan_sk.*, tb_data_pribadi.nama_lengkap, tb_data_pribadi.no_hp, tb_users.email, tb_users.npm FROM ta_pengajuan_sk JOIN tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id WHERE ta_pengajuan_sk.id = ${id}`;
+  let query = `SELECT ta_pengajuan_sk.*, tb_data_pribadi.nama_lengkap, tb_data_pribadi.no_hp, tb_users.email, tb_users.npm, ta_pendaftaran_sidang.link_draft_final_skripsi FROM ta_pengajuan_sk JOIN tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id JOIN ta_pendaftaran_sidang ON  ta_pengajuan_sk.id = ta_pendaftaran_sidang.pengajuan_sk_id WHERE ta_pengajuan_sk.id = ${id}`;
 
   const dataPengajuanSk = await DB.query(query);
 
