@@ -36,9 +36,9 @@ const jabatanRoutes = require("./routes/jabatan/jabatanRoutes");
 const strukturalRoutes = require("./routes/jabatan/strukturalRoutes");
 const errorHandler = require("./helper/errorHandler");
 
-const moment = require("moment-timezone");
-const cron = require("node-cron");
-const { deleteExpiredToken } = require("./utils/deleteToken");
+// const moment = require("moment-timezone");
+// const cron = require("node-cron");
+// const { deleteExpiredToken } = require("./utils/deleteToken");
 
 const {
   getJabatanByquery,
@@ -93,19 +93,19 @@ app.get("/get-jabatan", getJabatanByquery);
 
 app.use("/help", helpRoutes);
 app.get("/", (req, res) => {
-  res.send("Server Oke. Database belum tentu oke");
+  res.send("Oooopss, route not found!");
 });
 
 // CRON JOB
-const runAtSpecificTime = (task) => {
-  return () => {
-    const now = moment().tz("Asia/Jakarta");
-    if (now.date() % 5 === 3 && now.hours() === 0 && now.minutes() === 0) {
-      task();
-    }
-  };
-};
-cron.schedule("* * * * *", runAtSpecificTime(deleteExpiredToken));
+// const runAtSpecificTime = (task) => {
+//   return () => {
+//     const now = moment().tz("Asia/Jakarta");
+//     if (now.date() % 5 === 3 && now.hours() === 0 && now.minutes() === 0) {
+//       task();
+//     }
+//   };
+// };
+// cron.schedule("* * * * *", runAtSpecificTime(deleteExpiredToken));
 
 // error handler
 app.use(errorHandler);
