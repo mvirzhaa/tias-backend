@@ -212,7 +212,7 @@ exports.getForAdmin = asyncHandler(async (req, res) => {
   const offset = (pageNumber - 1) * itemsPerPage;
 
   let query =
-    "SELECT ta_pengajuan_sk.*, tb_data_pribadi.nama_lengkap, tb_users.npm, ta_pendaftaran_kolokium.id AS kolo_id, ta_pendaftaran_kolokium.kolo_status_pem_1, ta_pendaftaran_kolokium.kolo_status_pem_2, ta_pendaftaran_kolokium.kolo_status_pem_3, ta_pendaftaran_sidang.sidang_status_pem_1, ta_pendaftaran_sidang.sidang_status_pem_2, ta_pendaftaran_sidang.sidang_status_pem_3, ta_pendaftaran_sidang.id AS sidang_id FROM ta_pengajuan_sk JOIN tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id LEFT JOIN ta_pendaftaran_kolokium ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id LEFT JOIN ta_pendaftaran_sidang ON ta_pendaftaran_sidang.pengajuan_sk_id = ta_pengajuan_sk.id";
+    "SELECT ta_pengajuan_sk.*, tb_data_pribadi.nama_lengkap, tb_users.npm, ta_pendaftaran_kolokium.id AS kolo_id, ta_pendaftaran_kolokium.kolo_status_pem_1, ta_pendaftaran_kolokium.kolo_status_pem_2, ta_pendaftaran_kolokium.kolo_status_pem_3, ta_pendaftaran_sidang.jadwal_pelaksanaan, ta_pendaftaran_sidang.sidang_status_pem_1, ta_pendaftaran_sidang.sidang_status_pem_2, ta_pendaftaran_sidang.sidang_status_pem_3, ta_pendaftaran_sidang.id AS sidang_id FROM ta_pengajuan_sk JOIN tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id LEFT JOIN ta_pendaftaran_kolokium ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id LEFT JOIN ta_pendaftaran_sidang ON ta_pendaftaran_sidang.pengajuan_sk_id = ta_pengajuan_sk.id";
 
   if (filter && filterValue) {
     if (Array.isArray(filter) && Array.isArray(filterValue)) {
@@ -693,12 +693,8 @@ exports.approvedStatus = asyncHandler(async (req, res) => {
 
 exports.updatePengajuanSk = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { nomor_sk, tgl_sk, link_dokumen_sk, nomor_nota_dinas } = req.body;
-
-  // if (!nomor_sk || !tgl_sk || !link_dokumen_sk) {
-  //   res.status(400);
-  //   throw new Error("Pleas fill in all the required fields.");
-  // }
+  const { nomor_sk, tgl_sk, link_dokumen_sk, nomor_nota_dinas, status } =
+    req.body;
 
   if (!nomor_nota_dinas) {
     res.status(400);
@@ -731,7 +727,7 @@ exports.updatePengajuanSk = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("Status kepala lab belum acc.");
   }
-  const status = "menuju-kolokium";
+
   const updateData = await DB.query(
     `UPDATE ta_pengajuan_sk 
      SET nomor_sk = $1, tgl_sk = $2, link_dokumen_sk = $3, status = $4, status_approved = $5
@@ -909,10 +905,17 @@ exports.updatePengajuanKolokium = asyncHandler(async (req, res) => {
   };
 
   let saveDataMhs;
-  saveDataMhs = {
-    file_makalah: file.filename,
-    ...dataMahasiswa,
-  };
+
+  if (file) {
+    saveDataMhs = {
+      file_makalah: file.filename,
+      ...dataMahasiswa,
+    };
+  } else {
+    saveDataMhs = {
+      ...dataMahasiswa,
+    };
+  }
 
   const entriesMhs = Object.entries(saveDataMhs);
   const setQueryMhs = entriesMhs
@@ -984,9 +987,9 @@ exports.updatePengajuanKolokium = asyncHandler(async (req, res) => {
 
   await DB.query(
     `UPDATE ta_pengajuan_sk 
-     SET status_approved_kolo = $1
-     WHERE id = $2`,
-    [true, findData.rows[0].pengajuan_sk_id]
+     SET status = $1, status_approved_kolo = $2
+     WHERE id = $3`,
+    [data.status, true, findData.rows[0].pengajuan_sk_id]
   );
 
   res.status(201).json({
@@ -1550,6 +1553,7 @@ exports.updatePengajuanSidang = asyncHandler(async (req, res) => {
     max_nilai_d: data.max_nilai_d,
     status_min_ipk: data.status_min_ipk,
     status_kp: data.status_kp,
+    jadwal_pelaksanaan: data.jadwal_pelaksanaan,
     status_form_sidang: data.status_form_sidang,
     penguji_1: data.penguji_1,
     penguji_2: data.penguji_2,
@@ -1596,15 +1600,15 @@ exports.updatePengajuanSidang = asyncHandler(async (req, res) => {
     .join(", ");
 
   const insertedData = await DB.query(
-    `UPDATE ta_pendaftaran_sidang SET ${setQuery} WHERE id = '${id}' `,
+    `UPDATE ta_pendaftaran_sidang SET ${setQuery} WHERE id = '${id}' returning *`,
     entries.map(([_, value]) => value)
   );
 
   await DB.query(
     `UPDATE ta_pengajuan_sk 
-     SET status_approved_sidang = $1
-     WHERE id = $2`,
-    [true, findData.rows[0].pengajuan_sk_id]
+     SET status = $1, status_approved_sidang = $2
+     WHERE id = $3`,
+    [data.status, true, findData.rows[0].pengajuan_sk_id]
   );
 
   res.status(201).json({
