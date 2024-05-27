@@ -813,8 +813,6 @@ exports.pengajuanKolokium = asyncHandler(async (req, res) => {
     [id]
   );
 
-  const existsFileMakalah = getDataKolo.rows[0].file_makalah ? true : false;
-
   const requiredData = {
     link_dok_mhs_aktif: data.link_dok_mhs_aktif,
     link_dok_pembayaran: data.link_dok_pembayaran,
@@ -834,13 +832,6 @@ exports.pengajuanKolokium = asyncHandler(async (req, res) => {
     throw new Error("Pleas fill in all the (*) required fields.");
   }
 
-  if (!existsFileMakalah) {
-    if (!file) {
-      res.status(400);
-      throw new Error("Please fill one file.");
-    }
-  }
-
   if (
     data.kolo_pembimbing_1 == data.kolo_pembimbing_2 ||
     data.kolo_pembimbing_1 == data.kolo_pembimbing_3 ||
@@ -850,18 +841,10 @@ exports.pengajuanKolokium = asyncHandler(async (req, res) => {
     throw new Error("Invalid data.");
   }
 
-  let saveData;
-
-  if (!existsFileMakalah) {
-    saveData = {
-      file_makalah: file.filename,
-      ...requiredData,
-    };
-  } else {
-    saveData = {
-      ...requiredData,
-    };
-  }
+  const saveData = {
+    file_makalah: null,
+    ...requiredData,
+  };
 
   const entries = Object.entries(saveData);
   const setQuery = entries
@@ -1008,8 +991,7 @@ exports.penilaianKolo = asyncHandler(async (req, res) => {
     !data.penilaian_2 ||
     !data.penilaian_3 ||
     !data.penilaian_4 ||
-    !data.penilaian_5 ||
-    !data.komentar_singkat
+    !data.penilaian_5
   ) {
     res.status(400);
     throw new Error("Pleas fill in all the required fields.");
@@ -1312,9 +1294,6 @@ exports.pengajuanSidang = asyncHandler(async (req, res) => {
   );
 
   const existsPasFoto = getDataById.rows[0].pas_foto ? true : false;
-  const existsDraftFinal = getDataById.rows[0].draft_final_skripsi
-    ? true
-    : false;
 
   const requiredData = {
     link_khs: data.link_khs,
@@ -1347,15 +1326,9 @@ exports.pengajuanSidang = asyncHandler(async (req, res) => {
     throw new Error("Pleas fill in all the (*) required fields.");
   }
 
-  if (!existsDraftFinal && !existsPasFoto) {
+  if (!existsPasFoto) {
     if (!requiredPropsExist) {
       fs.unlink(file.pas_foto[0].path, (err) => {
-        if (err) {
-          console.log(err);
-        }
-        return;
-      });
-      fs.unlink(file.draft_final_skripsi[0].path, (err) => {
         if (err) {
           console.log(err);
         }
@@ -1393,7 +1366,7 @@ exports.pengajuanSidang = asyncHandler(async (req, res) => {
     const saveData = {
       pas_foto: file.pas_foto[0].filename,
       link_lainya: data.link_lainya,
-      draft_final_skripsi: file.draft_final_skripsi[0].filename,
+      draft_final_skripsi: null,
       ...requiredData,
     };
 
@@ -1560,7 +1533,7 @@ exports.updatePengajuanSidang = asyncHandler(async (req, res) => {
   };
 
   const requiredPropsExist = Object.values(requiredData).every(
-    (val) => val !== undefined && val !== ""
+    (val) => val !== undefined && val !== "" && val !== null && val !== "null"
   );
 
   if (!requiredPropsExist) {
