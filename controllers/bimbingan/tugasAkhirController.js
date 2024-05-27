@@ -1600,8 +1600,7 @@ exports.penilaianSidang = asyncHandler(async (req, res) => {
     !data.penilaian_2 ||
     !data.penilaian_3 ||
     !data.penilaian_4 ||
-    !data.penilaian_5 ||
-    !data.komentar_singkat
+    !data.penilaian_5
   ) {
     res.status(400);
     throw new Error("Pleas fill in all the required fields.");
@@ -1642,7 +1641,7 @@ exports.penilaianSidang = asyncHandler(async (req, res) => {
     penilaian_3: data.penilaian_3,
     penilaian_4: data.penilaian_4,
     penilaian_5: data.penilaian_5,
-    komentar_singkat: data.komentar_singkat,
+    komentar_singkat: null,
     final_nilai: finalNilai,
     huruf_mutu: hurufMutu,
   };
