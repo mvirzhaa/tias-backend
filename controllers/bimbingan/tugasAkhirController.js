@@ -1675,7 +1675,7 @@ exports.penilaianSidang = asyncHandler(async (req, res) => {
     penilaian_3: data.penilaian_3,
     penilaian_4: data.penilaian_4,
     penilaian_5: data.penilaian_5,
-    komentar_singkat: "",
+    komentar_singkat: data.komentar_singkat ? data.komentar_singkat : "",
     final_nilai: finalNilai,
     huruf_mutu: hurufMutu,
   };
