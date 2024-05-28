@@ -1608,6 +1608,138 @@ exports.updatePengajuanSidang = asyncHandler(async (req, res) => {
 });
 
 // PENILAIAN SIDANG
+// exports.penilaianSidang = asyncHandler(async (req, res) => {
+//   const userLoginId = req.user.user_id;
+//   const data = req.body;
+
+//   if (
+//     !data.penilaian_1 ||
+//     !data.penilaian_2 ||
+//     !data.penilaian_3 ||
+//     !data.penilaian_4 ||
+//     !data.penilaian_5
+//   ) {
+//     res.status(400);
+//     throw new Error("Pleas fill in all the required fields.");
+//   }
+//   const nilai1 = Math.round(0.2 * parseInt(data.penilaian_1));
+//   const nilai2 = Math.round(0.4 * parseInt(data.penilaian_2));
+//   const nilai3 = Math.round(0.1 * parseInt(data.penilaian_3));
+//   const nilai4 = Math.round(0.1 * parseInt(data.penilaian_4));
+//   const nilai5 = Math.round(0.2 * parseInt(data.penilaian_5));
+
+//   const finalNilai = nilai1 + nilai2 + nilai3 + nilai4 + nilai5;
+
+//   let hurufMutu;
+//   if (finalNilai >= 80 && finalNilai <= 100) {
+//     hurufMutu = "A";
+//   } else if (finalNilai >= 73 && finalNilai < 80) {
+//     hurufMutu = "AB";
+//   } else if (finalNilai >= 65 && finalNilai < 73) {
+//     hurufMutu = "B";
+//   } else if (finalNilai >= 60 && finalNilai < 65) {
+//     hurufMutu = "BC";
+//   } else if (finalNilai >= 55 && finalNilai < 60) {
+//     hurufMutu = "C";
+//   } else if (finalNilai >= 50 && finalNilai < 55) {
+//     hurufMutu = "CD";
+//   } else if (finalNilai >= 45 && finalNilai < 50) {
+//     hurufMutu = "D";
+//   } else if (finalNilai < 45) {
+//     hurufMutu = "E";
+//   }
+
+//   const dataToCreate = {
+//     sidang_id: data.sidang_id,
+//     dosen_id: userLoginId,
+//     peran: data.statusDosen,
+//     penilaian_1: data.penilaian_1,
+//     penilaian_2: data.penilaian_2,
+//     penilaian_3: data.penilaian_3,
+//     penilaian_4: data.penilaian_4,
+//     penilaian_5: data.penilaian_5,
+//     komentar_singkat: data.komentar_singkat ? data.komentar_singkat : "",
+//     final_nilai: finalNilai,
+//     huruf_mutu: hurufMutu,
+//   };
+
+//   const keys = [...Object.keys(dataToCreate)];
+//   const values = [...Object.values(dataToCreate)];
+//   const placeholders = keys.map((key, index) => `$${index + 1}`);
+
+//   const saveData = await DB.query(
+//     `INSERT INTO ta_penilaian_sidang(${keys.join(
+//       ", "
+//     )}) VALUES (${placeholders.join(", ")}) returning *`,
+//     values
+//   );
+
+//   const resultPenilaian = await DB.query(
+//     "SELECT * FROM ta_penilaian_sidang WHERE sidang_id = $1",
+//     [saveData.rows[0].sidang_id]
+//   );
+//   const totalData = resultPenilaian.rowCount;
+
+//   const calculateAverage = (columnName) => {
+//     const jumlahPenilaian = resultPenilaian.rows.reduce(
+//       (acc, current) => acc + current[columnName],
+//       0
+//     );
+//     const averagePenilaian = Math.round(jumlahPenilaian / totalData);
+//     return averagePenilaian;
+//   };
+
+//   const nilaiAkhir1 = calculateAverage("penilaian_1");
+//   const nilaiAkhir2 = calculateAverage("penilaian_2");
+//   const nilaiAkhir3 = calculateAverage("penilaian_3");
+//   const nilaiAkhir4 = calculateAverage("penilaian_4");
+//   const nilaiAkhir5 = calculateAverage("penilaian_5");
+//   const finalNilaiAkhir = calculateAverage("final_nilai");
+
+//   let hurufMutuAkhir;
+//   if (finalNilaiAkhir >= 80 && finalNilaiAkhir <= 100) {
+//     hurufMutuAkhir = "A";
+//   } else if (finalNilaiAkhir >= 73 && finalNilaiAkhir < 80) {
+//     hurufMutuAkhir = "AB";
+//   } else if (finalNilaiAkhir >= 65 && finalNilaiAkhir < 73) {
+//     hurufMutuAkhir = "B";
+//   } else if (finalNilaiAkhir >= 60 && finalNilaiAkhir < 65) {
+//     hurufMutuAkhir = "BC";
+//   } else if (finalNilaiAkhir >= 55 && finalNilaiAkhir < 60) {
+//     hurufMutuAkhir = "C";
+//   } else if (finalNilaiAkhir >= 50 && finalNilaiAkhir < 55) {
+//     hurufMutuAkhir = "CD";
+//   } else if (finalNilaiAkhir >= 45 && finalNilaiAkhir < 50) {
+//     hurufMutuAkhir = "D";
+//   } else if (finalNilaiAkhir < 45) {
+//     hurufMutuAkhir = "E";
+//   }
+
+//   await DB.query(
+//     "UPDATE ta_nilai_akhir_sidang SET penilaian_1 = $1, penilaian_2 = $2, penilaian_3 = $3, penilaian_4 = $4, penilaian_5 = $5, nilai_akhir = $6, huruf_mutu = $7 WHERE sidang_id = $8",
+//     [
+//       Math.round(nilaiAkhir1),
+//       Math.round(nilaiAkhir2),
+//       Math.round(nilaiAkhir3),
+//       Math.round(nilaiAkhir4),
+//       Math.round(nilaiAkhir5),
+//       Math.round(finalNilaiAkhir),
+//       hurufMutuAkhir,
+//       data.sidang_id,
+//     ]
+//   );
+
+//   await DB.query(`UPDATE ta_pengajuan_sk SET status = $1 WHERE id = $2`, [
+//     "menyelesaikan-revisi",
+//     data.pengajuan_sk_id,
+//   ]);
+
+//   res.status(200).json({
+//     message: "Successfull created data.",
+//     data: saveData.rows[0],
+//   });
+// });
+
 exports.penilaianSidang = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
   const data = req.body;
