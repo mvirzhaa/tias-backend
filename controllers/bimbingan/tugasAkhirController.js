@@ -1451,7 +1451,6 @@ exports.updatePengajuanSidang = asyncHandler(async (req, res) => {
   );
 
   const existsPasFoto = findData.rows[0].pas_foto ? true : false;
-  const existsDraftFinal = findData.rows[0].draft_final_skripsi ? true : false;
 
   const requiredDataMhs = {
     link_khs: data.link_khs,
@@ -1484,15 +1483,9 @@ exports.updatePengajuanSidang = asyncHandler(async (req, res) => {
     throw new Error("Pleas fill in all the (*) required fields mahasiswa.");
   }
 
-  if (!existsDraftFinal && !existsPasFoto) {
+  if (!existsPasFoto) {
     if (!requiredPropsExistMhs) {
       fs.unlink(file.pas_foto[0].path, (err) => {
-        if (err) {
-          console.log(err);
-        }
-        return;
-      });
-      fs.unlink(file.draft_final_skripsi[0].path, (err) => {
         if (err) {
           console.log(err);
         }
@@ -1509,7 +1502,6 @@ exports.updatePengajuanSidang = asyncHandler(async (req, res) => {
     const saveData = {
       pas_foto: file.pas_foto[0].filename,
       link_lainya: data.link_lainya,
-      draft_final_skripsi: file.draft_final_skripsi[0].filename,
       ...requiredDataMhs,
     };
 
@@ -1533,15 +1525,6 @@ exports.updatePengajuanSidang = asyncHandler(async (req, res) => {
         path.join(`public/tugas-akhir/pas-foto/${findData.rows[0].pas_foto}`)
       );
       saveData.pas_foto = file.pas_foto[0].filename;
-    }
-
-    if (file.draft_final_skripsi && file.draft_final_skripsi[0]) {
-      await fs.remove(
-        path.join(
-          `public/tugas-akhir/draft-skripsi/${findData.rows[0].draft_final_skripsi}`
-        )
-      );
-      saveData.draft_final_skripsi = file.draft_final_skripsi[0].filename;
     }
 
     const entries = Object.entries(saveData);
