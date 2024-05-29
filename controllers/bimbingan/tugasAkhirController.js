@@ -9,7 +9,7 @@ exports.pengajuanSk = asyncHandler(async (req, res) => {
   const data = req.body;
   const userLoginId = req.user.user_id;
 
-  const { npm, ipk, curr_code } = req.user;
+  const { npm, nama_lengkap, ipk, curr_code } = req.user;
 
   if (
     !data.judul_skripsi ||
@@ -70,8 +70,16 @@ exports.pengajuanSk = asyncHandler(async (req, res) => {
   );
 
   await DB.query(
-    `INSERT INTO ta_nilai_akhir_kolo(kolo_id, mhs_id) VALUES ($1, $2)`,
-    [insertPendaftaranKolo.rows[0].id, userLoginId]
+    `INSERT INTO ta_nilai_akhir_kolo(kolo_id, mhs_id, nama, npm, judul, pembimbing_1, pembimbing_2) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      insertPendaftaranKolo.rows[0].id,
+      userLoginId,
+      nama_lengkap,
+      npm,
+      data.judul_skripsi,
+      data.sk_pembimbing_1,
+      data.sk_pembimbing_2,
+    ]
   );
 
   const statusIPk = ipk >= 2.0 ? true : false;
@@ -93,8 +101,16 @@ exports.pengajuanSk = asyncHandler(async (req, res) => {
   );
 
   await DB.query(
-    `INSERT INTO ta_nilai_akhir_sidang(sidang_id, mhs_id) VALUES ($1, $2)`,
-    [insertPendaftaranSidang.rows[0].id, userLoginId]
+    `INSERT INTO ta_nilai_akhir_sidang(sidang_id, mhs_id, nama, npm, judul, pembimbing_1, pembimbing_2) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      insertPendaftaranSidang.rows[0].id,
+      userLoginId,
+      nama_lengkap,
+      npm,
+      data.judul_skripsi,
+      data.sk_pembimbing_1,
+      data.sk_pembimbing_2,
+    ]
   );
 
   await DB.query(
@@ -375,16 +391,8 @@ exports.getForAdmin = asyncHandler(async (req, res) => {
 
 exports.getForDosen = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
-  const {
-    filter,
-    filterValue,
-    dataTable,
-    orderField,
-    orderValue,
-    page,
-    perPage,
-    search,
-  } = req.query;
+  const { status, dataTable, orderField, orderValue, page, perPage, search } =
+    req.query;
 
   const pageNumber = parseInt(page, 10) || 1;
   const itemsPerPage = parseInt(perPage, 10) || 10;
@@ -455,21 +463,8 @@ WHERE
   ta_pendaftaran_sidang.penguji_1 = '${userLoginId}' OR
   ta_pendaftaran_sidang.penguji_2 = '${userLoginId}') AND ta_pengajuan_sk.deleted_at IS NULL
 `;
-
-  if (filter && filterValue) {
-    if (Array.isArray(filter) && Array.isArray(filterValue)) {
-      for (let i = 0; i < filter.length; i++) {
-        query += ` WHERE ${filter[i]} = '${filterValue[i]}'`;
-        if (i !== filter.length - 1) {
-          query += " AND";
-        }
-      }
-    } else {
-      res
-        .status(400)
-        .json({ message: "Filter and filterValue must be arrays." });
-      return;
-    }
+  if (status) {
+    query += ` AND ta_pengajuan_sk.status = '${status}'`;
   }
 
   if (search) {
@@ -890,6 +885,16 @@ exports.pengajuanKolokium = asyncHandler(async (req, res) => {
   );
 
   await DB.query(
+    "UPDATE ta_nilai_akhir_kolo SET judul = $1, pembimbing_1 = $2, pembimbing_2 = $3 WHERE kolo_id = $4",
+    [
+      requiredData.judul,
+      requiredData.kolo_pembimbing_1,
+      requiredData.kolo_pembimbing_2,
+      id,
+    ]
+  );
+
+  await DB.query(
     "UPDATE ta_pendaftaran_sidang SET judul=$1 WHERE pengajuan_sk_id = $2",
     [data.judul, insertedData.rows[0].pengajuan_sk_id]
   );
@@ -955,6 +960,19 @@ exports.updatePengajuanKolokium = asyncHandler(async (req, res) => {
     status_sks_ipk: data.status_sks_ipk,
     jadwal_pelaksanaan: data.jadwal_pelaksanaan,
   };
+
+  await DB.query(
+    "UPDATE ta_nilai_akhir_kolo SET judul = $1, pembimbing_1 = $2, pembimbing_2 = $3, evaluator_1 = $4, evaluator_2 = $5, tanggal = $6 WHERE kolo_id = $7",
+    [
+      dataMahasiswa.judul,
+      dataMahasiswa.kolo_pembimbing_1,
+      dataMahasiswa.kolo_pembimbing_2,
+      requiredData.evaluator_1,
+      requiredData.evaluator_2,
+      requiredData.jadwal_pelaksanaan,
+      id,
+    ]
+  );
 
   const requiredPropsExist = Object.values(requiredData).every(
     (val) => val !== undefined && val !== "" && val !== null
@@ -1548,6 +1566,18 @@ exports.updatePengajuanSidang = asyncHandler(async (req, res) => {
     penguji_1: data.penguji_1,
     penguji_2: data.penguji_2,
   };
+  await DB.query(
+    "UPDATE ta_nilai_akhir_sidang SET judul = $1, pembimbing_1 = $2, pembimbing_2 = $3, penguji_1 = $4, penguji_2 = $5, tanggal = $6 WHERE sidang_id = $7 RETURNING *",
+    [
+      requiredDataMhs.judul,
+      requiredDataMhs.sidang_pembimbing_1,
+      requiredDataMhs.sidang_pembimbing_2,
+      requiredData.penguji_1,
+      requiredData.penguji_2,
+      requiredData.jadwal_pelaksanaan,
+      id,
+    ]
+  );
 
   const requiredPropsExist = Object.values(requiredData).every(
     (val) => val !== undefined && val !== "" && val !== null && val !== "null"
@@ -1749,7 +1779,7 @@ exports.getNilaiSidang = asyncHandler(async (req, res) => {
     [id]
   );
 
-  let query = `SELECT ta_pengajuan_sk.*, tb_data_pribadi.nama_lengkap, tb_data_pribadi.no_hp, tb_users.email, tb_users.npm FROM ta_pengajuan_sk JOIN tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id WHERE ta_pengajuan_sk.id = ${id}`;
+  let query = `SELECT ta_pengajuan_sk.*, tb_data_pribadi.nama_lengkap, tb_data_pribadi.no_hp, tb_data_pribadi.tempat_lahir, tb_data_pribadi.tanggal_lahir, tb_users.email, tb_users.npm FROM ta_pengajuan_sk JOIN tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id WHERE ta_pengajuan_sk.id = ${id}`;
 
   const dataPengajuanSk = await DB.query(query);
 
@@ -2108,5 +2138,95 @@ exports.deleteData = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     message: "Successfully update data.",
+  });
+});
+
+// update nilai akhir kolokium
+exports.updateNilaiAkhirKolo = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const findData = await DB.query(
+    `SELECT * FROM ta_nilai_akhir_kolo WHERE kolo_id = $1`,
+    [id]
+  );
+
+  if (!findData.rows.length) {
+    res.status(404);
+    throw new Error("Data not found.");
+  }
+
+  const saveData = {
+    nama: req.body.nama,
+    npm: req.body.npm,
+    judul: req.body.judul,
+    tanggal: req.body.tanggal,
+    waktu: req.body.waktu,
+    tempat: req.body.tempat,
+    pembimbing_1: req.body.pembimbing_1,
+    pembimbing_2: req.body.pembimbing_2,
+    evaluator_1: req.body.evaluator_1,
+    evaluator_2: req.body.evaluator_2,
+    komentar: req.body.komentar,
+  };
+
+  const entries = Object.entries(saveData);
+  const setQuery = entries
+    .map(([key, _], index) => `${key} = $${index + 1}`)
+    .join(", ");
+
+  const updateData = await DB.query(
+    `UPDATE ta_nilai_akhir_kolo SET ${setQuery} WHERE kolo_id = '${id}' RETURNING *`,
+    entries.map(([_, value]) => value)
+  );
+
+  res.status(201).json({
+    message: "Successfully update data.",
+    data: updateData.rows[0],
+  });
+});
+
+exports.updateNilaiAkhirSidang = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const findData = await DB.query(
+    `SELECT * FROM ta_nilai_akhir_sidang WHERE sidang_id = $1`,
+    [id]
+  );
+
+  if (!findData.rows.length) {
+    res.status(404);
+    throw new Error("Data not found.");
+  }
+
+  const saveData = {
+    nama: req.body.nama,
+    npm: req.body.npm,
+    judul: req.body.judul,
+    tanggal: req.body.tanggal,
+    waktu: req.body.waktu,
+    tempat: req.body.tempat,
+    ketua_penguji: req.body.ketua_penguji,
+    pembimbing_1: req.body.pembimbing_1,
+    pembimbing_2: req.body.pembimbing_2,
+    penguji_1: req.body.penguji_1,
+    penguji_2: req.body.penguji_2,
+    sekertaris_sidang: req.body.sekertaris_sidang,
+    status_kelulusan: req.body.status_kelulusan,
+    komentar: req.body.komentar,
+  };
+
+  const entries = Object.entries(saveData);
+  const setQuery = entries
+    .map(([key, _], index) => `${key} = $${index + 1}`)
+    .join(", ");
+
+  const updateData = await DB.query(
+    `UPDATE ta_nilai_akhir_sidang SET ${setQuery} WHERE sidang_id = '${id}' RETURNING *`,
+    entries.map(([_, value]) => value)
+  );
+
+  res.status(201).json({
+    message: "Successfully update data.",
+    data: updateData.rows[0],
   });
 });
