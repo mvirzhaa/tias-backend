@@ -1,6 +1,7 @@
 const DB = require("../database");
+const DB_BA = require("../db-bimbingan-akademik");
 
-async function getMhsBimbingan(userId) {
+async function getMhsBimbinganTA(userId) {
   try {
     let query = `SELECT 
       ta_pengajuan_sk.*, 
@@ -102,14 +103,12 @@ async function getMhsBimbingan(userId) {
 
     for (const result of results) {
       if (
-        result.sk_pembimbing_1 === userId ||
         result.kolo_pembimbing_1 === userId ||
         result.sidang_pembimbing_1 === userId
       ) {
         pembimbing1Count++;
       }
       if (
-        result.sk_pembimbing_2 === userId ||
         result.kolo_pembimbing_2 === userId ||
         result.sidang_pembimbing_2 === userId
       ) {
@@ -136,10 +135,27 @@ async function getMhsBimbingan(userId) {
       selesai,
     };
   } catch (error) {
-    throw new Error("failed to retrieve prestasi data.");
+    throw new Error("failed to retrieve mhs bimbingan TA data.");
+  }
+}
+
+async function getMhsBimbinganAkademik(userId) {
+  try {
+    const findData = await DB_BA.query(
+      `SELECT tb_bk.*, mhs_bk.mhs_id, mhs_bk.bk_id 
+       FROM tb_bk 
+       JOIN mhs_bk ON tb_bk.id = mhs_bk.bk_id 
+       WHERE tb_bk.dosen_id = '${userId}'`
+    );
+
+    return findData.rowCount;
+  } catch (error) {
+    console.log(error);
+    throw new Error("Failed to retrieve bimbingan akademik data.");
   }
 }
 
 module.exports = {
-  getMhsBimbingan,
+  getMhsBimbinganTA,
+  getMhsBimbinganAkademik,
 };

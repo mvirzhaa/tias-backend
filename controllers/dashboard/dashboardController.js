@@ -2,7 +2,10 @@ const asyncHandler = require("express-async-handler");
 const DB = require("../../database");
 const { getMkForMhs } = require("../../helper/skpi");
 const { default: axios } = require("axios");
-const { getMhsBimbingan } = require("../../utils/repoDashboardDosen");
+const {
+  getMhsBimbinganTA,
+  getMhsBimbinganAkademik,
+} = require("../../utils/repoDashboardDosen");
 
 const getCount = async (table, userLoginId) => {
   try {
@@ -95,7 +98,10 @@ exports.dashboardData = asyncHandler(async (req, res) => {
         },
       });
 
-      const dataMhsBimbingan = await getMhsBimbingan(userLoginId);
+      const dataMhsBimbinganTa = await getMhsBimbinganTA(userLoginId);
+      const dataMhsBimbinganAkademik = await getMhsBimbinganAkademik(
+        userLoginId
+      );
 
       const PEMBELAJARAN_URI = `${process.env.API_LOCAL_ABSEN_AGAIN}/pembelajaran`;
       const reqPembelajaran = await axios.get(PEMBELAJARAN_URI, {
@@ -115,16 +121,17 @@ exports.dashboardData = asyncHandler(async (req, res) => {
         kp_selesai,
         userData: responseData.rows[0],
         tugas_akhir: {
-          pembimbing1Count: dataMhsBimbingan.pembimbing1Count,
-          pembimbing2Count: dataMhsBimbingan.pembimbing2Count,
-          penguji1Count: dataMhsBimbingan.penguji1Count,
-          penguji2Count: dataMhsBimbingan.penguji2Count,
-          pengajuan_sk: dataMhsBimbingan.pengajuan_sk,
-          menuju_kolokium: dataMhsBimbingan.menuju_kolokium,
-          menuju_sidang: dataMhsBimbingan.menuju_kolokium,
-          menyelesaikan_revisi: dataMhsBimbingan.menyelesaikan_revisi,
-          selesai: dataMhsBimbingan.selesai,
+          pembimbing1Count: dataMhsBimbinganTa.pembimbing1Count,
+          pembimbing2Count: dataMhsBimbinganTa.pembimbing2Count,
+          penguji1Count: dataMhsBimbinganTa.penguji1Count,
+          penguji2Count: dataMhsBimbinganTa.penguji2Count,
+          pengajuan_sk: dataMhsBimbinganTa.pengajuan_sk,
+          menuju_kolokium: dataMhsBimbinganTa.menuju_kolokium,
+          menuju_sidang: dataMhsBimbinganTa.menuju_kolokium,
+          menyelesaikan_revisi: dataMhsBimbinganTa.menyelesaikan_revisi,
+          selesai: dataMhsBimbinganTa.selesai,
         },
+        bimbingan_akademik: dataMhsBimbinganAkademik,
       };
     }
 
