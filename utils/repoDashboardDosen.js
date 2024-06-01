@@ -50,7 +50,7 @@ async function getMhsBimbinganTA(userId) {
     JOIN 
       ta_pendaftaran_sidang ON ta_pengajuan_sk.id = ta_pendaftaran_sidang.pengajuan_sk_id
     WHERE 
-      ta_pengajuan_sk.sk_pembimbing_1 = '${userId}' OR 
+      (ta_pengajuan_sk.sk_pembimbing_1 = '${userId}' OR 
       ta_pengajuan_sk.sk_pembimbing_2 = '${userId}' OR 
       ta_pengajuan_sk.sk_pembimbing_3 = '${userId}' OR 
       ta_pengajuan_sk.kepala_lab = '${userId}' OR 
@@ -65,7 +65,7 @@ async function getMhsBimbinganTA(userId) {
       ta_pendaftaran_sidang.sidang_pembimbing_3 = '${userId}' OR
       ta_pendaftaran_sidang.sidang_kepala_lab = '${userId}' OR
       ta_pendaftaran_sidang.penguji_1 = '${userId}' OR
-      ta_pendaftaran_sidang.penguji_2 = '${userId}'
+      ta_pendaftaran_sidang.penguji_2 = '${userId}') AND ta_pengajuan_sk.deleted_at IS NULL
     `;
 
     const response = await DB.query(query);
