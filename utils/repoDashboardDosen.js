@@ -103,13 +103,14 @@ async function getMhsBimbinganTA(userId) {
 
     for (const result of results) {
       if (
-        result.kolo_pembimbing_1 === userId ||
+        result.kolo_pembimbing_1 === userId &&
         result.sidang_pembimbing_1 === userId
       ) {
+        console.log(result.kolo_pembimbing_1);
         pembimbing1Count++;
       }
       if (
-        result.kolo_pembimbing_2 === userId ||
+        result.kolo_pembimbing_2 === userId &&
         result.sidang_pembimbing_2 === userId
       ) {
         pembimbing2Count++;
