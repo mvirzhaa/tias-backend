@@ -12,21 +12,23 @@ exports.getGroupVoting = asyncHandler(async (req, res) => {
     orderValue,
     page,
     perPage,
+    search,
   } = req.query;
 
   const pageNumber = parseInt(page, 10) || 1;
   const itemsPerPage = parseInt(perPage, 10) || 10;
-
   const offset = (pageNumber - 1) * itemsPerPage;
 
   let query = "SELECT * FROM tb_group";
+  let whereClause = "";
 
   if (filter && filterValue) {
     if (Array.isArray(filter) && Array.isArray(filterValue)) {
       for (let i = 0; i < filter.length; i++) {
-        query += ` WHERE ${filter[i]} = '${filterValue[i]}'`;
-        if (i !== filter.length - 1) {
-          query += " AND";
+        if (i === 0) {
+          whereClause += ` WHERE ${filter[i]} = '${filterValue[i]}'`;
+        } else {
+          whereClause += ` AND ${filter[i]} = '${filterValue[i]}'`;
         }
       }
     } else {
@@ -36,6 +38,16 @@ exports.getGroupVoting = asyncHandler(async (req, res) => {
       return;
     }
   }
+
+  if (search) {
+    if (whereClause) {
+      whereClause += ` AND LOWER(nama_group) LIKE '%${search.toLowerCase()}%'`;
+    } else {
+      whereClause += ` WHERE LOWER(nama_group) LIKE '%${search.toLowerCase()}%'`;
+    }
+  }
+
+  query += whereClause;
 
   if (orderField && orderValue) {
     if (typeof orderField === "string" && typeof orderValue === "string") {
@@ -50,30 +62,36 @@ exports.getGroupVoting = asyncHandler(async (req, res) => {
 
   query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
 
-  const result = await DB.query(query);
+  try {
+    const result = await DB.query(query);
 
-  let responseData = result.rows;
+    let responseData = result.rows;
 
-  const totalRecordsQuery = "SELECT COUNT(*) AS total FROM tb_group";
-  const totalRecordsResult = await DB.query(totalRecordsQuery);
-  const totalRecords = totalRecordsResult.rows[0].total;
+    const totalRecordsQuery = "SELECT COUNT(*) AS total FROM tb_group";
+    const totalRecordsResult = await DB.query(totalRecordsQuery);
+    const totalRecords = totalRecordsResult.rows[0].total;
 
-  if (dataTable === "true") {
-    responseData = {
-      message: "success",
-      draw: 1,
-      recordsTotal: totalRecords,
-      recordsFiltered: totalRecords,
-      data: responseData,
-    };
-  } else {
-    responseData = {
-      message: "success",
-      data: responseData,
-    };
+    if (dataTable === "true") {
+      responseData = {
+        message: "success",
+        draw: 1,
+        recordsTotal: totalRecords,
+        recordsFiltered: totalRecords,
+        data: responseData,
+      };
+    } else {
+      responseData = {
+        message: "success",
+        data: responseData,
+      };
+    }
+
+    res.status(200).json(responseData);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Internal Server Error", error: error.message });
   }
-
-  res.status(200).json(responseData);
 });
 
 exports.getAllGroup = asyncHandler(async (req, res) => {

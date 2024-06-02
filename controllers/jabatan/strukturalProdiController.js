@@ -52,6 +52,7 @@ exports.getStruktural = asyncHandler(async (req, res) => {
     orderValue,
     page,
     perPage,
+    search,
   } = req.query;
 
   const pageNumber = parseInt(page, 10) || 1;
@@ -59,28 +60,46 @@ exports.getStruktural = asyncHandler(async (req, res) => {
 
   const offset = (pageNumber - 1) * itemsPerPage;
 
-  let query =
-    "SELECT struktural_prodi.*, tb_data_pribadi.user_id, tb_data_pribadi.nama_lengkap, master_jabatan.nama_jabatan FROM struktural_prodi JOIN tb_data_pribadi ON struktural_prodi.user_id = tb_data_pribadi.user_id JOIN master_jabatan ON struktural_prodi.id_jabatan = master_jabatan.id";
+  let query = `
+    SELECT 
+      struktural_prodi.*, 
+      tb_data_pribadi.user_id, 
+      tb_data_pribadi.nama_lengkap, 
+      master_jabatan.nama_jabatan 
+    FROM 
+      struktural_prodi 
+      JOIN tb_data_pribadi ON struktural_prodi.user_id = tb_data_pribadi.user_id 
+      JOIN master_jabatan ON struktural_prodi.id_jabatan = master_jabatan.id
+  `;
 
-  if (filter && filterValue) {
-    if (Array.isArray(filter) && Array.isArray(filterValue)) {
-      for (let i = 0; i < filter.length; i++) {
-        query += ` WHERE ${filter[i]} = '${filterValue[i]}'`;
-        if (i !== filter.length - 1) {
-          query += " AND";
+  if (search) {
+    query += `
+      WHERE 
+        LOWER(tb_data_pribadi.nama_lengkap) LIKE '%${search.toLowerCase()}%' OR 
+        LOWER(master_jabatan.nama_jabatan) LIKE '%${search.toLowerCase()}%'
+    `;
+  } else {
+    if (filter && filterValue) {
+      if (Array.isArray(filter) && Array.isArray(filterValue)) {
+        for (let i = 0; i < filter.length; i++) {
+          query += ` AND ${filter[i]} = '${filterValue[i]}'`;
         }
+      } else {
+        res
+          .status(400)
+          .json({ message: "Filter and filterValue must be arrays." });
+        return;
       }
-    } else {
-      res
-        .status(400)
-        .json({ message: "Filter and filterValue must be arrays." });
-      return;
     }
   }
 
   if (orderField && orderValue) {
     if (typeof orderField === "string" && typeof orderValue === "string") {
-      query += ` ORDER BY struktural_prodi.${orderField} ${orderValue}`;
+      query += `
+        ORDER BY 
+          ${orderField === "user_id" ? "struktural_prodi." : ""}
+          ${orderField} ${orderValue}
+      `;
     } else {
       res
         .status(400)

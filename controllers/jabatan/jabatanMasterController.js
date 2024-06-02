@@ -41,6 +41,7 @@ exports.getJabatan = asyncHandler(async (req, res) => {
     orderValue,
     page,
     perPage,
+    search,
   } = req.query;
 
   const pageNumber = parseInt(page, 10) || 1;
@@ -50,22 +51,26 @@ exports.getJabatan = asyncHandler(async (req, res) => {
 
   let query = "SELECT * FROM master_jabatan";
 
-  if (filter && filterValue) {
-    if (Array.isArray(filter) && Array.isArray(filterValue)) {
-      for (let i = 0; i < filter.length; i++) {
-        query += ` WHERE ${filter[i]} = '${filterValue[i]}'`;
-        if (i !== filter.length - 1) {
-          query += " AND";
+  // Penambahan bagian pencarian
+  if (search) {
+    query += ` WHERE LOWER(nama_jabatan) LIKE '%${search.toLowerCase()}%'`;
+  } else {
+    // Jika tidak ada pencarian, cek filter
+    if (filter && filterValue) {
+      if (Array.isArray(filter) && Array.isArray(filterValue)) {
+        for (let i = 0; i < filter.length; i++) {
+          query += ` AND ${filter[i]} = '${filterValue[i]}'`;
         }
+      } else {
+        res
+          .status(400)
+          .json({ message: "Filter and filterValue must be arrays." });
+        return;
       }
-    } else {
-      res
-        .status(400)
-        .json({ message: "Filter and filterValue must be arrays." });
-      return;
     }
   }
 
+  // Penambahan bagian pengurutan
   if (orderField && orderValue) {
     if (typeof orderField === "string" && typeof orderValue === "string") {
       query += ` ORDER BY ${orderField} ${orderValue}`;

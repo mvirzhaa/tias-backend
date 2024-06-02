@@ -106,7 +106,6 @@ async function getMhsBimbinganTA(userId) {
         result.kolo_pembimbing_1 === userId &&
         result.sidang_pembimbing_1 === userId
       ) {
-        console.log(result.kolo_pembimbing_1);
         pembimbing1Count++;
       }
       if (
