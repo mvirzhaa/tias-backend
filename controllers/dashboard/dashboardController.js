@@ -132,6 +132,12 @@ exports.dashboardData = asyncHandler(async (req, res) => {
           selesai: dataMhsBimbinganTa.selesai,
         },
         bimbingan_akademik: dataMhsBimbinganAkademik,
+        publikasi,
+        penelitian,
+        hki,
+        pengabdian,
+        pembicara,
+        penghargaan,
       };
     }
 
