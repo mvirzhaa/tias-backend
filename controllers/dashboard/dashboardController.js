@@ -91,30 +91,30 @@ exports.dashboardData = asyncHandler(async (req, res) => {
         status_frs,
       };
     } else {
-      const SKS_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/dosen-for-mk`;
-      const requestSks = await axios.get(SKS_URL, {
-        params: {
-          code: req.user.nip,
-        },
-      });
+      // const SKS_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/dosen-for-mk`;
+      // const requestSks = await axios.get(SKS_URL, {
+      //   params: {
+      //     code: req.user.nip,
+      //   },
+      // });
 
       const dataMhsBimbinganTa = await getMhsBimbinganTA(userLoginId);
       const dataMhsBimbinganAkademik = await getMhsBimbinganAkademik(
         userLoginId
       );
 
-      const PEMBELAJARAN_URI = `${process.env.API_LOCAL_ABSEN_AGAIN}/pembelajaran`;
-      const reqPembelajaran = await axios.get(PEMBELAJARAN_URI, {
-        params: {
-          dataTable: true,
-          filter: ["nik_dosen"],
-          filterValue: [req.user.nip],
-        },
-      });
+      // const PEMBELAJARAN_URI = `${process.env.API_LOCAL_ABSEN_AGAIN}/pembelajaran`;
+      // const reqPembelajaran = await axios.get(PEMBELAJARAN_URI, {
+      //   params: {
+      //     dataTable: true,
+      //     filter: ["nik_dosen"],
+      //     filterValue: [req.user.nip],
+      //   },
+      // });
 
       data = {
-        sks: requestSks.data.SKS,
-        pertemuanPerkuliahan: reqPembelajaran.data.recordsTotal,
+        // sks: requestSks.data.SKS,
+        // pertemuanPerkuliahan: reqPembelajaran.data.recordsTotal,
         belum_kolo,
         besum_sidang,
         belum_revisi,
