@@ -476,7 +476,7 @@ exports.getUsers = asyncHandler(async (req, res) => {
 
 exports.getUsersForNotaDinas = asyncHandler(async (req, res) => {
   const findUsers = await DB.query(
-    "SELECT tb_users.user_id, tb_users.npm, tb_data_pribadi.nama_lengkap, tb_data_pribadi.image, ta_pengajuan_sk.* FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id  JOIN ta_pengajuan_sk ON tb_users.user_id = ta_pengajuan_sk.mhs_id WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true AND ta_pengajuan_sk.status != 'selesai' AND ta_pengajuan_sk.nomor_nota_dinas IS NULL"
+    "SELECT tb_users.user_id, tb_users.npm, tb_data_pribadi.nama_lengkap, tb_data_pribadi.image, ta_pengajuan_sk.* FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id  JOIN ta_pengajuan_sk ON tb_users.user_id = ta_pengajuan_sk.mhs_id WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true AND ta_pengajuan_sk.status != 'selesai' AND ta_pengajuan_sk.nomor_nota_dinas IS NULL AND ta_pengajuan_sk.deleted_at IS NULL"
   );
 
   const resultsUsers = findUsers.rows;
