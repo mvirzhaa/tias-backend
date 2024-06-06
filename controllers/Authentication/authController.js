@@ -190,12 +190,18 @@ exports.register = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error("INVALID NPM. NPM NOT FOUND!!");
     }
-  } else if (npm_nidn.length === 10 || npm_nidn.length === 9) {
+  } else if (
+    npm_nidn.length === 10 ||
+    npm_nidn.length === 9 ||
+    npm_nidn.length === 8
+  ) {
     const role = "Dosen";
     const convert = convertDate(unixTimestamp);
 
     const resultsDosen = await getDosen();
-    const dosenWithNidn = resultsDosen.find((dosen) => dosen.nidn === npm_nidn);
+    const dosenWithNidn = resultsDosen.find(
+      (dosen) => dosen.nidn === npm_nidn || dosen.nip === npm_nidn
+    );
 
     if (dosenWithNidn) {
       // Save user to DB
