@@ -232,7 +232,7 @@ exports.register = asyncHandler(async (req, res) => {
         RETURNING *`,
         [
           saveUser.rows[0].user_id,
-          dosenWithNidn.nama,
+          `${dosenWithNidn.gelar_depan} ${dosenWithNidn.nama} ${dosenWithNidn.gelar_belakang}`,
           jenkelSiak,
           dosenWithNidn.tanggal_lahir,
           dosenWithNidn.tempat_lahir,
