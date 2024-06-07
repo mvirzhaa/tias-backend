@@ -1234,6 +1234,7 @@ exports.getNilaiKoloForDosen = asyncHandler(async (req, res) => {
 
 exports.getNilaiKolo = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const user = req.user;
 
   const dataPengajuanKolo = await DB.query(
     `SELECT * FROM ta_pendaftaran_kolokium WHERE pengajuan_sk_id = $1`,
@@ -1249,10 +1250,18 @@ exports.getNilaiKolo = asyncHandler(async (req, res) => {
     throw new Error("Data not found.");
   }
 
-  const penilaianKolo = await DB.query(
-    "SELECT * FROM ta_penilaian_kolokium WHERE kolo_id = $1",
-    [dataPengajuanKolo.rows[0].id]
-  );
+  let textQuery;
+
+  if (user.role == "Mahasiswa") {
+    textQuery =
+      "SELECT ta_penilaian_kolokium.id, ta_penilaian_kolokium.kolo_id, ta_penilaian_kolokium.dosen_id, ta_penilaian_kolokium.peran, ta_penilaian_kolokium.komentar_singkat FROM ta_penilaian_kolokium WHERE kolo_id = $1";
+  } else {
+    textQuery = "SELECT * FROM ta_penilaian_kolokium WHERE kolo_id = $1";
+  }
+
+  const penilaianKolo = await DB.query(textQuery, [
+    dataPengajuanKolo.rows[0].id,
+  ]);
 
   const penilaianKoloAkhir = await DB.query(
     "SELECT * FROM ta_nilai_akhir_kolo WHERE kolo_id = $1",
@@ -1774,6 +1783,8 @@ exports.penilaianSidang = asyncHandler(async (req, res) => {
 exports.getNilaiSidang = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
+  const user = req.user;
+
   const dataPengajuanSidang = await DB.query(
     `SELECT * FROM ta_pendaftaran_sidang WHERE pengajuan_sk_id = $1`,
     [id]
@@ -1788,10 +1799,18 @@ exports.getNilaiSidang = asyncHandler(async (req, res) => {
     throw new Error("Data not found.");
   }
 
-  const penilaianSidang = await DB.query(
-    "SELECT * FROM ta_penilaian_sidang WHERE sidang_id = $1",
-    [dataPengajuanSidang.rows[0].id]
-  );
+  let textQuery;
+
+  if (user.role == "Mahasiswa") {
+    textQuery =
+      "SELECT ta_penilaian_sidang.id, ta_penilaian_sidang.sidang_id, ta_penilaian_sidang.dosen_id, ta_penilaian_sidang.peran, ta_penilaian_sidang.komentar_singkat FROM ta_penilaian_sidang WHERE sidang_id = $1";
+  } else {
+    textQuery = "SELECT * FROM ta_penilaian_sidang WHERE sidang_id = $1";
+  }
+
+  const penilaianSidang = await DB.query(textQuery, [
+    dataPengajuanSidang.rows[0].id,
+  ]);
 
   const penilaianSidangAkhir = await DB.query(
     "SELECT * FROM ta_nilai_akhir_sidang WHERE sidang_id = $1",
