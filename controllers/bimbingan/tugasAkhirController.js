@@ -1047,13 +1047,14 @@ exports.penilaianKolo = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("Pleas fill in all the required fields.");
   }
-  const nilai1 = Math.round(0.2 * parseInt(data.penilaian_1));
-  const nilai2 = Math.round(0.4 * parseInt(data.penilaian_2));
-  const nilai3 = Math.round(0.1 * parseInt(data.penilaian_3));
-  const nilai4 = Math.round(0.1 * parseInt(data.penilaian_4));
-  const nilai5 = Math.round(0.2 * parseInt(data.penilaian_5));
 
-  const finalNilai = nilai1 + nilai2 + nilai3 + nilai4 + nilai5;
+  const nilai1 = 0.2 * parseInt(data.penilaian_1);
+  const nilai2 = 0.4 * parseInt(data.penilaian_2);
+  const nilai3 = 0.1 * parseInt(data.penilaian_3);
+  const nilai4 = 0.1 * parseInt(data.penilaian_4);
+  const nilai5 = 0.2 * parseInt(data.penilaian_5);
+
+  const finalNilai = Math.round(nilai1 + nilai2 + nilai3 + nilai4 + nilai5);
 
   let hurufMutu;
   if (finalNilai >= 80 && finalNilai <= 100) {
@@ -1160,7 +1161,7 @@ exports.penilaianKolo = asyncHandler(async (req, res) => {
   ]);
 
   res.status(200).json({
-    message: "Successfull created data.",
+    message: "Successfully created data.",
     data: saveData.rows[0],
   });
 });
@@ -1659,15 +1660,17 @@ exports.penilaianSidang = asyncHandler(async (req, res) => {
     !data.penilaian_5
   ) {
     res.status(400);
-    throw new Error("Pleas fill in all the required fields.");
+    throw new Error("Please fill in all the required fields.");
   }
-  const nilai1 = Math.round(0.2 * parseInt(data.penilaian_1));
-  const nilai2 = Math.round(0.4 * parseInt(data.penilaian_2));
-  const nilai3 = Math.round(0.1 * parseInt(data.penilaian_3));
-  const nilai4 = Math.round(0.1 * parseInt(data.penilaian_4));
-  const nilai5 = Math.round(0.2 * parseInt(data.penilaian_5));
 
-  const finalNilai = nilai1 + nilai2 + nilai3 + nilai4 + nilai5;
+  // Menghitung penilaian akhir tanpa pembulatan setiap komponen
+  const nilai1 = 0.2 * parseInt(data.penilaian_1);
+  const nilai2 = 0.4 * parseInt(data.penilaian_2);
+  const nilai3 = 0.1 * parseInt(data.penilaian_3);
+  const nilai4 = 0.1 * parseInt(data.penilaian_4);
+  const nilai5 = 0.2 * parseInt(data.penilaian_5);
+
+  const finalNilai = Math.round(nilai1 + nilai2 + nilai3 + nilai4 + nilai5);
 
   let hurufMutu;
   if (finalNilai >= 80 && finalNilai <= 100) {
@@ -1702,8 +1705,8 @@ exports.penilaianSidang = asyncHandler(async (req, res) => {
     huruf_mutu: hurufMutu,
   };
 
-  const keys = [...Object.keys(dataToCreate)];
-  const values = [...Object.values(dataToCreate)];
+  const keys = Object.keys(dataToCreate);
+  const values = Object.values(dataToCreate);
   const placeholders = keys.map((key, index) => `$${index + 1}`);
 
   const saveData = await DB.query(
@@ -1775,7 +1778,7 @@ exports.penilaianSidang = asyncHandler(async (req, res) => {
   ]);
 
   res.status(200).json({
-    message: "Successfull created data.",
+    message: "Successfully created data.",
     data: saveData.rows[0],
   });
 });
@@ -1921,13 +1924,14 @@ exports.updatePenilaian = asyncHandler(async (req, res) => {
     updateValues
   );
 
-  const nilai1 = Math.round(0.2 * parseInt(saveData.rows[0].penilaian_1));
-  const nilai2 = Math.round(0.4 * parseInt(saveData.rows[0].penilaian_2));
-  const nilai3 = Math.round(0.1 * parseInt(saveData.rows[0].penilaian_3));
-  const nilai4 = Math.round(0.1 * parseInt(saveData.rows[0].penilaian_4));
-  const nilai5 = Math.round(0.2 * parseInt(saveData.rows[0].penilaian_5));
+  // Menghitung penilaian akhir tanpa pembulatan setiap komponen
+  const nilai1 = 0.2 * parseInt(saveData.rows[0].penilaian_1);
+  const nilai2 = 0.4 * parseInt(saveData.rows[0].penilaian_2);
+  const nilai3 = 0.1 * parseInt(saveData.rows[0].penilaian_3);
+  const nilai4 = 0.1 * parseInt(saveData.rows[0].penilaian_4);
+  const nilai5 = 0.2 * parseInt(saveData.rows[0].penilaian_5);
 
-  const finalNilai = nilai1 + nilai2 + nilai3 + nilai4 + nilai5;
+  const finalNilai = Math.round(nilai1 + nilai2 + nilai3 + nilai4 + nilai5);
 
   let hurufMutu;
   if (finalNilai >= 80 && finalNilai <= 100) {
