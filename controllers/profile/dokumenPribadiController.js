@@ -75,15 +75,115 @@ exports.createDokumenPribadi = asyncHandler(async (req, res) => {
 
 exports.getDokPribadi = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
-  const dataDokumen = await DB.query(
-    "SELECT * FROM tb_dokumen_pribadi WHERE user_id = $1",
-    [userLoginId]
-  );
 
-  res.status(200).json({
-    message: "Success get data.",
-    data: dataDokumen.rows,
-  });
+  const {
+    filter,
+    filterValue,
+    dataTable,
+    orderField,
+    orderValue,
+    page,
+    perPage,
+    search,
+  } = req.query;
+
+  const pageNumber = parseInt(page, 10) || 1;
+  const itemsPerPage = parseInt(perPage, 10) || 10;
+  const offset = (pageNumber - 1) * itemsPerPage;
+
+  let query = `SELECT * FROM tb_dokumen_pribadi WHERE user_id = $1`;
+  const queryParams = [userLoginId];
+
+  if (filter && filterValue) {
+    if (
+      Array.isArray(filter) &&
+      Array.isArray(filterValue) &&
+      filter.length === filterValue.length
+    ) {
+      for (let i = 0; i < filter.length; i++) {
+        query += ` AND ${filter[i]} = $${queryParams.length + 1}`;
+        queryParams.push(filterValue[i]);
+      }
+    } else {
+      res.status(400).json({
+        message: "Filter and filterValue must be arrays of the same length.",
+      });
+      return;
+    }
+  }
+
+  if (search) {
+    query += ` AND LOWER(nama_dok) LIKE $${queryParams.length + 1}`;
+    queryParams.push(`%${search.toLowerCase()}%`);
+  }
+
+  if (orderField && orderValue) {
+    if (typeof orderField === "string" && typeof orderValue === "string") {
+      query += ` ORDER BY ${orderField} ${orderValue}`;
+    } else {
+      res
+        .status(400)
+        .json({ message: "orderField and orderValue must be strings." });
+      return;
+    }
+  }
+
+  query += ` LIMIT $${queryParams.length + 1} OFFSET $${
+    queryParams.length + 2
+  }`;
+  queryParams.push(itemsPerPage, offset);
+
+  try {
+    const results = await DB.query(query, queryParams);
+    let responseData = results.rows;
+
+    // Adjust the totalRecordsQuery to consider the same filters
+    let totalRecordsQuery = `SELECT COUNT(*) AS total FROM tb_dokumen_pribadi WHERE user_id = $1`;
+    const totalRecordsParams = [userLoginId];
+
+    if (filter && filterValue) {
+      for (let i = 0; i < filter.length; i++) {
+        totalRecordsQuery += ` AND ${filter[i]} = $${
+          totalRecordsParams.length + 1
+        }`;
+        totalRecordsParams.push(filterValue[i]);
+      }
+    }
+
+    if (search) {
+      totalRecordsQuery += ` AND LOWER(nama_dok) LIKE $${
+        totalRecordsParams.length + 1
+      }`;
+      totalRecordsParams.push(`%${search.toLowerCase()}%`);
+    }
+
+    const totalRecordsResult = await DB.query(
+      totalRecordsQuery,
+      totalRecordsParams
+    );
+    const totalRecords = totalRecordsResult.rows[0].total;
+
+    if (dataTable === "true") {
+      responseData = {
+        message: "success",
+        draw: 1,
+        recordsTotal: totalRecords,
+        recordsFiltered: totalRecords,
+        data: responseData,
+      };
+    } else {
+      responseData = {
+        message: "success",
+        data: responseData,
+      };
+    }
+
+    res.status(200).json(responseData);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Internal Server Error", error: error.message });
+  }
 });
 
 exports.detailDokPribadi = asyncHandler(async (req, res) => {
