@@ -2272,7 +2272,7 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
 
   let baseQuery = `
     SELECT 
-      DISTINCT ta_pendaftaran_kolokium.id, 
+      ta_pendaftaran_kolokium.id, 
       ta_pendaftaran_kolokium.mhs_id, 
       ta_penilaian_kolokium.kolo_id, 
       ta_penilaian_kolokium.dosen_id, 
@@ -2357,46 +2357,44 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
 
     query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
 
-    // console.log("Executing query:", query); // Debugging line to log the query
-
     const result = await DB.query(query);
     const rows = result.rows;
 
-    // Grouping penilaian_kolokium by mhs_id
-    const groupedData = rows.reduce((acc, row) => {
-      const mhsId = row.mhs_id;
-      if (!acc[mhsId]) {
-        acc[mhsId] = {
-          id: row.id,
-          mhs_id: mhsId,
-          npm: row.npm,
-          nama_lengkap: row.nama_lengkap,
-          sk_id: row.sk_id,
-          nilai_akhir_kolo: row.nilai_akhir_kolo,
-          huruf_mutu_akhir_kolo: row.huruf_mutu_akhir_kolo,
-          penilaian_kolokium: [],
-        };
-      }
-      if (row.kolo_id) {
-        acc[mhsId].penilaian_kolokium.push({
-          kolo_id: row.kolo_id,
-          dosen_id: row.dosen_id,
-          peran: row.peran,
-          penilaian_1: row.penilaian_1,
-          penilaian_2: row.penilaian_2,
-          penilaian_3: row.penilaian_3,
-          penilaian_4: row.penilaian_4,
-          penilaian_5: row.penilaian_5,
-          komentar_singkat: row.komentar_singkat,
-          created_at: row.created_at,
-          final_nilai: row.final_nilai,
-          huruf_mutu: row.huruf_mutu,
-        });
-      }
-      return acc;
-    }, {});
+    // // Grouping penilaian_kolokium by mhs_id
+    // const groupedData = rows.reduce((acc, row) => {
+    //   const mhsId = row.mhs_id;
+    //   if (!acc[mhsId]) {
+    //     acc[mhsId] = {
+    //       id: row.id,
+    //       mhs_id: mhsId,
+    //       npm: row.npm,
+    //       nama_lengkap: row.nama_lengkap,
+    //       sk_id: row.sk_id,
+    //       nilai_akhir_kolo: row.nilai_akhir_kolo,
+    //       huruf_mutu_akhir_kolo: row.huruf_mutu_akhir_kolo,
+    //       penilaian_kolokium: [],
+    //     };
+    //   }
+    //   if (row.kolo_id) {
+    //     acc[mhsId].penilaian_kolokium.push({
+    //       kolo_id: row.kolo_id,
+    //       dosen_id: row.dosen_id,
+    //       peran: row.peran,
+    //       penilaian_1: row.penilaian_1,
+    //       penilaian_2: row.penilaian_2,
+    //       penilaian_3: row.penilaian_3,
+    //       penilaian_4: row.penilaian_4,
+    //       penilaian_5: row.penilaian_5,
+    //       komentar_singkat: row.komentar_singkat,
+    //       created_at: row.created_at,
+    //       final_nilai: row.final_nilai,
+    //       huruf_mutu: row.huruf_mutu,
+    //     });
+    //   }
+    //   return acc;
+    // }, {});
 
-    let responseData = Object.values(groupedData);
+    let responseData = rows;
 
     if (dataTable === "true") {
       responseData = {
@@ -2404,12 +2402,12 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
         draw: 1,
         recordsTotal: totalRecords,
         recordsFiltered: totalRecords,
-        data: responseData,
+        data: rows,
       };
     } else {
       responseData = {
         message: "success",
-        data: responseData,
+        data: rows,
       };
     }
 
