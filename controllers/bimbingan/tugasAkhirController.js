@@ -2525,7 +2525,6 @@ exports.getRekapPenilaianSidang = asyncHandler(async (req, res) => {
     const result = await DB.query(query);
     const rows = result.rows;
 
-    // Grouping penilaian_kolokium by mhs_id
     const groupedData = rows.reduce((acc, row) => {
       const mhsId = row.mhs_id;
       if (!acc[mhsId]) {
