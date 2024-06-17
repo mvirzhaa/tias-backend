@@ -2270,45 +2270,6 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
   const itemsPerPage = parseInt(perPage, 10) || 10;
   const offset = (pageNumber - 1) * itemsPerPage;
 
-  let baseQuery = `
-    SELECT 
-      ta_pendaftaran_kolokium.id, 
-      ta_pendaftaran_kolokium.mhs_id, 
-      ta_penilaian_kolokium.kolo_id, 
-      ta_penilaian_kolokium.dosen_id, 
-      ta_penilaian_kolokium.peran, 
-      ta_penilaian_kolokium.penilaian_1, 
-      ta_penilaian_kolokium.penilaian_2, 
-      ta_penilaian_kolokium.penilaian_3, 
-      ta_penilaian_kolokium.penilaian_4, 
-      ta_penilaian_kolokium.penilaian_5, 
-      ta_penilaian_kolokium.komentar_singkat, 
-      ta_penilaian_kolokium.created_at, 
-      ta_penilaian_kolokium.final_nilai, 
-      ta_penilaian_kolokium.huruf_mutu, 
-      ta_pengajuan_sk.deleted_at, 
-      ta_pengajuan_sk.id AS sk_id, 
-      tb_data_pribadi.user_id, 
-      tb_data_pribadi.nama_lengkap, 
-      tb_users.user_id,
-      tb_users.npm,
-      ta_nilai_akhir_kolo.nilai_akhir as nilai_akhir_kolo,
-      ta_nilai_akhir_kolo.huruf_mutu as huruf_mutu_akhir_kolo
-    FROM 
-      ta_pendaftaran_kolokium 
-    LEFT JOIN 
-      ta_penilaian_kolokium ON ta_pendaftaran_kolokium.id = ta_penilaian_kolokium.kolo_id 
-    LEFT JOIN 
-      ta_pengajuan_sk ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id 
-    LEFT JOIN 
-      ta_nilai_akhir_kolo ON ta_pendaftaran_kolokium.id = ta_nilai_akhir_kolo.kolo_id 
-    JOIN 
-      tb_data_pribadi ON ta_pendaftaran_kolokium.mhs_id = tb_data_pribadi.user_id 
-    JOIN
-      tb_users ON ta_pendaftaran_kolokium.mhs_id = tb_users.user_id
-    WHERE 
-      ta_pengajuan_sk.deleted_at IS NULL`;
-
   let whereClause = "";
 
   if (filter && filterValue) {
@@ -2342,76 +2303,85 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
     const totalRecordsResult = await DB.query(totalRecordsQuery);
     const totalRecords = totalRecordsResult.rows[0].total;
 
-    let query = baseQuery + whereClause;
-
-    if (orderField && orderValue) {
-      if (typeof orderField === "string" && typeof orderValue === "string") {
-        query += ` ORDER BY ${orderField} ${orderValue}`;
-      } else {
-        res
-          .status(400)
-          .json({ message: "orderField and orderValue must be strings." });
-        return;
-      }
-    }
-
-    query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
+    const query = `
+      WITH aggregated_penilaian AS (
+        SELECT
+          kolo_id,
+          json_agg(json_build_object(
+            'dosen_id', dosen_id,
+            'peran', peran,
+            'penilaian_1', penilaian_1,
+            'penilaian_2', penilaian_2,
+            'penilaian_3', penilaian_3,
+            'penilaian_4', penilaian_4,
+            'penilaian_5', penilaian_5,
+            'komentar_singkat', komentar_singkat,
+            'created_at', created_at,
+            'final_nilai', final_nilai,
+            'huruf_mutu', huruf_mutu
+          )) AS penilaian_kolokium
+        FROM
+          ta_penilaian_kolokium
+        GROUP BY
+          kolo_id
+      )
+      SELECT
+        ta_pendaftaran_kolokium.id,
+        ta_pendaftaran_kolokium.mhs_id,
+        tb_users.npm,
+        tb_data_pribadi.nama_lengkap,
+        ta_pengajuan_sk.id AS sk_id,
+        ta_nilai_akhir_kolo.nilai_akhir AS nilai_akhir_kolo,
+        ta_nilai_akhir_kolo.huruf_mutu AS huruf_mutu_akhir_kolo,
+        aggregated_penilaian.penilaian_kolokium
+      FROM
+        ta_pendaftaran_kolokium
+      LEFT JOIN
+        ta_pengajuan_sk ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id
+      LEFT JOIN
+        ta_nilai_akhir_kolo ON ta_pendaftaran_kolokium.id = ta_nilai_akhir_kolo.kolo_id
+      JOIN
+        tb_data_pribadi ON ta_pendaftaran_kolokium.mhs_id = tb_data_pribadi.user_id
+      JOIN
+        tb_users ON ta_pendaftaran_kolokium.mhs_id = tb_users.user_id
+      LEFT JOIN
+        aggregated_penilaian ON ta_pendaftaran_kolokium.id = aggregated_penilaian.kolo_id
+      WHERE
+        ta_pengajuan_sk.deleted_at IS NULL
+        ${whereClause}
+      ORDER BY
+        ${orderField} ${orderValue}
+      LIMIT
+        ${itemsPerPage} OFFSET ${offset};`;
 
     const result = await DB.query(query);
     const rows = result.rows;
 
-    // // Grouping penilaian_kolokium by mhs_id
-    // const groupedData = rows.reduce((acc, row) => {
-    //   const mhsId = row.mhs_id;
-    //   if (!acc[mhsId]) {
-    //     acc[mhsId] = {
-    //       id: row.id,
-    //       mhs_id: mhsId,
-    //       npm: row.npm,
-    //       nama_lengkap: row.nama_lengkap,
-    //       sk_id: row.sk_id,
-    //       nilai_akhir_kolo: row.nilai_akhir_kolo,
-    //       huruf_mutu_akhir_kolo: row.huruf_mutu_akhir_kolo,
-    //       penilaian_kolokium: [],
-    //     };
-    //   }
-    //   if (row.kolo_id) {
-    //     acc[mhsId].penilaian_kolokium.push({
-    //       kolo_id: row.kolo_id,
-    //       dosen_id: row.dosen_id,
-    //       peran: row.peran,
-    //       penilaian_1: row.penilaian_1,
-    //       penilaian_2: row.penilaian_2,
-    //       penilaian_3: row.penilaian_3,
-    //       penilaian_4: row.penilaian_4,
-    //       penilaian_5: row.penilaian_5,
-    //       komentar_singkat: row.komentar_singkat,
-    //       created_at: row.created_at,
-    //       final_nilai: row.final_nilai,
-    //       huruf_mutu: row.huruf_mutu,
-    //     });
-    //   }
-    //   return acc;
-    // }, {});
-
-    let responseData = rows;
+    const responseData = rows.map((row) => ({
+      id: row.id,
+      mhs_id: row.mhs_id,
+      npm: row.npm,
+      nama_lengkap: row.nama_lengkap,
+      sk_id: row.sk_id,
+      nilai_akhir_kolo: row.nilai_akhir_kolo,
+      huruf_mutu_akhir_kolo: row.huruf_mutu_akhir_kolo,
+      penilaian_kolokium: row.penilaian_kolokium || [],
+    }));
 
     if (dataTable === "true") {
-      responseData = {
+      res.status(200).json({
         message: "success",
         draw: 1,
         recordsTotal: totalRecords,
         recordsFiltered: totalRecords,
-        data: rows,
-      };
+        data: responseData,
+      });
     } else {
-      responseData = {
+      res.status(200).json({
         message: "success",
-        data: rows,
-      };
+        data: responseData,
+      });
     }
-
-    res.status(200).json(responseData);
   } catch (error) {
     res
       .status(500)
