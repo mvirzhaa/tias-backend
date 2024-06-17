@@ -111,7 +111,17 @@ router.delete("/:id", protected, deleteData);
 router.put("/nilai-akhir-kolo/:id", protected, updateNilaiAkhirKolo);
 router.put("/nilai-akhir-sidang/:id", protected, updateNilaiAkhirSidang);
 
-router.get("/rekap-nilai-kolo", protected, getRekapPenilaianKolokium);
-router.get("/rekap-nilai-sidang", protected, getRekapPenilaianSidang);
+router.get(
+  "/rekap-nilai-kolo",
+  protected,
+  adminOnly,
+  getRekapPenilaianKolokium
+);
+router.get(
+  "/rekap-nilai-sidang",
+  protected,
+  adminOnly,
+  getRekapPenilaianSidang
+);
 
 module.exports = router;
