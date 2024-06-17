@@ -2272,7 +2272,7 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
 
   let baseQuery = `
     SELECT 
-      ta_pendaftaran_kolokium.id, 
+      DISTINCT ta_pendaftaran_kolokium.id, 
       ta_pendaftaran_kolokium.mhs_id, 
       ta_penilaian_kolokium.kolo_id, 
       ta_penilaian_kolokium.dosen_id, 
@@ -2356,6 +2356,8 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
     }
 
     query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
+
+    // console.log("Executing query:", query); // Debugging line to log the query
 
     const result = await DB.query(query);
     const rows = result.rows;
