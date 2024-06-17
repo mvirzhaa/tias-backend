@@ -2426,18 +2426,6 @@ exports.getRekapPenilaianSidang = asyncHandler(async (req, res) => {
     SELECT 
       ta_pendaftaran_sidang.id, 
       ta_pendaftaran_sidang.mhs_id, 
-      ta_penilaian_sidang.sidang_id, 
-      ta_penilaian_sidang.dosen_id, 
-      ta_penilaian_sidang.peran, 
-      ta_penilaian_sidang.penilaian_1, 
-      ta_penilaian_sidang.penilaian_2, 
-      ta_penilaian_sidang.penilaian_3, 
-      ta_penilaian_sidang.penilaian_4, 
-      ta_penilaian_sidang.penilaian_5, 
-      ta_penilaian_sidang.komentar_singkat, 
-      ta_penilaian_sidang.created_at, 
-      ta_penilaian_sidang.final_nilai, 
-      ta_penilaian_sidang.huruf_mutu, 
       ta_pengajuan_sk.deleted_at, 
       ta_pengajuan_sk.id AS sk_id, 
       tb_data_pribadi.user_id, 
@@ -2449,10 +2437,8 @@ exports.getRekapPenilaianSidang = asyncHandler(async (req, res) => {
     FROM 
       ta_pendaftaran_sidang 
     LEFT JOIN 
-      ta_penilaian_sidang ON ta_pendaftaran_sidang.id = ta_penilaian_sidang.sidang_id 
-    LEFT JOIN 
       ta_pengajuan_sk ON ta_pendaftaran_sidang.pengajuan_sk_id = ta_pengajuan_sk.id 
-    LEFT JOIN 
+    JOIN 
       ta_nilai_akhir_sidang ON ta_pendaftaran_sidang.id = ta_nilai_akhir_sidang.sidang_id 
     JOIN 
       tb_data_pribadi ON ta_pendaftaran_sidang.mhs_id = tb_data_pribadi.user_id 
@@ -2483,9 +2469,7 @@ exports.getRekapPenilaianSidang = asyncHandler(async (req, res) => {
   const totalRecordsQuery = `
     SELECT COUNT(DISTINCT ta_pendaftaran_sidang.id) AS total 
     FROM ta_pendaftaran_sidang 
-    LEFT JOIN ta_penilaian_sidang ON ta_pendaftaran_sidang.id = ta_penilaian_sidang.sidang_id 
     LEFT JOIN ta_pengajuan_sk ON ta_pendaftaran_sidang.pengajuan_sk_id = ta_pengajuan_sk.id 
-    LEFT JOIN ta_nilai_akhir_sidang ON ta_pendaftaran_sidang.id = ta_nilai_akhir_sidang.sidang_id 
     JOIN tb_data_pribadi ON ta_pendaftaran_sidang.mhs_id = tb_data_pribadi.user_id 
     WHERE ta_pengajuan_sk.deleted_at IS NULL
     ${whereClause}`;
@@ -2512,57 +2496,61 @@ exports.getRekapPenilaianSidang = asyncHandler(async (req, res) => {
     const result = await DB.query(query);
     const rows = result.rows;
 
-    const groupedData = rows.reduce((acc, row) => {
-      const mhsId = row.mhs_id;
-      if (!acc[mhsId]) {
-        acc[mhsId] = {
-          id: row.id,
-          mhs_id: mhsId,
-          npm: row.npm,
-          nama_lengkap: row.nama_lengkap,
-          sk_id: row.sk_id,
-          nilai_akhir_sidang: row.nilai_akhir_sidang,
-          huruf_mutu_akhir_sidang: row.huruf_mutu_akhir_sidang,
-          penilaian_sidang: [],
-        };
+    const sidangIds = rows.map((row) => row.id);
+
+    let evaluationsQuery = `
+      SELECT 
+        ta_penilaian_sidang.sidang_id,
+        ta_penilaian_sidang.dosen_id,
+        ta_penilaian_sidang.peran,
+        ta_penilaian_sidang.penilaian_1,
+        ta_penilaian_sidang.penilaian_2,
+        ta_penilaian_sidang.penilaian_3,
+        ta_penilaian_sidang.penilaian_4,
+        ta_penilaian_sidang.penilaian_5,
+        ta_penilaian_sidang.komentar_singkat,
+        ta_penilaian_sidang.created_at,
+        ta_penilaian_sidang.final_nilai,
+        ta_penilaian_sidang.huruf_mutu
+      FROM 
+        ta_penilaian_sidang
+      WHERE
+        ta_penilaian_sidang.sidang_id IN (${sidangIds.join(",")})
+    `;
+
+    const evaluationsResult = await DB.query(evaluationsQuery);
+    const evaluationsRows = evaluationsResult.rows;
+
+    // Grouping evaluations by sidang_id
+    const evaluationsGrouped = evaluationsRows.reduce((acc, row) => {
+      const sidangId = row.sidang_id;
+      if (!acc[sidangId]) {
+        acc[sidangId] = [];
       }
-      if (row.sidang_id) {
-        acc[mhsId].penilaian_sidang.push({
-          sidang_id: row.sidang_id,
-          dosen_id: row.dosen_id,
-          peran: row.peran,
-          penilaian_1: row.penilaian_1,
-          penilaian_2: row.penilaian_2,
-          penilaian_3: row.penilaian_3,
-          penilaian_4: row.penilaian_4,
-          penilaian_5: row.penilaian_5,
-          komentar_singkat: row.komentar_singkat,
-          created_at: row.created_at,
-          final_nilai: row.final_nilai,
-          huruf_mutu: row.huruf_mutu,
-        });
-      }
+      acc[sidangId].push(row);
       return acc;
     }, {});
 
-    let responseData = Object.values(groupedData);
+    // Merging evaluations with the main data
+    const responseData = rows.map((row) => ({
+      ...row,
+      penilaian_sidang: evaluationsGrouped[row.id] || [],
+    }));
 
     if (dataTable === "true") {
-      responseData = {
+      res.status(200).json({
         message: "success",
         draw: 1,
         recordsTotal: totalRecords,
         recordsFiltered: totalRecords,
         data: responseData,
-      };
+      });
     } else {
-      responseData = {
+      res.status(200).json({
         message: "success",
         data: responseData,
-      };
+      });
     }
-
-    res.status(200).json(responseData);
   } catch (error) {
     res
       .status(500)
