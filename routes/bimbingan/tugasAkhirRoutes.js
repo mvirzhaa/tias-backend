@@ -32,6 +32,8 @@ const {
   deleteData,
   updateNilaiAkhirKolo,
   updateNilaiAkhirSidang,
+  getRekapPenilaianKolokium,
+  getRekapPenilaianSidang,
 } = require("../../controllers/bimbingan/tugasAkhirController");
 const {
   makalahKolokiumUpload,
@@ -108,5 +110,8 @@ router.put("/update-nilai/:id", protected, adminDosenOnly, updatePenilaian);
 router.delete("/:id", protected, deleteData);
 router.put("/nilai-akhir-kolo/:id", protected, updateNilaiAkhirKolo);
 router.put("/nilai-akhir-sidang/:id", protected, updateNilaiAkhirSidang);
+
+router.get("/rekap-nilai-kolo", protected, getRekapPenilaianKolokium);
+router.get("/rekap-nilai-sidang", protected, getRekapPenilaianSidang);
 
 module.exports = router;

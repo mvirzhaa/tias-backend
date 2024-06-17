@@ -2253,3 +2253,333 @@ exports.updateNilaiAkhirSidang = asyncHandler(async (req, res) => {
     data: updateData.rows[0],
   });
 });
+
+exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
+  const {
+    filter,
+    filterValue,
+    dataTable,
+    orderField,
+    orderValue,
+    page,
+    perPage,
+    search,
+  } = req.query;
+
+  const pageNumber = parseInt(page, 10) || 1;
+  const itemsPerPage = parseInt(perPage, 10) || 10;
+  const offset = (pageNumber - 1) * itemsPerPage;
+
+  let baseQuery = `
+    SELECT 
+      ta_pendaftaran_kolokium.id, 
+      ta_pendaftaran_kolokium.mhs_id, 
+      ta_penilaian_kolokium.kolo_id, 
+      ta_penilaian_kolokium.dosen_id, 
+      ta_penilaian_kolokium.peran, 
+      ta_penilaian_kolokium.penilaian_1, 
+      ta_penilaian_kolokium.penilaian_2, 
+      ta_penilaian_kolokium.penilaian_3, 
+      ta_penilaian_kolokium.penilaian_4, 
+      ta_penilaian_kolokium.penilaian_5, 
+      ta_penilaian_kolokium.komentar_singkat, 
+      ta_penilaian_kolokium.created_at, 
+      ta_penilaian_kolokium.final_nilai, 
+      ta_penilaian_kolokium.huruf_mutu, 
+      ta_pengajuan_sk.deleted_at, 
+      ta_pengajuan_sk.id AS sk_id, 
+      tb_data_pribadi.user_id, 
+      tb_data_pribadi.nama_lengkap, 
+      tb_users.user_id,
+      tb_users.npm,
+      ta_nilai_akhir_kolo.nilai_akhir as nilai_akhir_kolo,
+      ta_nilai_akhir_kolo.huruf_mutu as huruf_mutu_akhir_kolo
+    FROM 
+      ta_pendaftaran_kolokium 
+    LEFT JOIN 
+      ta_penilaian_kolokium ON ta_pendaftaran_kolokium.id = ta_penilaian_kolokium.kolo_id 
+    LEFT JOIN 
+      ta_pengajuan_sk ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id 
+    LEFT JOIN 
+      ta_nilai_akhir_kolo ON ta_pendaftaran_kolokium.id = ta_nilai_akhir_kolo.kolo_id 
+    JOIN 
+      tb_data_pribadi ON ta_pendaftaran_kolokium.mhs_id = tb_data_pribadi.user_id 
+    JOIN
+      tb_users ON ta_pendaftaran_kolokium.mhs_id = tb_users.user_id
+    WHERE 
+      ta_pengajuan_sk.deleted_at IS NULL`;
+
+  let whereClause = "";
+
+  if (filter && filterValue) {
+    if (Array.isArray(filter) && Array.isArray(filterValue)) {
+      for (let i = 0; i < filter.length; i++) {
+        whereClause += ` AND ${filter[i]} = '${filterValue[i]}'`;
+      }
+    } else {
+      res
+        .status(400)
+        .json({ message: "Filter and filterValue must be arrays." });
+      return;
+    }
+  }
+
+  if (search) {
+    whereClause += ` AND LOWER(tb_data_pribadi.nama_lengkap) LIKE '%${search.toLowerCase()}%'`;
+  }
+
+  const totalRecordsQuery = `
+    SELECT COUNT(DISTINCT ta_pendaftaran_kolokium.id) AS total 
+    FROM ta_pendaftaran_kolokium 
+    LEFT JOIN ta_penilaian_kolokium ON ta_pendaftaran_kolokium.id = ta_penilaian_kolokium.kolo_id 
+    LEFT JOIN ta_pengajuan_sk ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id 
+    LEFT JOIN ta_nilai_akhir_kolo ON ta_pendaftaran_kolokium.id = ta_nilai_akhir_kolo.kolo_id 
+    JOIN tb_data_pribadi ON ta_pendaftaran_kolokium.mhs_id = tb_data_pribadi.user_id 
+    WHERE ta_pengajuan_sk.deleted_at IS NULL
+    ${whereClause}`;
+
+  try {
+    const totalRecordsResult = await DB.query(totalRecordsQuery);
+    const totalRecords = totalRecordsResult.rows[0].total;
+
+    let query = baseQuery + whereClause;
+
+    if (orderField && orderValue) {
+      if (typeof orderField === "string" && typeof orderValue === "string") {
+        query += ` ORDER BY ${orderField} ${orderValue}`;
+      } else {
+        res
+          .status(400)
+          .json({ message: "orderField and orderValue must be strings." });
+        return;
+      }
+    }
+
+    query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
+
+    const result = await DB.query(query);
+    const rows = result.rows;
+
+    // Grouping penilaian_kolokium by mhs_id
+    const groupedData = rows.reduce((acc, row) => {
+      const mhsId = row.mhs_id;
+      if (!acc[mhsId]) {
+        acc[mhsId] = {
+          id: row.id,
+          mhs_id: mhsId,
+          npm: row.npm,
+          nama_lengkap: row.nama_lengkap,
+          sk_id: row.sk_id,
+          nilai_akhir_kolo: row.nilai_akhir_kolo,
+          huruf_mutu_akhir_kolo: row.huruf_mutu_akhir_kolo,
+          penilaian_kolokium: [],
+        };
+      }
+      if (row.kolo_id) {
+        acc[mhsId].penilaian_kolokium.push({
+          kolo_id: row.kolo_id,
+          dosen_id: row.dosen_id,
+          peran: row.peran,
+          penilaian_1: row.penilaian_1,
+          penilaian_2: row.penilaian_2,
+          penilaian_3: row.penilaian_3,
+          penilaian_4: row.penilaian_4,
+          penilaian_5: row.penilaian_5,
+          komentar_singkat: row.komentar_singkat,
+          created_at: row.created_at,
+          final_nilai: row.final_nilai,
+          huruf_mutu: row.huruf_mutu,
+        });
+      }
+      return acc;
+    }, {});
+
+    let responseData = Object.values(groupedData);
+
+    if (dataTable === "true") {
+      responseData = {
+        message: "success",
+        draw: 1,
+        recordsTotal: totalRecords,
+        recordsFiltered: totalRecords,
+        data: responseData,
+      };
+    } else {
+      responseData = {
+        message: "success",
+        data: responseData,
+      };
+    }
+
+    res.status(200).json(responseData);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Internal Server Error", error: error.message });
+  }
+});
+
+exports.getRekapPenilaianSidang = asyncHandler(async (req, res) => {
+  const {
+    filter,
+    filterValue,
+    dataTable,
+    orderField,
+    orderValue,
+    page,
+    perPage,
+    search,
+  } = req.query;
+
+  const pageNumber = parseInt(page, 10) || 1;
+  const itemsPerPage = parseInt(perPage, 10) || 10;
+  const offset = (pageNumber - 1) * itemsPerPage;
+
+  let baseQuery = `
+    SELECT 
+      ta_pendaftaran_sidang.id, 
+      ta_pendaftaran_sidang.mhs_id, 
+      ta_penilaian_sidang.sidang_id, 
+      ta_penilaian_sidang.dosen_id, 
+      ta_penilaian_sidang.peran, 
+      ta_penilaian_sidang.penilaian_1, 
+      ta_penilaian_sidang.penilaian_2, 
+      ta_penilaian_sidang.penilaian_3, 
+      ta_penilaian_sidang.penilaian_4, 
+      ta_penilaian_sidang.penilaian_5, 
+      ta_penilaian_sidang.komentar_singkat, 
+      ta_penilaian_sidang.created_at, 
+      ta_penilaian_sidang.final_nilai, 
+      ta_penilaian_sidang.huruf_mutu, 
+      ta_pengajuan_sk.deleted_at, 
+      ta_pengajuan_sk.id AS sk_id, 
+      tb_data_pribadi.user_id, 
+      tb_data_pribadi.nama_lengkap, 
+      tb_users.user_id,
+      tb_users.npm,
+      ta_nilai_akhir_sidang.nilai_akhir as nilai_akhir_sidang,
+      ta_nilai_akhir_sidang.huruf_mutu as huruf_mutu_akhir_sidang
+    FROM 
+      ta_pendaftaran_sidang 
+    LEFT JOIN 
+      ta_penilaian_sidang ON ta_pendaftaran_sidang.id = ta_penilaian_sidang.sidang_id 
+    LEFT JOIN 
+      ta_pengajuan_sk ON ta_pendaftaran_sidang.pengajuan_sk_id = ta_pengajuan_sk.id 
+    LEFT JOIN 
+      ta_nilai_akhir_sidang ON ta_pendaftaran_sidang.id = ta_nilai_akhir_sidang.sidang_id 
+    JOIN 
+      tb_data_pribadi ON ta_pendaftaran_sidang.mhs_id = tb_data_pribadi.user_id 
+    JOIN
+      tb_users ON ta_pendaftaran_sidang.mhs_id = tb_users.user_id
+    WHERE 
+      ta_pengajuan_sk.deleted_at IS NULL`;
+
+  let whereClause = "";
+
+  if (filter && filterValue) {
+    if (Array.isArray(filter) && Array.isArray(filterValue)) {
+      for (let i = 0; i < filter.length; i++) {
+        whereClause += ` AND ${filter[i]} = '${filterValue[i]}'`;
+      }
+    } else {
+      res
+        .status(400)
+        .json({ message: "Filter and filterValue must be arrays." });
+      return;
+    }
+  }
+
+  if (search) {
+    whereClause += ` AND LOWER(tb_data_pribadi.nama_lengkap) LIKE '%${search.toLowerCase()}%'`;
+  }
+
+  const totalRecordsQuery = `
+    SELECT COUNT(DISTINCT ta_pendaftaran_sidang.id) AS total 
+    FROM ta_pendaftaran_sidang 
+    LEFT JOIN ta_penilaian_sidang ON ta_pendaftaran_sidang.id = ta_penilaian_sidang.sidang_id 
+    LEFT JOIN ta_pengajuan_sk ON ta_pendaftaran_sidang.pengajuan_sk_id = ta_pengajuan_sk.id 
+    LEFT JOIN ta_nilai_akhir_sidang ON ta_pendaftaran_sidang.id = ta_nilai_akhir_sidang.sidang_id 
+    JOIN tb_data_pribadi ON ta_pendaftaran_sidang.mhs_id = tb_data_pribadi.user_id 
+    WHERE ta_pengajuan_sk.deleted_at IS NULL
+    ${whereClause}`;
+
+  try {
+    const totalRecordsResult = await DB.query(totalRecordsQuery);
+    const totalRecords = totalRecordsResult.rows[0].total;
+
+    let query = baseQuery + whereClause;
+
+    if (orderField && orderValue) {
+      if (typeof orderField === "string" && typeof orderValue === "string") {
+        query += ` ORDER BY ${orderField} ${orderValue}`;
+      } else {
+        res
+          .status(400)
+          .json({ message: "orderField and orderValue must be strings." });
+        return;
+      }
+    }
+
+    query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
+
+    const result = await DB.query(query);
+    const rows = result.rows;
+
+    // Grouping penilaian_kolokium by mhs_id
+    const groupedData = rows.reduce((acc, row) => {
+      const mhsId = row.mhs_id;
+      if (!acc[mhsId]) {
+        acc[mhsId] = {
+          id: row.id,
+          mhs_id: mhsId,
+          npm: row.npm,
+          nama_lengkap: row.nama_lengkap,
+          sk_id: row.sk_id,
+          nilai_akhir_sidang: row.nilai_akhir_sidang,
+          huruf_mutu_akhir_sidang: row.huruf_mutu_akhir_sidang,
+          penilaian_sidang: [],
+        };
+      }
+      if (row.sidang_id) {
+        acc[mhsId].penilaian_sidang.push({
+          sidang_id: row.sidang_id,
+          dosen_id: row.dosen_id,
+          peran: row.peran,
+          penilaian_1: row.penilaian_1,
+          penilaian_2: row.penilaian_2,
+          penilaian_3: row.penilaian_3,
+          penilaian_4: row.penilaian_4,
+          penilaian_5: row.penilaian_5,
+          komentar_singkat: row.komentar_singkat,
+          created_at: row.created_at,
+          final_nilai: row.final_nilai,
+          huruf_mutu: row.huruf_mutu,
+        });
+      }
+      return acc;
+    }, {});
+
+    let responseData = Object.values(groupedData);
+
+    if (dataTable === "true") {
+      responseData = {
+        message: "success",
+        draw: 1,
+        recordsTotal: totalRecords,
+        recordsFiltered: totalRecords,
+        data: responseData,
+      };
+    } else {
+      responseData = {
+        message: "success",
+        data: responseData,
+      };
+    }
+
+    res.status(200).json(responseData);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Internal Server Error", error: error.message });
+  }
+});
