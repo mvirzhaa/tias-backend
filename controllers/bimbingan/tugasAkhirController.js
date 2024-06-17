@@ -2274,18 +2274,6 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
     SELECT 
       ta_pendaftaran_kolokium.id, 
       ta_pendaftaran_kolokium.mhs_id, 
-      ta_penilaian_kolokium.kolo_id, 
-      ta_penilaian_kolokium.dosen_id, 
-      ta_penilaian_kolokium.peran, 
-      ta_penilaian_kolokium.penilaian_1, 
-      ta_penilaian_kolokium.penilaian_2, 
-      ta_penilaian_kolokium.penilaian_3, 
-      ta_penilaian_kolokium.penilaian_4, 
-      ta_penilaian_kolokium.penilaian_5, 
-      ta_penilaian_kolokium.komentar_singkat, 
-      ta_penilaian_kolokium.created_at, 
-      ta_penilaian_kolokium.final_nilai, 
-      ta_penilaian_kolokium.huruf_mutu, 
       ta_pengajuan_sk.deleted_at, 
       ta_pengajuan_sk.id AS sk_id, 
       tb_data_pribadi.user_id, 
@@ -2296,8 +2284,6 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
       ta_nilai_akhir_kolo.huruf_mutu as huruf_mutu_akhir_kolo
     FROM 
       ta_pendaftaran_kolokium 
-    JOIN 
-      ta_penilaian_kolokium ON ta_pendaftaran_kolokium.id = ta_penilaian_kolokium.kolo_id 
     LEFT JOIN 
       ta_pengajuan_sk ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id 
     JOIN 
@@ -2331,9 +2317,7 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
   const totalRecordsQuery = `
     SELECT COUNT(DISTINCT ta_pendaftaran_kolokium.id) AS total 
     FROM ta_pendaftaran_kolokium 
-    LEFT JOIN ta_penilaian_kolokium ON ta_pendaftaran_kolokium.id = ta_penilaian_kolokium.kolo_id 
     LEFT JOIN ta_pengajuan_sk ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id 
-    LEFT JOIN ta_nilai_akhir_kolo ON ta_pendaftaran_kolokium.id = ta_nilai_akhir_kolo.kolo_id 
     JOIN tb_data_pribadi ON ta_pendaftaran_kolokium.mhs_id = tb_data_pribadi.user_id 
     WHERE ta_pengajuan_sk.deleted_at IS NULL
     ${whereClause}`;
@@ -2360,58 +2344,61 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
     const result = await DB.query(query);
     const rows = result.rows;
 
-    // Grouping penilaian_kolokium by mhs_id
-    const groupedData = rows.reduce((acc, row) => {
-      const mhsId = row.mhs_id;
-      if (!acc[mhsId]) {
-        acc[mhsId] = {
-          id: row.id,
-          mhs_id: mhsId,
-          npm: row.npm,
-          nama_lengkap: row.nama_lengkap,
-          sk_id: row.sk_id,
-          nilai_akhir_kolo: row.nilai_akhir_kolo,
-          huruf_mutu_akhir_kolo: row.huruf_mutu_akhir_kolo,
-          penilaian_kolokium: [],
-        };
+    const koloIds = rows.map((row) => row.id);
+
+    let evaluationsQuery = `
+      SELECT 
+        ta_penilaian_kolokium.kolo_id,
+        ta_penilaian_kolokium.dosen_id,
+        ta_penilaian_kolokium.peran,
+        ta_penilaian_kolokium.penilaian_1,
+        ta_penilaian_kolokium.penilaian_2,
+        ta_penilaian_kolokium.penilaian_3,
+        ta_penilaian_kolokium.penilaian_4,
+        ta_penilaian_kolokium.penilaian_5,
+        ta_penilaian_kolokium.komentar_singkat,
+        ta_penilaian_kolokium.created_at,
+        ta_penilaian_kolokium.final_nilai,
+        ta_penilaian_kolokium.huruf_mutu
+      FROM 
+        ta_penilaian_kolokium
+      WHERE
+        ta_penilaian_kolokium.kolo_id IN (${koloIds.join(",")})
+    `;
+
+    const evaluationsResult = await DB.query(evaluationsQuery);
+    const evaluationsRows = evaluationsResult.rows;
+
+    // Grouping evaluations by kolo_id
+    const evaluationsGrouped = evaluationsRows.reduce((acc, row) => {
+      const koloId = row.kolo_id;
+      if (!acc[koloId]) {
+        acc[koloId] = [];
       }
-      if (row.kolo_id) {
-        acc[mhsId].penilaian_kolokium.push({
-          kolo_id: row.kolo_id,
-          dosen_id: row.dosen_id,
-          peran: row.peran,
-          penilaian_1: row.penilaian_1,
-          penilaian_2: row.penilaian_2,
-          penilaian_3: row.penilaian_3,
-          penilaian_4: row.penilaian_4,
-          penilaian_5: row.penilaian_5,
-          komentar_singkat: row.komentar_singkat,
-          created_at: row.created_at,
-          final_nilai: row.final_nilai,
-          huruf_mutu: row.huruf_mutu,
-        });
-      }
+      acc[koloId].push(row);
       return acc;
     }, {});
 
-    let responseData = Object.values(groupedData);
+    // Merging evaluations with the main data
+    const responseData = rows.map((row) => ({
+      ...row,
+      penilaian_kolokium: evaluationsGrouped[row.id] || [],
+    }));
 
     if (dataTable === "true") {
-      responseData = {
+      res.status(200).json({
         message: "success",
         draw: 1,
         recordsTotal: totalRecords,
         recordsFiltered: totalRecords,
         data: responseData,
-      };
+      });
     } else {
-      responseData = {
+      res.status(200).json({
         message: "success",
         data: responseData,
-      };
+      });
     }
-
-    res.status(200).json(responseData);
   } catch (error) {
     res
       .status(500)
