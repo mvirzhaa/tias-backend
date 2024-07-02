@@ -605,7 +605,10 @@ exports.loginUser = asyncHandler(async (req, res) => {
         isverified,
         created_at,
         token,
-        rank: rank.rows[0],
+        rank: {
+          ...rank.rows[0],
+          lencana_url: `${process.env.API_URL}/gamify/lencana/${rank.rows[0].lencana}`,
+        },
       },
     });
   } else {
