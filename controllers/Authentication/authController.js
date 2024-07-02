@@ -551,7 +551,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
     );
 
     const getPersonalData = await DB.query(
-      "SELECT nip, nama_lengkap, image, total_point FROM tb_data_pribadi WHERE user_id = $1",
+      "SELECT nip, nama_lengkap, image, total_point, kode_mhs FROM tb_data_pribadi WHERE user_id = $1",
       [user_id]
     );
 
@@ -602,6 +602,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
         total_point: getPersonalData.rows[0].total_point,
         no_hp: getPersonalData.rows[0].no_hp,
         imageUrl: `${process.env.API_URL}/foto-profile/${getPersonalData.rows[0].image}`,
+        kode_mhs: getPersonalData.rows[0].kode_mhs,
         isverified,
         created_at,
         token,
