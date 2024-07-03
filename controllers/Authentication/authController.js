@@ -555,28 +555,6 @@ exports.loginUser = asyncHandler(async (req, res) => {
       [user_id]
     );
 
-    const totalPoint = getPersonalData.rows[0].total_point;
-
-    let whereCondition;
-
-    if (totalPoint >= 110 && totalPoint <= 2300) {
-      whereCondition = "GM1";
-    } else if (totalPoint >= 2400 && totalPoint <= 3800) {
-      whereCondition = "GM2";
-    } else if (totalPoint >= 3900 && totalPoint <= 5300) {
-      whereCondition = "GM3";
-    } else if (totalPoint >= 5400 && totalPoint <= 7400) {
-      whereCondition = "GM4";
-    } else if (totalPoint >= 7500 && totalPoint <= 9000) {
-      whereCondition = "GM5";
-    } else if (totalPoint >= 10000) {
-      whereCondition = "GM6";
-    }
-
-    const rank = await DB.query(
-      `SELECT * FROM achievements WHERE kode = '${whereCondition}'`
-    );
-
     const oneMonth = 30 * 24 * 60 * 60 * 1000;
 
     res.cookie("token", token, {
@@ -599,17 +577,12 @@ exports.loginUser = asyncHandler(async (req, res) => {
         nip: getPersonalData.rows[0].nip,
         nama_lengkap: getPersonalData.rows[0].nama_lengkap,
         image: getPersonalData.rows[0].image,
-        total_point: getPersonalData.rows[0].total_point,
         no_hp: getPersonalData.rows[0].no_hp,
         imageUrl: `${process.env.API_URL}/foto-profile/${getPersonalData.rows[0].image}`,
         kode_mhs: getPersonalData.rows[0].kode_mhs,
         isverified,
         created_at,
         token,
-        rank: {
-          ...rank.rows[0],
-          lencana_url: `${process.env.API_URL}/gamify/lencana/${rank.rows[0].lencana}`,
-        },
       },
     });
   } else {
