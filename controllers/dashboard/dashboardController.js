@@ -91,12 +91,12 @@ exports.dashboardData = asyncHandler(async (req, res) => {
         status_frs,
       };
     } else {
-      const SKS_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/dosen-for-mk`;
-      const requestSks = await axios.get(SKS_URL, {
-        params: {
-          code: req.user.nip,
-        },
-      });
+      // const SKS_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/dosen-for-mk`;
+      // const requestSks = await axios.get(SKS_URL, {
+      //   params: {
+      //     code: req.user.nip,
+      //   },
+      // });
 
       const dataMhsBimbinganTa = await getMhsBimbinganTA(userLoginId);
       const dataMhsBimbinganAkademik = await getMhsBimbinganAkademik(
@@ -113,7 +113,7 @@ exports.dashboardData = asyncHandler(async (req, res) => {
       });
 
       data = {
-        sks: requestSks.data.SKS,
+        sks: 0,
         pertemuanPerkuliahan: reqPembelajaran.data.recordsTotal,
         belum_kolo,
         besum_sidang,
