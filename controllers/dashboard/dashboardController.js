@@ -90,13 +90,13 @@ exports.dashboardData = asyncHandler(async (req, res) => {
         dataChart,
         status_frs,
       };
-    } else {
-      // const SKS_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/dosen-for-mk`;
-      // const requestSks = await axios.get(SKS_URL, {
-      //   params: {
-      //     code: req.user.nip,
-      //   },
-      // });
+    } else if (role === "Dosen") {
+      const SKS_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/dosen-for-mk`;
+      const requestSks = await axios.get(SKS_URL, {
+        params: {
+          code: req.user.nip,
+        },
+      });
 
       const dataMhsBimbinganTa = await getMhsBimbinganTA(userLoginId);
       const dataMhsBimbinganAkademik = await getMhsBimbinganAkademik(
@@ -113,7 +113,7 @@ exports.dashboardData = asyncHandler(async (req, res) => {
       });
 
       data = {
-        sks: 0,
+        sks: requestSks.data.SKS,
         pertemuanPerkuliahan: reqPembelajaran.data.recordsTotal,
         belum_kolo,
         besum_sidang,
@@ -138,6 +138,22 @@ exports.dashboardData = asyncHandler(async (req, res) => {
         pengabdian,
         pembicara,
         penghargaan,
+      };
+    } else if (role === "Dosen_Ext") {
+      const dataMhsBimbinganTa = await getMhsBimbinganTA(userLoginId);
+      data = {
+        userData: responseData.rows[0],
+        tugas_akhir: {
+          pembimbing1Count: dataMhsBimbinganTa.pembimbing1Count,
+          pembimbing2Count: dataMhsBimbinganTa.pembimbing2Count,
+          penguji1Count: dataMhsBimbinganTa.penguji1Count,
+          penguji2Count: dataMhsBimbinganTa.penguji2Count,
+          pengajuan_sk: dataMhsBimbinganTa.pengajuan_sk,
+          menuju_kolokium: dataMhsBimbinganTa.menuju_kolokium,
+          menuju_sidang: dataMhsBimbinganTa.menuju_kolokium,
+          menyelesaikan_revisi: dataMhsBimbinganTa.menyelesaikan_revisi,
+          selesai: dataMhsBimbinganTa.selesai,
+        },
       };
     }
 

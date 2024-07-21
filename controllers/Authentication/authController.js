@@ -5,6 +5,7 @@ const {
   resetPasswordValidation,
   changePasswordValidation,
   formRegisterPmmValidation,
+  formRegisterDosenExt,
 } = require("../../validation/formValidation");
 const bcrypt = require("bcryptjs");
 const parser = require("ua-parser-js");
@@ -424,6 +425,94 @@ exports.registerMhsPmm = asyncHandler(async (req, res) => {
   }
 });
 
+exports.registerDosenExt = asyncHandler(async (req, res) => {
+  const { error } = formRegisterDosenExt(req.body);
+  if (error) {
+    return res.status(400).send({ message: error.details[0].message });
+  }
+
+  const {
+    nip,
+    email,
+    password,
+    tanggal_lahir,
+    tempat_lahir,
+    nama_lengkap,
+    jenkel,
+    agama,
+    no_hp,
+    instansi,
+  } = req.body;
+
+  if (!nip || !email || !password) {
+    res.status(400);
+    throw new Error("Pleas fill in all the required fields.");
+  }
+
+  const findEmail = await DB.query(`SELECT * FROM tb_users WHERE email = $1`, [
+    email,
+  ]);
+  if (findEmail.rows.length) {
+    res.status(400);
+    throw new Error("Email already exixts");
+  }
+
+  const findNip = await DB.query(
+    "SELECT * FROM tb_data_pribadi WHERE nip = $1",
+    [nip]
+  );
+  if (findNip.rows.length) {
+    res.status(400);
+    throw new Error("NIP/NIK already exixts");
+  }
+
+  // Get userAgent
+  const ua = parser(req.headers["user-agent"]);
+  const userAgent = [ua.ua];
+
+  // hash password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  const role = "Dosen_Ext";
+  const created_at = unixTimestamp;
+  const convert = convertDate(created_at);
+
+  // Save user to DB
+  const saveUser = await DB.query(
+    `INSERT INTO tb_users(email, password, role, user_agent, created_at) VALUES ($1, $2, $3, $4, $5) returning *`,
+    [email, hashedPassword, role, userAgent, convert]
+  );
+
+  const savePersonalData = await DB.query(
+    `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, jenkel, tanggal_lahir, tempat_lahir, agama, email,  no_hp, nip, created_at, instansi_ext) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
+        RETURNING *`,
+    [
+      saveUser.rows[0].user_id,
+      nama_lengkap,
+      jenkel,
+      tanggal_lahir,
+      tempat_lahir,
+      agama,
+      email,
+      no_hp,
+      nip,
+      convert,
+      instansi,
+    ]
+  );
+
+  if (saveUser.rows.length && savePersonalData.rows.length) {
+    res.status(200).json({
+      message: `Register successfully`,
+    });
+  } else {
+    res.status(400);
+    throw new Error("Invalid User data");
+  }
+});
+
 exports.loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -452,46 +541,53 @@ exports.loginUser = asyncHandler(async (req, res) => {
   }
 
   if (!user.rows[0].isverified) {
-    // Delete token if it exists in DB
-    const token = await DB.query("SELECT * FROM token WHERE user_id = $1", [
-      user.rows[0].user_id,
-    ]);
-
-    if (token.rows.length) {
-      await DB.query("DELETE FROM token WHERE user_id = $1", [
+    if (user.rows[0].role == "Mahasiswa" || user.rows[0].role == "Dosen") {
+      // Delete token if it exists in DB
+      const token = await DB.query("SELECT * FROM token WHERE user_id = $1", [
         user.rows[0].user_id,
       ]);
+
+      if (token.rows.length) {
+        await DB.query("DELETE FROM token WHERE user_id = $1", [
+          user.rows[0].user_id,
+        ]);
+      }
+      // Create verification token
+      const verificationToken =
+        crypto.randomBytes(32).toString("hex") + user.rows[0].user_id;
+      // console.log(verificationToken);
+      const hashedToken = hashToken(verificationToken);
+
+      const unix = unixTimestamp;
+      const createdAt = await convertDate(unix);
+      const unixExpires = expires_at;
+      const expiresAt = await convertDate(unixExpires);
+
+      await DB.query(
+        "INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
+        [user.rows[0].user_id, hashedToken, createdAt, expiresAt]
+      );
+
+      // Construct Verification Token
+      const verificationUrl = `${process.env.FRONTEND_URL}/verification/${verificationToken}`;
+
+      // Send verification email
+      const subject = "Verify Your Account";
+      const send_to = user.rows[0].email;
+      const send_from = process.env.EMAIL_USER;
+      const template = "verifyEmail";
+      const link = verificationUrl;
+
+      await sendMail(subject, send_to, send_from, template, link);
+
+      res.status(399);
+      throw new Error(
+        "Account not verified. Check your email for verification."
+      );
+    } else if (user.rows[0].role == "Dosen_Ext") {
+      res.status(399);
+      throw new Error("Account not verified. verification is being processed");
     }
-    // Create verification token
-    const verificationToken =
-      crypto.randomBytes(32).toString("hex") + user.rows[0].user_id;
-    // console.log(verificationToken);
-    const hashedToken = hashToken(verificationToken);
-
-    const unix = unixTimestamp;
-    const createdAt = await convertDate(unix);
-    const unixExpires = expires_at;
-    const expiresAt = await convertDate(unixExpires);
-
-    await DB.query(
-      "INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
-      [user.rows[0].user_id, hashedToken, createdAt, expiresAt]
-    );
-
-    // Construct Verification Token
-    const verificationUrl = `${process.env.FRONTEND_URL}/verification/${verificationToken}`;
-
-    // Send verification email
-    const subject = "Verify Your Account";
-    const send_to = user.rows[0].email;
-    const send_from = process.env.EMAIL_USER;
-    const template = "verifyEmail";
-    const link = verificationUrl;
-
-    await sendMail(subject, send_to, send_from, template, link);
-
-    res.status(399);
-    throw new Error("Account not verified. Check your email for verification.");
   }
 
   // Generate token before login
@@ -876,6 +972,74 @@ exports.verifyUser = asyncHandler(async (req, res) => {
   if (verifyUser.rows[0].isverified === true) {
     res.status(200).json({
       message: "Account verification successfully",
+      data: {
+        user_id,
+        npm,
+        nidn,
+        username,
+        email,
+        role,
+        isverified,
+        created_at,
+      },
+    });
+  }
+});
+
+exports.verifyDosenExt = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+
+  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
+    userId,
+  ]);
+
+  if (user.rows[0].isverified) {
+    const verifyUser = await DB.query(
+      "UPDATE tb_users SET isverified = $1 WHERE user_id = $2 returning *",
+      [true, user.rows[0].user_id]
+    );
+    const {
+      user_id,
+      npm,
+      nidn,
+      username,
+      email,
+      role,
+      isverified,
+      created_at,
+    } = verifyUser.rows[0];
+
+    res.status(200).json({
+      message: "Account verification successfully",
+      data: {
+        user_id,
+        npm,
+        nidn,
+        username,
+        email,
+        role,
+        isverified,
+        created_at,
+      },
+    });
+  } else {
+    const verifyUser = await DB.query(
+      "UPDATE tb_users SET isverified = $1 WHERE user_id = $2 returning *",
+      [true, user.rows[0].user_id]
+    );
+    const {
+      user_id,
+      npm,
+      nidn,
+      username,
+      email,
+      role,
+      isverified,
+      created_at,
+    } = verifyUser.rows[0];
+
+    res.status(200).json({
+      message: "Account not verification successfully",
       data: {
         user_id,
         npm,

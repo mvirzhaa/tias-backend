@@ -19,6 +19,8 @@ const {
   cekDataPribadi,
   getUserLogin,
   registerMhsPmm,
+  registerDosenExt,
+  verifyDosenExt,
 } = require("../../controllers/Authentication/authController");
 const { protected, adminOnly } = require("../../middleware/authMiddleware");
 
@@ -26,6 +28,7 @@ const router = express.Router();
 
 router.post("/register", register);
 router.post("/register-pmm", registerMhsPmm);
+router.post("/register-dosen-ext", registerDosenExt);
 router.post("/login", loginUser);
 router.get("/cekDataPribadi/:id", cekDataPribadi);
 router.post("/sendLoginCode/:email", sendLoginCode);
@@ -33,6 +36,7 @@ router.post("/loginWithCode/:email", loginWithCode);
 
 router.post("/sendVerificationEmail", protected, sendVerificationEmail);
 router.patch("/verifyUser/:verificationToken", verifyUser);
+router.patch("/verify-dosen-ext/:userId", verifyDosenExt);
 router.get("/loginStatus", getLoginStatus);
 router.get("/logout", logout);
 

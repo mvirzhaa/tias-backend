@@ -30,6 +30,17 @@ async function getInformaticsStudent() {
   }
 }
 
+async function getInformaticsStudentBeasiswa() {
+  const query =
+    "SELECT * FROM siak_student WHERE department_code = 'FT_TI' AND funding_scheme != 'MANDIRI'";
+  try {
+    const results = await executeQuery(query);
+    return results;
+  } catch (error) {
+    throw new Error("failed to retrieve student data.");
+  }
+}
+
 async function getPmmStudent(npm) {
   const API_URL = `${process.env.API_URL_SKPI}/index.php`;
 
@@ -112,4 +123,5 @@ module.exports = {
   getDepartemen,
   getMatkulKp,
   getAllMatkulByMhs,
+  getInformaticsStudentBeasiswa,
 };

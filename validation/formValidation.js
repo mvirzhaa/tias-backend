@@ -21,6 +21,24 @@ exports.formRegisterPmmValidation = (data) => {
   return schema.validate(data);
 };
 
+exports.formRegisterDosenExt = (data) => {
+  const schema = Joi.object({
+    nama_lengkap: Joi.string().label("Nama Lengkap"),
+    jenkel: Joi.string().label("jenkel"),
+    tanggal_lahir: Joi.string().label("tanggal_lahir"),
+    tempat_lahir: Joi.string().label("tempat_lahir"),
+    agama: Joi.string().label("agama"),
+    no_hp: Joi.string().label("no_hp"),
+    nip: Joi.string().label("nip"),
+    instansi: Joi.string().label("instansi"),
+    email: Joi.string().email().required().label("Email"),
+    password: PasswordComplexity().required().label("Password"),
+    password2: PasswordComplexity().required().label("Password2"),
+  });
+
+  return schema.validate(data);
+};
+
 // reset password validation
 exports.resetPasswordValidation = (data) => {
   const schema = Joi.object({

@@ -6,6 +6,26 @@ const {
 } = require("../../validation/formValidation");
 const { GamifyPoints } = require("../../utils/gamify");
 const { getMkForMhs } = require("../../helper/skpi");
+const mysql = require("mysql2");
+
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
+});
+
+function executeQuery(query, params = []) {
+  return new Promise((resolve, reject) => {
+    pool.query(query, params, (err, results, fields) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(results);
+    });
+  });
+}
 
 exports.getUserMhs = asyncHandler(async (req, res) => {
   const { page, limit, searchQuery, nama_lengkap, npm, nidn, kode_mhs } =
@@ -211,6 +231,155 @@ exports.getUserDosen = asyncHandler(async (req, res) => {
       data: user.rows,
       totalData: totalData,
     });
+  }
+});
+
+exports.getUserDosenExt = asyncHandler(async (req, res) => {
+  const { page, limit, searchQuery, nama_lengkap, npm, nidn, kode_mhs } =
+    req.query;
+
+  if (nama_lengkap || npm || nidn || kode_mhs) {
+    const dataName = nama_lengkap || null;
+    const dataNpm = npm || null;
+    const dataNidn = nidn || null;
+    const dataKodeMhs = kode_mhs || null;
+
+    const pageNumber = page || 1;
+    const itemsPerPage = limit || 10;
+    const offset = (pageNumber - 1) * itemsPerPage;
+
+    const findData = await DB.query(
+      `SELECT * FROM filter_users($1, $2, $3, $4, $5, $6, $7) AS result`,
+      [dataName, null, null, null, null, itemsPerPage, offset]
+    );
+
+    const totalDataQuery = await DB.query(
+      `SELECT COUNT(*) FROM filter_users($1, $2, $3, $4, $5, $6, $7) AS count`,
+      [dataName, null, null, null, null, null, null]
+    );
+
+    const totalData = totalDataQuery.rows[0].count;
+
+    res.status(201).json({
+      data: findData.rows,
+      totalData: totalData,
+    });
+  } else {
+    const pageNumber = page || 1;
+    const itemsPerPage = limit || 10;
+    const offset = (pageNumber - 1) * itemsPerPage;
+
+    let searchFilter = "";
+    let searchParams = [];
+
+    if (searchQuery) {
+      searchFilter = `AND tb_data_pribadi.nama_lengkap ILIKE $${
+        searchParams.length + 1
+      }`;
+      searchParams = [...searchParams, `%${searchQuery}%`];
+    }
+
+    const countQuery = `
+      SELECT COUNT(*) FROM tb_users
+      JOIN tb_data_pribadi ON tb_users.user_id=tb_data_pribadi.user_id
+      WHERE tb_users.role = 'Dosen_Ext'
+      ${searchFilter}
+    `;
+
+    const totalCount = await DB.query(countQuery, searchParams);
+    const totalData = totalCount.rows[0].count;
+
+    const query = `
+      SELECT tb_users.*, tb_data_pribadi.no_hp, tb_data_pribadi.nama_lengkap, tb_jabatan_dosen.jabatan_id, tb_data_pribadi.kode_mhs, tb_jabatan_dosen.jabatan_fungsi, tb_data_pribadi.nip, tb_data_pribadi.instansi_ext
+      FROM tb_users
+      JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id
+      LEFT JOIN (
+        SELECT user_id, jabatan_id, jabatan_fungsi
+        FROM tb_jabatan_dosen
+        WHERE (user_id, updated_at) IN (
+          SELECT user_id, MAX(updated_at) AS max_updated_at
+          FROM tb_jabatan_dosen
+          GROUP BY user_id
+        )
+      ) AS tb_jabatan_dosen ON tb_users.user_id = tb_jabatan_dosen.user_id
+      WHERE tb_users.role = 'Dosen_Ext'
+      ${searchFilter}
+      ORDER BY tb_users.created_at DESC
+      LIMIT $${searchParams.length + 1} OFFSET $${searchParams.length + 2}
+    `;
+
+    // Menjalankan query dengan parameter
+    const user = await DB.query(query, [...searchParams, itemsPerPage, offset]);
+
+    res.status(200).json({
+      message: "Success get data.",
+      data: user.rows,
+      totalData: totalData,
+    });
+  }
+});
+
+exports.getMhsBeasiswa = asyncHandler(async (req, res) => {
+  const { dataTable, orderField, orderValue, page, perPage, search } =
+    req.query;
+
+  const pageNumber = parseInt(page, 10) || 1;
+  const itemsPerPage = parseInt(perPage, 10) || 10;
+  const offset = (pageNumber - 1) * itemsPerPage;
+
+  let baseQuery = `
+    FROM siak_student
+    WHERE department_code = 'FT_TI' AND funding_scheme != 'MANDIRI'
+  `;
+
+  if (search) {
+    baseQuery += ` AND LOWER(name) LIKE '%${search.toLowerCase()}%'`;
+  }
+
+  let query = `SELECT * ${baseQuery}`;
+
+  if (orderField && orderValue) {
+    if (typeof orderField === "string" && typeof orderValue === "string") {
+      query += ` ORDER BY ${orderField} ${orderValue}`;
+    } else {
+      res
+        .status(400)
+        .json({ message: "orderField and orderValue must be strings." });
+      return;
+    }
+  }
+
+  query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
+
+  try {
+    const result = await executeQuery(query);
+
+    let responseData = result;
+
+    const totalRecordsQuery = `SELECT COUNT(*) AS total ${baseQuery}`;
+    const [totalRecordsResult] = await executeQuery(totalRecordsQuery);
+    const totalRecords = totalRecordsResult.total;
+
+    if (dataTable === "true") {
+      responseData = {
+        message: "success",
+        draw: 1,
+        recordsTotal: totalRecords,
+        recordsFiltered: totalRecords,
+        data: responseData,
+      };
+    } else {
+      responseData = {
+        message: "success",
+        data: responseData,
+      };
+    }
+
+    res.status(200).json(responseData);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Internal Server Error", error: error.message });
   }
 });
 
@@ -451,7 +620,7 @@ exports.getUserMhsAgain = asyncHandler(async (req, res) => {
 });
 exports.getUserDosenAgain = asyncHandler(async (req, res) => {
   const findDosen = await DB.query(
-    "SELECT tb_users.user_id, tb_users.nidn, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.image, tb_data_pribadi.ttd FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.role = 'Dosen' AND tb_users.isverified = true "
+    "SELECT tb_users.user_id, tb_users.nidn, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.image, tb_data_pribadi.ttd FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE (tb_users.role = 'Dosen' OR tb_users.role = 'Dosen_Ext')  AND tb_users.isverified = true "
   );
 
   const resultsDosen = findDosen.rows;
