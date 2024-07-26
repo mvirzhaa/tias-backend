@@ -789,7 +789,7 @@ exports.getPengajuanKolokiumById = asyncHandler(async (req, res) => {
     throw new Error("Data not found.");
   }
 
-  if (user.role === "Dosen") {
+  if (user.role === "Dosen" || user.role === "Dosen_Ext") {
     const userLoginId = user.user_id;
     let statusDosen = 0;
     if (dataPengajuanKolo.rows[0].kolo_pembimbing_1 == userLoginId) {
@@ -1185,7 +1185,7 @@ exports.getNilaiKoloForDosen = asyncHandler(async (req, res) => {
     throw new Error("Data not found.");
   }
 
-  if (user.role === "Dosen") {
+  if (user.role === "Dosen" || user.role === "Dosen_Ext") {
     const userLoginId = user.user_id;
     let statusDosen = "";
     if (dataPengajuanKolo.rows[0].kolo_pembimbing_1 == userLoginId) {
@@ -1303,7 +1303,7 @@ exports.getPengajuanSidangById = asyncHandler(async (req, res) => {
     throw new Error("Data not found.");
   }
 
-  if (user.role === "Dosen") {
+  if (user.role === "Dosen" || user.role === "Dosen_Ext") {
     const userLoginId = user.user_id;
     let statusDosen = 0;
     if (dataPengajuanSidang.rows[0].sidang_pembimbing_1 == userLoginId) {
@@ -1853,7 +1853,7 @@ exports.getNilaiSidangForDosen = asyncHandler(async (req, res) => {
     throw new Error("Data not found.");
   }
 
-  if (user.role === "Dosen") {
+  if (user.role === "Dosen_Ext") {
     const userLoginId = user.user_id;
     let statusDosen = "";
     if (dataPengajuanSidang.rows[0].sidang_pembimbing_1 == userLoginId) {
@@ -2274,6 +2274,11 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
     SELECT 
       ta_pendaftaran_kolokium.id, 
       ta_pendaftaran_kolokium.mhs_id, 
+      ta_pendaftaran_kolokium.kolo_pembimbing_1,
+      ta_pendaftaran_kolokium.kolo_pembimbing_2,
+      ta_pendaftaran_kolokium.kolo_pembimbing_3,
+      ta_pendaftaran_kolokium.evaluator_1,
+      ta_pendaftaran_kolokium.evaluator_2,
       ta_pengajuan_sk.deleted_at, 
       ta_pengajuan_sk.id AS sk_id, 
       tb_data_pribadi.user_id, 
