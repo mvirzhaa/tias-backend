@@ -220,3 +220,23 @@ exports.dashboardDataAdmin = asyncHandler(async (req, res) => {
     res.status(500).json({ status: "error", message: "Internal Server Error" });
   }
 });
+
+exports.dashboardMobileDosen = asyncHandler(async (req, res) => {
+  const userLoginId = req.user.user_id;
+  const dataMhsBimbinganTa = await getMhsBimbinganTA(userLoginId);
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      pembimbing1Count: dataMhsBimbinganTa.pembimbing1Count,
+      pembimbing2Count: dataMhsBimbinganTa.pembimbing2Count,
+      penguji1Count: dataMhsBimbinganTa.penguji1Count,
+      penguji2Count: dataMhsBimbinganTa.penguji2Count,
+      pengajuan_sk: dataMhsBimbinganTa.pengajuan_sk,
+      menuju_kolokium: dataMhsBimbinganTa.menuju_kolokium,
+      menuju_sidang: dataMhsBimbinganTa.menuju_kolokium,
+      menyelesaikan_revisi: dataMhsBimbinganTa.menyelesaikan_revisi,
+      selesai: dataMhsBimbinganTa.selesai,
+    },
+  });
+});
