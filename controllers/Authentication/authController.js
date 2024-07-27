@@ -6,6 +6,7 @@ const {
   changePasswordValidation,
   formRegisterPmmValidation,
   formRegisterDosenExt,
+  formRegisterKaryawanValidation,
 } = require("../../validation/formValidation");
 const bcrypt = require("bcryptjs");
 const parser = require("ua-parser-js");
@@ -26,6 +27,7 @@ const {
   getInformaticsStudent,
   getDosen,
   getPmmStudent,
+  getPegawai,
 } = require("../../helper/informatics");
 const { getIp, deleteIp } = require("../../helper/ipk");
 const { updateGamifyKompetensi } = require("../../utils/gamifyKompetensi");
@@ -69,7 +71,7 @@ exports.register = asyncHandler(async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, salt);
 
   if (npm_nidn.length === 12 || npm_nidn.length === 11) {
-    const role = "Mahasiswa";
+    const role = process.env.ROLE_ID_MAHASISWA;
     const created_at = unixTimestamp;
     const convert = convertDate(created_at);
 
@@ -196,7 +198,7 @@ exports.register = asyncHandler(async (req, res) => {
     npm_nidn.length === 9 ||
     npm_nidn.length === 8
   ) {
-    const role = "Dosen";
+    const role = process.env.ROLE_ID_DOSEN;
     const convert = convertDate(unixTimestamp);
 
     const resultsDosen = await getDosen();
@@ -341,7 +343,7 @@ exports.registerMhsPmm = asyncHandler(async (req, res) => {
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  const role = "Mahasiswa";
+  const role = process.env.ROLE_ID_MAHASISWA;
   const created_at = unixTimestamp;
   const convert = convertDate(created_at);
 
@@ -474,7 +476,7 @@ exports.registerDosenExt = asyncHandler(async (req, res) => {
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  const role = "Dosen_Ext";
+  const role = process.env.ROLE_ID_DOSEN_EXT;
   const created_at = unixTimestamp;
   const convert = convertDate(created_at);
 
@@ -510,6 +512,139 @@ exports.registerDosenExt = asyncHandler(async (req, res) => {
   } else {
     res.status(400);
     throw new Error("Invalid User data");
+  }
+});
+
+exports.registerPegawai = asyncHandler(async (req, res) => {
+  const { error } = formRegisterKaryawanValidation(req.body);
+  if (error) {
+    return res.status(400).send({ message: error.details[0].message });
+  }
+
+  const { nip, email, password } = req.body;
+
+  const checkEmail = await DB.query(`SELECT * FROM tb_users WHERE email = $1`, [
+    email,
+  ]);
+  if (checkEmail.rows.length) {
+    res.status(400);
+    throw new Error("Email already exists.");
+  }
+
+  const checkNip = await DB.query(
+    `SELECT * FROM tb_data_pribadi WHERE nip = $1`,
+    [nip]
+  );
+  if (checkNip.rows.length) {
+    res.status(400);
+    throw new Error("NIP already exists.");
+  }
+
+  if (!nip || !email || !password) {
+    res.status(400);
+    throw new Error("Pleas fill in all the required fields.");
+  }
+
+  // Get userAgent
+  const ua = parser(req.headers["user-agent"]);
+  const userAgent = [ua.ua];
+
+  // hash password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  const role = process.env.ROLE_ID_PEGAWAI;
+  const convert = convertDate(unixTimestamp);
+
+  const resultPegawai = await getPegawai();
+  const pegawaiWithNip = resultPegawai.find((pegawai) => pegawai.nip === nip);
+
+  if (pegawaiWithNip) {
+    // Save user to DB
+    const saveUser = await DB.query(
+      `INSERT INTO tb_users(email, password, role, user_agent, created_at, department_code) VALUES ($1, $2, $3, $4, $5, $6) returning *`,
+      [email, hashedPassword, role, userAgent, convert, pegawaiWithNip.branch]
+    );
+
+    const jenkelSiak =
+      pegawaiWithNip.jenis_kelamin === "LAKI-LAKI"
+        ? "L"
+        : pegawaiWithNip.jenis_kelamin === "PEREMPUAN"
+        ? "P"
+        : null;
+    const statusKawin = pegawaiWithNip.status_sipil !== "MENIKAH" ? 0 : 1;
+
+    const savePersonalData = await DB.query(
+      `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, jenkel, tanggal_lahir, tempat_lahir, ibu_kandung, agama, email, alamat, kota_kabupaten, no_hp, provinsi, kode_pos, status_kawin, nik, created_at, kode_mhs, nip) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) 
+        RETURNING *`,
+      [
+        saveUser.rows[0].user_id,
+        `${pegawaiWithNip.gelar_depan} ${pegawaiWithNip.nama} ${pegawaiWithNip.gelar_belakang}`,
+        jenkelSiak,
+        pegawaiWithNip.tanggal_lahir,
+        pegawaiWithNip.tempat_lahir,
+        pegawaiWithNip.nama_ibu_kandung,
+        pegawaiWithNip.agama,
+        email,
+        pegawaiWithNip.alamat,
+        pegawaiWithNip.kota,
+        pegawaiWithNip.no_handphone,
+        pegawaiWithNip.propinsi,
+        pegawaiWithNip.kodepos,
+        statusKawin,
+        pegawaiWithNip.no_ktp,
+        convert,
+        pegawaiWithNip.klasi_pegawai,
+        pegawaiWithNip.nip,
+      ]
+    );
+
+    if (saveUser.rows.length && savePersonalData.rows.length) {
+      const { user_id, nidn, email } = saveUser.rows[0];
+
+      // Create verification token
+      const verificationToken =
+        crypto.randomBytes(32).toString("hex") + user_id;
+      // console.log(verificationToken);
+      const hashedToken = hashToken(verificationToken);
+
+      const unix = unixTimestamp;
+      const createdAt = convertDate(unix);
+      const unixExpires = expires_at;
+      const expiresAt = convertDate(unixExpires);
+
+      await DB.query(
+        "INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
+        [user_id, hashedToken, createdAt, expiresAt]
+      );
+
+      // Construct Verification Token
+      const verificationUrl = `${process.env.FRONTEND_URL}/verification/${verificationToken}`;
+
+      // Send verification email
+      const subject = "Verify Your Account";
+      const send_to = email;
+      const send_from = process.env.EMAIL_USER;
+      const template = "verifyEmail";
+      const link = verificationUrl;
+
+      try {
+        await sendMail(subject, send_to, send_from, template, link);
+      } catch (error) {
+        throw new Error("Email not send, please try again");
+      }
+
+      res.status(200).json({
+        message: `Verification Email Sent ${email}.`,
+      });
+    } else {
+      res.status(400);
+      throw new Error("Invalid User data");
+    }
+  } else {
+    res.status(400);
+    throw new Error("INVALID NIP. NIP NOT FOUND!!");
   }
 });
 

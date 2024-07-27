@@ -35,6 +35,8 @@ const validasiRoutes = require("./routes/validasi/validasiRoutes");
 const jabatanRoutes = require("./routes/jabatan/jabatanRoutes");
 const strukturalRoutes = require("./routes/jabatan/strukturalRoutes");
 const errorHandler = require("./helper/errorHandler");
+const session = require("express-session");
+const passport = require("./utils/passport");
 
 // const moment = require("moment-timezone");
 // const cron = require("node-cron");
@@ -56,6 +58,17 @@ app.use(
     credentials: true,
   })
 );
+app.use(
+  session({
+    secret: process.env.SECRET,
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false },
+  })
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Website API
 app.use("/auth", authRoutes);

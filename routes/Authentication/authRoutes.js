@@ -21,14 +21,19 @@ const {
   registerMhsPmm,
   registerDosenExt,
   verifyDosenExt,
+  registerPegawai,
 } = require("../../controllers/Authentication/authController");
 const { protected, adminOnly } = require("../../middleware/authMiddleware");
+const passport = require("../../utils/passport");
+const { generateToken } = require("../../utils");
+const DB = require("../../database");
 
 const router = express.Router();
 
 router.post("/register", register);
 router.post("/register-pmm", registerMhsPmm);
 router.post("/register-dosen-ext", registerDosenExt);
+router.post("/register-pegawai", registerPegawai);
 router.post("/login", loginUser);
 router.get("/cekDataPribadi/:id", cekDataPribadi);
 router.post("/sendLoginCode/:email", sendLoginCode);
@@ -52,5 +57,49 @@ router.patch("/changePassword", protected, changePassword);
 router.post("/sendAutomatedEmail", protected, sendAutomatedEmail);
 
 router.get("/deleteExpired", deleteExpired);
+
+router.get(
+  "/google",
+  passport.authenticate("google", { scope: ["profile", "email"] })
+);
+
+router.get("/google/callback", (req, res, next) => {
+  passport.authenticate("google", async (err, user, info) => {
+    if (err) {
+      return next(err);
+    }
+    if (!user) {
+      res.redirect(`${process.env.FRONTEND_URL}/login?error=invalid`);
+    } else if (user && !user.isverified) {
+      res.redirect(`${process.env.FRONTEND_URL}/login?error=not_verified`);
+    } else {
+      try {
+        const token = generateToken(user.user_id);
+        const oneMonth = 30 * 24 * 60 * 60 * 1000;
+
+        res.cookie("token", token, {
+          path: "/",
+          httpOnly: true,
+          expires: new Date(Date.now() + oneMonth),
+          sameSite: "none",
+          secure: true,
+        });
+
+        const getPersonalData = await DB.query(
+          "SELECT nip, nama_lengkap, image, total_point, kode_mhs FROM tb_data_pribadi WHERE user_id = $1",
+          [user.user_id]
+        );
+
+        const personalData = getPersonalData.rows[0];
+
+        res.redirect(
+          `${process.env.FRONTEND_URL}/oauth/callback?token=${token}&user_id=${user.user_id}&npm=${user.npm}&nidn=${user.nidn}&username=${user.username}&email=${user.email}&role=${user.role}&nip=${personalData.nip}&nama_lengkap=${personalData.nama_lengkap}&image=${personalData.image}&no_hp=${personalData.no_hp}&imageUrl=${process.env.API_URL}/foto-profile/${personalData.image}&kode_mhs=${personalData.kode_mhs}&isverified=${user.isverified}&created_at=${user.created_at}`
+        );
+      } catch (error) {
+        res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_failed`);
+      }
+    }
+  })(req, res, next);
+});
 
 module.exports = router;

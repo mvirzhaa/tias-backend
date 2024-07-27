@@ -240,3 +240,25 @@ exports.dashboardMobileDosen = asyncHandler(async (req, res) => {
     },
   });
 });
+
+exports.dashboardDataPegawai = asyncHandler(async (req, res) => {
+  const userLoginId = req.user.user_id;
+
+  try {
+    const userAdmin = await DB.query(
+      "SELECT tb_data_pribadi.*, tb_users.npm, tb_users.nidn, tb_users.role FROM tb_data_pribadi JOIN tb_users ON tb_data_pribadi.user_id = tb_users.user_id WHERE tb_data_pribadi.user_id = $1",
+      [userLoginId]
+    );
+
+    const data = {
+      userData: userAdmin.rows[0],
+    };
+
+    res.status(200).json({
+      status: "success",
+      data: data,
+    });
+  } catch (error) {
+    res.status(500).json({ status: "error", message: "Internal Server Error" });
+  }
+});

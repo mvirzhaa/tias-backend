@@ -12,6 +12,16 @@ exports.formRegisterValidation = (data) => {
   return schema.validate(data);
 };
 
+exports.formRegisterKaryawanValidation = (data) => {
+  const schema = Joi.object({
+    nip: Joi.number().label("nip"),
+    email: Joi.string().email().required().label("Email"),
+    password: PasswordComplexity().required().label("Password"),
+    password2: PasswordComplexity().required().label("Password2"),
+  });
+  return schema.validate(data);
+};
+
 exports.formRegisterPmmValidation = (data) => {
   const schema = Joi.object({
     npm: Joi.string().label("npm"),

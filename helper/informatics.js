@@ -69,6 +69,17 @@ async function getDosen() {
   }
 }
 
+async function getPegawai() {
+  const query =
+    "SELECT adm_lookup.lookup_id, adm_lookup.lookup_value, simpeg_pegawai.* FROM simpeg_pegawai JOIN adm_lookup ON adm_lookup.lookup_id = simpeg_pegawai.division WHERE adm_lookup.lookup_name = 'DIVISION' AND simpeg_pegawai.klasi_pegawai = 'TENAGA KEPENDIDIKAN' AND simpeg_pegawai.division = 'TATA_USAHA' AND adm_lookup.lookup_id != 'AKADEMIK' AND simpeg_pegawai.status_kerja = 'AKTIF'";
+  try {
+    const results = await executeQuery(query);
+    return results;
+  } catch (error) {
+    throw new Error("failed to retrieve data.");
+  }
+}
+
 async function getDepartemen() {
   const query = "SELECT * FROM siak_department";
   try {
@@ -119,6 +130,7 @@ module.exports = {
   executeQuery,
   getInformaticsStudent,
   getDosen,
+  getPegawai,
   getPmmStudent,
   getDepartemen,
   getMatkulKp,
