@@ -1,11 +1,11 @@
 const asyncHandler = require("express-async-handler");
 const DB = require("../../database");
-const { getMkForMhs } = require("../../helper/skpi");
 const { default: axios } = require("axios");
 const {
   getMhsBimbinganTA,
   getMhsBimbinganAkademik,
 } = require("../../utils/repoDashboardDosen");
+const { getMatkulByNpm } = require("../../helper/informatics");
 
 const getCount = async (table, userLoginId) => {
   try {
@@ -69,7 +69,7 @@ exports.dashboardData = asyncHandler(async (req, res) => {
     let data;
 
     if (role === "Mahasiswa") {
-      const matkulMhs = await getMkForMhs(npm);
+      const matkulMhs = await getMatkulByNpm(npm);
       let status_frs =
         responseData.rows[0].kode_mhs === "ACTIVE"
           ? !matkulMhs.Data && !matkulMhs.Total && !matkulMhs.SKS

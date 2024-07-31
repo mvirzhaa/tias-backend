@@ -4,6 +4,7 @@ const {
   getDosen,
   getPmmStudent,
   getDepartemen,
+  getMatkulByNpm,
 } = require("../helper/informatics");
 const { getIp, deleteIp, queryIpByNpm } = require("../helper/ipk");
 const { getKategoriIp } = require("../helper/kategori_ip");
@@ -124,6 +125,36 @@ exports.achievementsKategori = asyncHandler(async (req, res) => {
 });
 
 // SKPI
+// exports.getSkpiPerkuliahan = asyncHandler(async (req, res) => {
+//   const npm = req.user.npm;
+//   const dataQuery = req.query;
+
+//   const tahun = dataQuery.tahun || "2023/2024";
+//   const semester = dataQuery.semester || "GENAP";
+
+//   const API_URL = `${process.env.API_URL_SKPI}/index.php?menu=jadwal-kuliah&academic_year=${tahun}&semester=${semester}&code=${npm}`;
+//   try {
+//     const response = await axios.get(API_URL);
+
+//     if (!response.data.Data && !response.data.Total && !response.data.SKS) {
+//       res.status(201).json({
+//         data: [],
+//         totalData: "0",
+//         sks: "0",
+//       });
+//     } else {
+//       res.status(201).json({
+//         data: response.data.Data,
+//         totalData: response.data.Total,
+//         sks: response.data.SKS,
+//       });
+//     }
+//   } catch (error) {
+//     console.error("Error retrieving Perkuliahan:", error);
+//     res.status(500).send("Internal Server Error");
+//   }
+// });
+
 exports.getSkpiPerkuliahan = asyncHandler(async (req, res) => {
   const npm = req.user.npm;
   const dataQuery = req.query;
@@ -131,11 +162,15 @@ exports.getSkpiPerkuliahan = asyncHandler(async (req, res) => {
   const tahun = dataQuery.tahun || "2023/2024";
   const semester = dataQuery.semester || "GENAP";
 
-  const API_URL = `${process.env.API_URL_SKPI}/index.php?menu=jadwal-kuliah&academic_year=${tahun}&semester=${semester}&code=${npm}`;
-  try {
-    const response = await axios.get(API_URL);
+  const responseQuery = await getMatkulByNpm(npm, semester, tahun);
 
-    if (!response.data.Data && !response.data.Total && !response.data.SKS) {
+  // console.log(responseQuery);
+
+  // const API_URL = `${process.env.API_URL_SKPI}/index.php?menu=jadwal-kuliah&academic_year=${tahun}&semester=${semester}&code=${npm}`;
+  try {
+    // const response = await axios.get(API_URL);
+
+    if (!responseQuery.Data && !responseQuery.Total && !responseQuery.SKS) {
       res.status(201).json({
         data: [],
         totalData: "0",
@@ -143,9 +178,9 @@ exports.getSkpiPerkuliahan = asyncHandler(async (req, res) => {
       });
     } else {
       res.status(201).json({
-        data: response.data.Data,
-        totalData: response.data.Total,
-        sks: response.data.SKS,
+        data: responseQuery.Data,
+        totalData: responseQuery.Total,
+        sks: responseQuery.SKS,
       });
     }
   } catch (error) {

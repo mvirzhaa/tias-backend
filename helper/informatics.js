@@ -126,6 +126,75 @@ async function getAllMatkulByMhs(npm, curr_code) {
   }
 }
 
+async function getMatkulByNpm(npm, semester = "GENAP", tahun = "2023/2024") {
+  const query = `
+    SELECT a.*, d.student_code, e.name AS mahasiswa, b.name, c.name AS dosen, b.credit 
+    FROM siak_lecture a 
+    INNER JOIN siak_course b ON b.code=a.course_code 
+    INNER JOIN siak_lecturer c ON c.code=a.lecturer_code
+    INNER JOIN siak_frs d ON d.course_code=a.course_code
+    INNER JOIN siak_student e ON e.code=d.student_code
+    WHERE a.academic_year='${tahun}' 
+      AND a.semester='${semester}' 
+      AND d.curr_code=a.curr_code
+      AND a.department_code='FT_TI' 
+      AND a.curr_code=b.curr_code 
+      AND d.class=a.class 
+      AND d.student_code=?
+    ORDER BY FIND_IN_SET(a.on_day, 'Senin,Selasa,Rabu,Kamis,Jumat,Sabtu'), a.from_time, a.until_time DESC
+  `;
+
+  try {
+    const rows = await executeQuery(query, [npm]);
+
+    if (rows.length > 0) {
+      let totalsks = 0;
+      const results = {
+        Status: {
+          success: true,
+          code: 200,
+          description: "Request Valid",
+        },
+        npm: rows[0].student_code,
+        mahasiswa: rows[0].mahasiswa,
+        Total: rows.length,
+        SKS: 0, // will be calculated below
+        Data: [],
+      };
+
+      rows.forEach((row) => {
+        totalsks += row.credit;
+        results.Data.push({
+          course_code: row.course_code,
+          curr_code: row.curr_code,
+          name: row.name,
+          sks: row.credit,
+          class: row.class,
+          dosen: row.dosen,
+          day: row.on_day,
+          from_time: row.from_time,
+          until_time: row.until_time,
+          class_room: row.classroom,
+        });
+      });
+
+      results.SKS = totalsks;
+      return results;
+    } else {
+      return {
+        Status: {
+          success: false,
+          code: 400,
+          description: "Request Invalid",
+        },
+        Hasil: [],
+      };
+    }
+  } catch (error) {
+    throw new Error("failed to retrieve matkul by npm: " + error.message);
+  }
+}
+
 module.exports = {
   executeQuery,
   getInformaticsStudent,
@@ -136,4 +205,5 @@ module.exports = {
   getMatkulKp,
   getAllMatkulByMhs,
   getInformaticsStudentBeasiswa,
+  getMatkulByNpm,
 };

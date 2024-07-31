@@ -4,9 +4,8 @@ const bcrypt = require("bcryptjs");
 const {
   changePasswordUsersValidation,
 } = require("../../validation/formValidation");
-const { GamifyPoints } = require("../../utils/gamify");
-const { getMkForMhs } = require("../../helper/skpi");
 const mysql = require("mysql2");
+const { getMatkulByNpm } = require("../../helper/informatics");
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -54,7 +53,7 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
     const totalData = totalDataQuery.rows[0].count;
 
     const updatedUsers = findData.rows.map(async (iterate) => {
-      const matkulMhs = await getMkForMhs(iterate.npm);
+      const matkulMhs = await getMatkulByNpm(iterate.npm);
       const status_frs =
         iterate.kode_mhs === "ACTIVE"
           ? !matkulMhs.Data && !matkulMhs.Total && !matkulMhs.SKS
@@ -111,7 +110,7 @@ exports.getUserMhs = asyncHandler(async (req, res) => {
     ]);
 
     const updatedUsers = user.rows.map(async (iterate) => {
-      const matkulMhs = await getMkForMhs(iterate.npm);
+      const matkulMhs = await getMatkulByNpm(iterate.npm);
       const status_frs =
         iterate.kode_mhs === "ACTIVE"
           ? !matkulMhs.Data && !matkulMhs.Total && !matkulMhs.SKS
