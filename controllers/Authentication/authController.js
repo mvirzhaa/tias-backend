@@ -786,6 +786,11 @@ exports.loginUser = asyncHandler(async (req, res) => {
       [user_id]
     );
 
+    const queryLencana = await DB.query(
+      `SELECT * FROM achievements WHERE gamify = $1`,
+      [getPersonalData.rows[0].rank]
+    );
+
     const oneMonth = 30 * 24 * 60 * 60 * 1000;
 
     res.cookie("token", token, {
@@ -814,6 +819,11 @@ exports.loginUser = asyncHandler(async (req, res) => {
         isverified,
         created_at,
         personalData: getPersonalData.rows[0],
+        lencana:
+          queryLencana.rows.length &&
+          queryLencana.rows[0].map((iterate) => ({
+            lencana: `${process.env.API_URL}/gamify/lencana/${queryLencana.rows[0].lencana}`,
+          })),
         token,
       },
     });
