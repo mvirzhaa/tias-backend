@@ -6,6 +6,10 @@ const {
 } = require("../../validation/formValidation");
 const mysql = require("mysql2");
 const { getMatkulByNpm } = require("../../helper/informatics");
+const User = require("../../models/User");
+const { getPagination } = require("../../lib/pagination-parser");
+const { response } = require("../../lib/response");
+const { Op } = require("sequelize");
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -629,18 +633,81 @@ exports.getUserDosenAgain = asyncHandler(async (req, res) => {
     data: resultsDosen,
   });
 });
-exports.getUsers = asyncHandler(async (req, res) => {
-  const findUsers = await DB.query(
-    "SELECT tb_users.user_id, tb_users.npm, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.image FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.isverified = true "
-  );
+// exports.getUsers = asyncHandler(async (req, res) => {
+//   const findUsers = await DB.query(
+//     "SELECT tb_users.user_id, tb_users.npm, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.image FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.isverified = true "
+//   );
 
-  const resultsUsers = findUsers.rows;
+//   const resultsUsers = findUsers.rows;
 
-  res.status(200).json({
-    message: "Success get data.",
-    data: resultsUsers,
-  });
-});
+//   res.status(200).json({
+//     message: "Success get data.",
+//     data: resultsUsers,
+//   });
+// });
+
+exports.getUsers = async (req, res) => {
+  try {
+    let { limit, page, order, orderBy, search, filter, filterValue } =
+      req.query;
+    limit = parseInt(limit) > 0 ? parseInt(limit) : 10;
+    page = page ? parseInt(page) : 1;
+    order = order ? order : "user_id";
+    orderBy = orderBy ? orderBy : "DESC";
+    const pagelimit = getPagination(limit, page);
+
+    let whereCondition = {};
+
+    if (filter && filterValue) {
+      const filters = Array.isArray(filter) ? filter : [filter];
+      const filterValues = Array.isArray(filterValue)
+        ? filterValue
+        : [filterValue];
+
+      filters.forEach((f, index) => {
+        if (f && filterValues[index] !== undefined) {
+          whereCondition[f] = filterValues[index];
+        }
+      });
+    }
+
+    let condition = {
+      [Op.and]: whereCondition,
+    };
+
+    if (search) {
+      condition = {
+        ...condition,
+        [Op.or]: {
+          npm: {
+            [Op.like]: `%${search}%`,
+          },
+          nidn: {
+            [Op.like]: `%${search}%`,
+          },
+        },
+      };
+    }
+
+    const data = await User.findAndCountAll({
+      distinct: true,
+      where: condition,
+      order: [[order, orderBy]],
+      limit: pagelimit.limit,
+      offset: pagelimit.offset,
+    });
+
+    return response(res, true, "success", {
+      limit,
+      page,
+      total: data.count,
+      total_page: Math.ceil(parseInt(data.count) / limit),
+      rows: data.rows,
+    });
+  } catch (error) {
+    return response(res, false, error.message, error);
+  }
+};
 
 exports.getUsersForNotaDinas = asyncHandler(async (req, res) => {
   const findUsers = await DB.query(
