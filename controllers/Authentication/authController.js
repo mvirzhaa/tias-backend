@@ -821,8 +821,8 @@ exports.loginUser = asyncHandler(async (req, res) => {
         personalData: getPersonalData.rows[0],
         lencana:
           queryLencana.rows.length &&
-          queryLencana.rows[0].map((iterate) => ({
-            lencana: `${process.env.API_URL}/gamify/lencana/${queryLencana.rows[0].lencana}`,
+          queryLencana.rows.map((iterate) => ({
+            lencana: `${process.env.API_URL}/gamify/lencana/${iterate.lencana}`,
           })),
         token,
       },
