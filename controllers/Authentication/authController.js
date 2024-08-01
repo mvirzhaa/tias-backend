@@ -782,7 +782,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
     );
 
     const getPersonalData = await DB.query(
-      "SELECT nip, nama_lengkap, image, total_point, kode_mhs FROM tb_data_pribadi WHERE user_id = $1",
+      "SELECT * FROM tb_data_pribadi WHERE user_id = $1",
       [user_id]
     );
 
@@ -813,6 +813,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
         kode_mhs: getPersonalData.rows[0].kode_mhs,
         isverified,
         created_at,
+        personalData: getPersonalData.rows[0],
         token,
       },
     });
