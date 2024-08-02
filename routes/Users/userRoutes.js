@@ -30,6 +30,7 @@ router.get("/papan-peringkat", protected, papanPeringkat);
 router.get("/all", protected, getUsesDsnMhs);
 router.get("/all-mhs", protected, getUserMhsAgain);
 router.get("/all-dosen", getUserDosenAgain);
+router.get("/all-dosen-ext", protected, getUserDosenExt);
 router.get("/all-users", getUsers);
 router.get("/all-mhs-beasiswa", protected, getMhsBeasiswa);
 
