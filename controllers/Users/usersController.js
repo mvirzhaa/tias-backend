@@ -621,30 +621,6 @@ exports.getUserMhsAgain = asyncHandler(async (req, res) => {
     data: resultsMhs,
   });
 });
-exports.getUserDosenAgain = asyncHandler(async (req, res) => {
-  const findDosen = await DB.query(
-    "SELECT tb_users.user_id, tb_users.nidn, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.image, tb_data_pribadi.ttd FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE (tb_users.role = 'Dosen' OR tb_users.role = 'Dosen_Ext')  AND tb_users.isverified = true "
-  );
-
-  const resultsDosen = findDosen.rows;
-
-  res.status(200).json({
-    message: "Success get data.",
-    data: resultsDosen,
-  });
-});
-// exports.getUsers = asyncHandler(async (req, res) => {
-//   const findUsers = await DB.query(
-//     "SELECT tb_users.user_id, tb_users.npm, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.image FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.isverified = true "
-//   );
-
-//   const resultsUsers = findUsers.rows;
-
-//   res.status(200).json({
-//     message: "Success get data.",
-//     data: resultsUsers,
-//   });
-// });
 
 exports.getUsers = async (req, res) => {
   try {
@@ -722,7 +698,20 @@ exports.getUsersForNotaDinas = asyncHandler(async (req, res) => {
   });
 });
 
-exports.getUserDosenAgain = asyncHandler(async (req, res) => {
+exports.listDosen = asyncHandler(async (req, res) => {
+  const findDosen = await DB.query(
+    "SELECT tb_users.user_id, tb_users.nidn, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.image, tb_data_pribadi.ttd FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE (tb_users.role = 'Dosen' OR tb_users.role = 'Dosen_Ext')  AND tb_users.isverified = true "
+  );
+
+  const resultsDosen = findDosen.rows;
+
+  res.status(200).json({
+    message: "Success get data.",
+    data: resultsDosen,
+  });
+});
+
+exports.listDosenExt = asyncHandler(async (req, res) => {
   const findDosen = await DB.query(
     "SELECT tb_users.user_id, tb_users.nidn, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.image, tb_data_pribadi.ttd FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE  tb_users.role = 'Dosen_Ext'  AND tb_users.isverified = true "
   );
