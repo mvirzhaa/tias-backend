@@ -56,7 +56,10 @@ exports.adminOnly = asyncHandler(async (req, res, next) => {
 });
 
 exports.dosenOnly = asyncHandler(async (req, res, next) => {
-  if (req.user && req.user.role === "Dosen") {
+  if (
+    (req.user && req.user.role === "Dosen") ||
+    req.user.role === "Dosen_Ext"
+  ) {
     next();
   } else {
     res.status(401);
@@ -74,7 +77,11 @@ exports.mhsOnly = asyncHandler(async (req, res, next) => {
 });
 
 exports.adminDosenOnly = asyncHandler(async (req, res, next) => {
-  if ((req.user && req.user.role === "Dosen") || req.user.role === "Admin") {
+  if (
+    (req.user && req.user.role === "Dosen") ||
+    req.user.role === "Admin" ||
+    req.user.role === "Dosen_Ext"
+  ) {
     next();
   } else {
     res.status(401);
