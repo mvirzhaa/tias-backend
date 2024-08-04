@@ -1,11 +1,13 @@
 const { DataTypes, Model } = require("sequelize");
 const db = require("../config");
+const DataPribadi = require("./DataPribadi");
 
 class User extends Model {}
 User.init(
   {
     user_id: {
       type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
     role: {
@@ -62,5 +64,11 @@ User.init(
     sequelize: db,
   }
 );
+
+User.hasOne(DataPribadi, {
+  foreignKey: "user_id",
+  sourceKey: "user_id",
+  as: "personal_data",
+});
 
 module.exports = User;

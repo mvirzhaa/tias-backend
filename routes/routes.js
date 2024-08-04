@@ -30,6 +30,7 @@ const tugasAkhirRoutes = require("./bimbingan/tugasAkhirRoutes");
 const validasiRoutes = require("./validasi/validasiRoutes");
 const jabatanRoutes = require("./jabatan/jabatanRoutes");
 const strukturalRoutes = require("./jabatan/strukturalRoutes");
+const laporanRoutes = require("./laporan/laporanRoutes");
 const {
   getJabatanByquery,
 } = require("../controllers/jabatan/strukturalProdiController");
@@ -66,6 +67,7 @@ router.use("/bimbingan-akademik", bimbinganAkademikRoutes);
 router.use("/tugas-akhir", tugasAkhirRoutes);
 router.use("/jabatan", jabatanRoutes);
 router.use("/struktural", strukturalRoutes);
+router.use("/laporan", laporanRoutes);
 
 router.get("/get-jabatan", getJabatanByquery);
 router.use("/help", helpRoutes);

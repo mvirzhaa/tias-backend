@@ -1,17 +1,65 @@
 const express = require("express");
 const { protected, adminOnly } = require("../../middleware/authMiddleware");
-const { getKategoriSerti, createDataKategoriSertifikasi, deleteDataById, getDataById, editDataById } = require("../../controllers/kategori/kategoriSertifikasiController");
-const { getKategoriPublikasi, createDataKategoriPublikasi, getDataByIdPublikasi, deleteDataByIdPublikasi, editDataByIdPublikasi } = require("../../controllers/kategori/kategoriPublikasiController");
-const { getKategoriPrestasi, createDataKategoriPrestasi, getDataByIdPrestasi, editDataByIdPrestasi, deleteDataByIdPretasi } = require("../../controllers/kategori/kategoriPrestasiController");
-const { getKategoriHki, createDataKategoriHki, getDataByIdHki, deleteDataByIdHki, editDataByIdHki } = require("../../controllers/kategori/kategoriHkiController");
-const { getKategoriProf, createDataKategoriProfesi, getDataByIdProfesi, deleteDataByIdProfesi, editDataByIdProfesi } = require("../../controllers/kategori/kategoriProfesiController");
-const { getKategoriIp, createDataKategoriIp, getDataByIdIp, deleteDataByIdIp, editDataByIdIp } = require("../../controllers/kategori/kategoriIpController");
-const { getKategoriRekomendasi, createDataKategoriRekomendasi, getDataByIdRekomendasi, deleteDataByIdRekomendasi, editDataByIdRekomendasi } = require("../../controllers/kategori/pointRekomendasiController");
+const {
+  getKategoriSerti,
+  createDataKategoriSertifikasi,
+  deleteDataById,
+  getDataById,
+  editDataById,
+} = require("../../controllers/kategori/kategoriSertifikasiController");
+const {
+  getKategoriPublikasi,
+  createDataKategoriPublikasi,
+  getDataByIdPublikasi,
+  deleteDataByIdPublikasi,
+  editDataByIdPublikasi,
+} = require("../../controllers/kategori/kategoriPublikasiController");
+const {
+  getKategoriPrestasi,
+  createDataKategoriPrestasi,
+  getDataByIdPrestasi,
+  editDataByIdPrestasi,
+  deleteDataByIdPretasi,
+} = require("../../controllers/kategori/kategoriPrestasiController");
+const {
+  getKategoriHki,
+  createDataKategoriHki,
+  getDataByIdHki,
+  deleteDataByIdHki,
+  editDataByIdHki,
+} = require("../../controllers/kategori/kategoriHkiController");
+const {
+  getKategoriProf,
+  createDataKategoriProfesi,
+  getDataByIdProfesi,
+  deleteDataByIdProfesi,
+  editDataByIdProfesi,
+} = require("../../controllers/kategori/kategoriProfesiController");
+const {
+  getKategoriIp,
+  createDataKategoriIp,
+  getDataByIdIp,
+  deleteDataByIdIp,
+  editDataByIdIp,
+} = require("../../controllers/kategori/kategoriIpController");
+const {
+  getKategoriRekomendasi,
+  createDataKategoriRekomendasi,
+  getDataByIdRekomendasi,
+  deleteDataByIdRekomendasi,
+  editDataByIdRekomendasi,
+} = require("../../controllers/kategori/pointRekomendasiController");
+const KategoriLaporanController = require("../../controllers/kategori/kategoriLaporanController");
 
 const router = express.Router();
 
 router.get("/sertifikasi", protected, getKategoriSerti);
-router.post("/sertifikasi", protected, adminOnly, createDataKategoriSertifikasi);
+router.post(
+  "/sertifikasi",
+  protected,
+  adminOnly,
+  createDataKategoriSertifikasi
+);
 router.get("/sertifikasi/:id", protected, getDataById);
 router.delete("/sertifikasi/:id", protected, adminOnly, deleteDataById);
 router.patch("/sertifikasi/:id", protected, adminOnly, editDataById);
@@ -48,9 +96,25 @@ router.delete("/ip/:id", protected, adminOnly, deleteDataByIdIp);
 router.patch("/ip/:id", protected, adminOnly, editDataByIdIp);
 
 router.get("/rekomendasi", protected, getKategoriRekomendasi);
-router.post("/rekomendasi", protected, adminOnly, createDataKategoriRekomendasi);
+router.post(
+  "/rekomendasi",
+  protected,
+  adminOnly,
+  createDataKategoriRekomendasi
+);
 router.get("/rekomendasi/:id", protected, getDataByIdRekomendasi);
-router.delete("/rekomendasi/:id", protected, adminOnly, deleteDataByIdRekomendasi);
+router.delete(
+  "/rekomendasi/:id",
+  protected,
+  adminOnly,
+  deleteDataByIdRekomendasi
+);
 router.patch("/rekomendasi/:id", protected, adminOnly, editDataByIdRekomendasi);
+
+router.get("/laporan", protected, KategoriLaporanController.index);
+router.get("/laporan/:id", protected, KategoriLaporanController.detail);
+router.post("/laporan", protected, KategoriLaporanController.create);
+router.put("/laporan/:id", protected, KategoriLaporanController.update);
+router.delete("/laporan/:id", protected, KategoriLaporanController.destroy);
 
 module.exports = router;

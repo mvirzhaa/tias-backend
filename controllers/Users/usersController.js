@@ -10,6 +10,7 @@ const User = require("../../models/User");
 const { getPagination } = require("../../lib/pagination-parser");
 const { response } = require("../../lib/response");
 const { Op } = require("sequelize");
+const DataPribadi = require("../../models/DataPribadi");
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -622,6 +623,19 @@ exports.getUserMhsAgain = asyncHandler(async (req, res) => {
   });
 });
 
+exports.getUsersForNotaDinas = asyncHandler(async (req, res) => {
+  const findUsers = await DB.query(
+    "SELECT tb_users.user_id, tb_users.npm, tb_data_pribadi.nama_lengkap, tb_data_pribadi.image, ta_pengajuan_sk.* FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id  JOIN ta_pengajuan_sk ON tb_users.user_id = ta_pengajuan_sk.mhs_id WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true AND ta_pengajuan_sk.status != 'selesai' AND ta_pengajuan_sk.nomor_nota_dinas IS NULL AND ta_pengajuan_sk.deleted_at IS NULL"
+  );
+
+  const resultsUsers = findUsers.rows;
+
+  res.status(200).json({
+    message: "Success get data.",
+    data: resultsUsers,
+  });
+});
+
 exports.getUsers = async (req, res) => {
   try {
     let { limit, page, order, orderBy, search, filter, filterValue } =
@@ -671,6 +685,13 @@ exports.getUsers = async (req, res) => {
       order: [[order, orderBy]],
       limit: pagelimit.limit,
       offset: pagelimit.offset,
+      include: [
+        {
+          model: DataPribadi,
+          as: "personal_data",
+          required: true,
+        },
+      ],
     });
 
     return response(res, true, "success", {
@@ -684,19 +705,6 @@ exports.getUsers = async (req, res) => {
     return response(res, false, error.message, error);
   }
 };
-
-exports.getUsersForNotaDinas = asyncHandler(async (req, res) => {
-  const findUsers = await DB.query(
-    "SELECT tb_users.user_id, tb_users.npm, tb_data_pribadi.nama_lengkap, tb_data_pribadi.image, ta_pengajuan_sk.* FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id  JOIN ta_pengajuan_sk ON tb_users.user_id = ta_pengajuan_sk.mhs_id WHERE tb_users.role = 'Mahasiswa' AND tb_users.isverified = true AND ta_pengajuan_sk.status != 'selesai' AND ta_pengajuan_sk.nomor_nota_dinas IS NULL AND ta_pengajuan_sk.deleted_at IS NULL"
-  );
-
-  const resultsUsers = findUsers.rows;
-
-  res.status(200).json({
-    message: "Success get data.",
-    data: resultsUsers,
-  });
-});
 
 exports.listDosen = asyncHandler(async (req, res) => {
   const findDosen = await DB.query(
