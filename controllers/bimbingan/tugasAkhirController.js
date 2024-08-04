@@ -1853,7 +1853,7 @@ exports.getNilaiSidangForDosen = asyncHandler(async (req, res) => {
     throw new Error("Data not found.");
   }
 
-  if (user.role === "Dosen_Ext") {
+  if (user.role === "Dosen_Ext" || user.role === "Dosen") {
     const userLoginId = user.user_id;
     let statusDosen = "";
     if (dataPengajuanSidang.rows[0].sidang_pembimbing_1 == userLoginId) {
