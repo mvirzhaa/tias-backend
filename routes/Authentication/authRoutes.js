@@ -22,6 +22,7 @@ const {
   registerDosenExt,
   verifyDosenExt,
   registerPegawai,
+  eportalGoogle,
 } = require("../../controllers/Authentication/authController");
 const { protected, adminOnly } = require("../../middleware/authMiddleware");
 const passport = require("../../utils/passport");
