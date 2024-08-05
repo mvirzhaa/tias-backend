@@ -1525,3 +1525,103 @@ exports.deleteExpired = asyncHandler(async (req, res) => {
   await DB.query("DELETE FROM token WHERE expires_at <= $1", [now]);
   res.status(200).send({ message: "Oke" });
 });
+
+
+exports.eportalGoogle = asyncHandler(async (req, res) => {
+  
+   
+    const { email } = req.body;
+    const user = await DB.query("SELECT * FROM tb_users WHERE email = $1", [
+      email,
+    ]);
+  
+    if (!user.rows.length) {
+      res.status(404);
+      throw new Error("Invalid Email.");
+    } 
+    if(!user.rows[0].isverified){
+      res.status(404);
+      throw new Error("Please Verified your email");
+    }
+
+    const id = user.rows[0].user_id;
+    // // Generate Token
+    const token = generateToken(id);
+    if (user.rows.length && user.rows[0].isverified) {
+      const {
+        user_id,
+        npm,
+        nidn,
+        username,
+        email,
+        role,
+        isverified,
+        created_at,
+      } = user.rows[0];
+
+      const unix = unixTimestamp;
+      const createdAt = await convertDate(unix);
+      const unixExpires = expires_at;
+      const expiresAt = await convertDate(unixExpires);
+
+      await DB.query(
+        "INSERT INTO token(user_id, login_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
+        [id, token, createdAt, expiresAt]
+      );
+
+      const getPersonalData = await DB.query(
+        "SELECT * FROM tb_data_pribadi WHERE user_id = $1",
+        [user_id]
+      );
+  
+      const queryLencana = await DB.query(
+        `SELECT * FROM achievements WHERE gamify = $1`,
+        [getPersonalData.rows[0].rank]
+      );
+  
+      const oneMonth = 30 * 24 * 60 * 60 * 1000;
+
+      res.cookie("token", token, {
+        path: "/",
+        httpOnly: true,
+        expires: new Date(Date.now() + oneMonth),
+        sameSite: "none",
+        secure: true,
+      });
+  
+      res.status(200).json({
+        message: "Login Success.",
+        data: {
+          user_id,
+          npm,
+          nidn,
+          username,
+          email,
+          role,
+          nip: getPersonalData.rows[0].nip,
+          nama_lengkap: getPersonalData.rows[0].nama_lengkap,
+          image: getPersonalData.rows[0].image,
+          no_hp: getPersonalData.rows[0].no_hp,
+          imageUrl: `${process.env.API_URL}/foto-profile/${getPersonalData.rows[0].image}`,
+          kode_mhs: getPersonalData.rows[0].kode_mhs,
+          isverified,
+          created_at,
+          personalData: getPersonalData.rows[0],
+          lencana:
+            queryLencana.rows.length &&
+            queryLencana.rows.map((iterate) => ({
+              lencana: `${process.env.API_URL}/gamify/lencana/${iterate.lencana}`,
+            })),
+          token,
+        },
+      });
+
+    }else{
+      res.status(500);
+      throw new Error("Somthing went wrong, Pleas try again.");
+    }
+
+
+ 
+   
+});

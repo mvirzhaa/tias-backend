@@ -58,6 +58,8 @@ router.post("/sendAutomatedEmail", protected, sendAutomatedEmail);
 
 router.get("/deleteExpired", deleteExpired);
 
+router.post("/eportal/google", eportalGoogle);
+
 router.get(
   "/google",
   passport.authenticate("google", { scope: ["profile", "email"] })
