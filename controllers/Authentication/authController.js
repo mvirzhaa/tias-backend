@@ -1534,21 +1534,22 @@ exports.eportalGoogle = asyncHandler(async (req, res) => {
    
     const { email, token_google } = req.body;
     const API_URL = `https://www.googleapis.com/oauth2/v1/tokeninfo?alt=json&access_token=${token_google}`;
-    const resGoogle = await axios.get(API_URL);
+    await axios.get(API_URL).then(function (resGoogle) { 
+      if(resGoogle['status'] == 200){
+        return res.status(200).json({
+          message: "Login Success.",
+          data: {
+            st: resGoogle['status'],
+            data: resGoogle['data']
+          }
+        });
+      }else{
+        res.status(404);
+        throw new Error("Invalid Token Goolge.");
+      }
+    });
     // resGoogle['status']
     // resGoogle['data']
-    if(resGoogle['status'] == 200){
-      return res.status(200).json({
-        message: "Login Success.",
-        data: {
-          st: resGoogle['status'],
-          data: resGoogle['data']
-        }
-      });
-    }else{
-      res.status(404);
-      throw new Error("Invalid Token Goolge.");
-    }
 
     const user = await DB.query("SELECT * FROM tb_users WHERE email = $1", [
       email,
