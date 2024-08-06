@@ -852,13 +852,14 @@ exports.cekDataPribadi = asyncHandler(async (req, res) => {
 
 exports.getLoginStatus = asyncHandler(async (req, res) => {
   const token = req.cookies.token;
+  const token2 = req.params.token;
 
-  if (!token) {
+  if (!token || !token2) {
     return res.json(false);
   }
 
-  // Verified token
-  const verified = jwt.verify(token, process.env.JWT_SECRET);
+  // Verified tokend 
+  const verified = jwt.verify(token ? token : token2, process.env.JWT_SECRET);
 
   if (verified) {
     return res.json(true);
