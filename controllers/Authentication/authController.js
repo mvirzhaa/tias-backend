@@ -33,6 +33,8 @@ const { getIp, deleteIp } = require("../../helper/ipk");
 const { updateGamifyKompetensi } = require("../../utils/gamifyKompetensi");
 const cryptr = new Cryptr(process.env.CRYPTR_KEY);
 
+const { default: axios } = require("axios");
+
 exports.register = asyncHandler(async (req, res) => {
   const { error } = formRegisterValidation(req.body);
   if (error) {
@@ -1530,7 +1532,19 @@ exports.deleteExpired = asyncHandler(async (req, res) => {
 exports.eportalGoogle = asyncHandler(async (req, res) => {
   
    
-    const { email } = req.body;
+    const { email, token_google } = req.body;
+    const API_URL = `https://www.googleapis.com/oauth2/v1/tokeninfo?alt=json&access_token=${token_google}`;
+    const resGoogle = await axios.get(API_URL);
+    // resGoogle['status']
+    // resGoogle['data']
+    return res.status(200).json({
+      message: "Login Success.",
+      data: {
+        st: resGoogle['status'],
+        data: resGoogle['data']
+      }
+    });
+
     const user = await DB.query("SELECT * FROM tb_users WHERE email = $1", [
       email,
     ]);
