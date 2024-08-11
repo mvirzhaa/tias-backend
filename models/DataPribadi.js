@@ -6,11 +6,10 @@ DataPribadi.init(
   {
     dp_id: {
       type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
     user_id: {
-      type: DataTypes.UUID,
+      type: DataTypes.UUIDV4,
       allowNull: false,
     },
     nama_lengkap: {

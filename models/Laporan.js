@@ -55,8 +55,9 @@ Laporan.belongsTo(KategoriLaporan, {
   as: "kategori_laporan",
 });
 
-Laporan.belongsTo(User, {
+Laporan.hasOne(User, {
   foreignKey: "user_id",
+  sourceKey: "user_id",
   as: "user",
 });
 
