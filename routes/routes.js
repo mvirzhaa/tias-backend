@@ -31,6 +31,7 @@ const validasiRoutes = require("./validasi/validasiRoutes");
 const jabatanRoutes = require("./jabatan/jabatanRoutes");
 const strukturalRoutes = require("./jabatan/strukturalRoutes");
 const laporanRoutes = require("./laporan/laporanRoutes");
+const ruanganRoutes = require("./ruangan/ruanganRoutes");
 const {
   getJabatanByquery,
 } = require("../controllers/jabatan/strukturalProdiController");
@@ -68,6 +69,7 @@ router.use("/tugas-akhir", tugasAkhirRoutes);
 router.use("/jabatan", jabatanRoutes);
 router.use("/struktural", strukturalRoutes);
 router.use("/laporan", laporanRoutes);
+router.use("/ruangan", ruanganRoutes);
 
 router.get("/get-jabatan", getJabatanByquery);
 router.use("/help", helpRoutes);
