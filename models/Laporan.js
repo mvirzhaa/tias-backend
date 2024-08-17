@@ -41,8 +41,26 @@ Laporan.init(
     updated_at: {
       type: DataTypes.DATE,
     },
+    deleted_at: {
+      type: DataTypes.DATE,
+    },
+    status: {
+      type: DataTypes.INTEGER,
+    },
   },
   {
+    defaultScope: {
+      where: {
+        deleted_at: null,
+      },
+    },
+    scopes: {
+      deleted: {
+        where: {
+          deleted_at: null,
+        },
+      },
+    },
     timestamps: false,
     tableName: "laporan",
     modelName: "Laporan",

@@ -1,4 +1,4 @@
-const { Op, Sequelize } = require("sequelize");
+const { Op, Sequelize, where } = require("sequelize");
 const _ = require("lodash");
 const { getPagination } = require("../../lib/pagination-parser");
 const KategoriLaporan = require("../../models/master/KategoriLaporan");
@@ -213,9 +213,16 @@ class LaporanController {
       }
       await fs.remove(path.join(`public/dokumentasi-laporan/${laporan.foto}`));
 
-      await Laporan.destroy({
-        where: { id },
-      });
+      await Laporan.update(
+        {
+          deleted_at: new Date(),
+        },
+        {
+          where: {
+            id,
+          },
+        }
+      );
 
       return response(res, true, "berhasil");
     } catch (error) {
