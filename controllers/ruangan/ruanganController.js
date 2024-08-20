@@ -4,6 +4,8 @@ const { getPagination } = require("../../lib/pagination-parser");
 const { response } = require("../../lib/response");
 const { CastObject } = require("../../lib/general");
 const Ruangan = require("../../models/Ruangan");
+const path = require("path");
+const fs = require("fs-extra");
 
 class RuanganController {
   static index = async (req, res) => {
@@ -62,7 +64,10 @@ class RuanganController {
         page,
         total: data.count,
         total_page: Math.ceil(parseInt(data.count) / limit),
-        rows: data.rows,
+        rows: data.rows.map((iterate) => ({
+          ...iterate.toJSON(),
+          foto: `${process.env.API_URL}/foto-ruangan/${iterate.foto}`,
+        })),
       });
     } catch (error) {
       return response(res, false, "error", error.message);
@@ -79,7 +84,10 @@ class RuanganController {
         },
       });
 
-      return response(res, true, "Success", data);
+      return response(res, true, "Success", {
+        ...data.toJSON(),
+        foto: `${process.env.API_URL}/foto-ruangan/${data.foto}`,
+      });
     } catch (error) {
       return response(res, true, "error", error.message);
     }
@@ -87,6 +95,10 @@ class RuanganController {
 
   static create = async (req, res) => {
     try {
+      if (!req.file) {
+        return response(res, true, "error", "please fill one file!");
+      }
+
       const casting = CastObject({
         Model: Ruangan,
         body: req.body,
@@ -94,6 +106,7 @@ class RuanganController {
 
       const save = await Ruangan.create({
         ...casting,
+        foto: req.file.filename,
       });
 
       return response(res, true, "success", save);
@@ -105,12 +118,21 @@ class RuanganController {
   static update = async (req, res) => {
     try {
       const id = req.params.id;
+      let filename;
 
       const ruangan = await Ruangan.findOne({ where: { id } });
 
       if (!ruangan) {
         return response(res, false, "error", "Data not found!");
       }
+
+      if (req.file) {
+        await fs.remove(path.join(`public/foto-ruangan/${ruangan.foto}`));
+        filename = req.file.filename;
+      } else {
+        filename = ruangan.foto;
+      }
+
       const casting = CastObject({
         Model: Ruangan,
         body: req.body,
@@ -121,6 +143,7 @@ class RuanganController {
       await Ruangan.update(
         {
           ...casting,
+          foto: filename,
         },
         { where: { id } }
       );

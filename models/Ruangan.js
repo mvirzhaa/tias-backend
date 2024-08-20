@@ -15,6 +15,9 @@ Ruangan.init(
     alamat: {
       type: DataTypes.TEXT,
     },
+    foto: {
+      type: DataTypes.STRING,
+    },
     lat: {
       type: DataTypes.STRING,
     },

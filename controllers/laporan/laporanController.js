@@ -211,7 +211,6 @@ class LaporanController {
       if (!laporan) {
         return response(res, false, "error", "Data not found!");
       }
-      await fs.remove(path.join(`public/dokumentasi-laporan/${laporan.foto}`));
 
       await Laporan.update(
         {
