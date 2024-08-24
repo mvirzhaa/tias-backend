@@ -148,6 +148,9 @@ exports.getDataPribadi = asyncHandler(async (req, res) => {
     ...iterate,
     image: `${process.env.API_URL}/foto-profile/${iterate.image}`,
     ttd: `${process.env.API_URL}/ttd/${iterate.ttd}`,
+    foto_narsum: `${process.env.API_URL}/foto-narsum/${iterate.foto_narsum}`,
+    status_ttd: iterate.ttd ? true : false,
+    status_foto_narsum: iterate.foto_narsum ? true : false,
     lencana: lencana,
   }));
   res.status(201).json({
