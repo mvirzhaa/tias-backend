@@ -31,6 +31,7 @@ const {
 const {
   dokumenSkPerkuliahanUpload,
 } = require("../../middleware/dokumenSkPerkuliahanUpload");
+const { listMeet } = require("../../controllers/absensi/indexController");
 
 const router = express.Router();
 
@@ -65,5 +66,8 @@ router.get("/rekap-pertemuan/excel", exportsRekapPertemuan);
 router.get("/persentase-dosen/excel", exportsPersentaseDosen);
 
 router.get("/list-dosen", getDosenForAbsensi);
+
+
+router.get("/list-meet", listMeet)
 
 module.exports = router;
