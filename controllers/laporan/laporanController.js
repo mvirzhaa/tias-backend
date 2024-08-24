@@ -234,15 +234,17 @@ class LaporanController {
       let { tanggal_mulai, tanggal_akhir } = req.query;
       let whereCondition = {};
 
-      if (tanggal_mulai) {
+      if (tanggal_mulai && tanggal_akhir) {
         whereCondition.created_at = {
-          [Op.gte]: tanggal_mulai,
+          [Op.between]: [new Date(tanggal_mulai + 'T00:00:00Z'), new Date(tanggal_akhir + 'T23:59:59Z')],
         };
-      }
-      if (tanggal_akhir) {
+      } else if (tanggal_mulai) {
         whereCondition.created_at = {
-          ...whereCondition.created_at,
-          [Op.lte]: tanggal_akhir,
+          [Op.gte]: new Date(tanggal_mulai + 'T00:00:00Z'),
+        };
+      } else if (tanggal_akhir) {
+        whereCondition.created_at = {
+          [Op.lte]: new Date(tanggal_akhir + 'T23:59:59Z'),
         };
       }
 
@@ -284,6 +286,8 @@ class LaporanController {
       return response(res, false, error.message, error);
     }
   };
+
+
 
   static dataChart = async (req, res) => {
     try {
