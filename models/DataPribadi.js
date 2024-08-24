@@ -170,6 +170,10 @@ DataPribadi.init(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    foto_narsum: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
   },
   {
     timestamps: false,

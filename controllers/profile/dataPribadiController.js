@@ -3,6 +3,9 @@ const DB = require("../../database");
 const { unixTimestamp, convertDate } = require("../../utils");
 const fs = require("fs-extra");
 const path = require("path");
+const User = require("../../models/User");
+const DataPribadi = require("../../models/DataPribadi");
+const { Op } = require("sequelize");
 
 exports.createDataPribadi = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
@@ -305,6 +308,98 @@ exports.uploadTtd = asyncHandler(async (req, res) => {
 
   const updateData = await DB.query(
     `UPDATE tb_data_pribadi SET ttd = $1, updated_at = $2 WHERE user_id = $3 RETURNING ttd`,
+    [file.filename, convert, userLoginId]
+  );
+
+  res.status(201).json({
+    message: "Successfully update data.",
+    data: {
+      ttd: updateData.rows[0].ttd,
+    },
+  });
+});
+
+exports.getFotoNarsum = asyncHandler(async (req, res) => {
+  const { code } = req.query;
+  
+  let data = await User.findOne({
+    where: {
+      [Op.or]: [
+        { npm: code },
+        { nidn: code }
+      ]
+    },
+    attributes: ["npm", "nidn"],
+    include: [
+      {
+        model: DataPribadi,
+        as: 'personal_data',
+        required: false,
+        attributes: ['foto_narsum', 'nip', 'nama_lengkap']
+      }
+    ]
+  });
+
+  if (!data) {
+    data = await User.findOne({
+      attributes: ["npm", "nidn"],
+      include: [
+        {
+          model: DataPribadi,
+          as: 'personal_data',
+          required: true,
+          attributes: ['foto_narsum', 'nip', 'nama_lengkap'],
+          where: {
+            nip: code
+          }
+        }
+      ]
+    });
+  }
+
+  const responseData = {
+    npm: data ? data.npm : null,
+    nidn: data ? data.nidn : null,
+    nip: data && data.personal_data ? data.personal_data.nip : null,
+    foto_narsum: `${process.env.API_URL}/foto-narsum/${data.personal_data?.foto_narsum}`,
+    nama_lengkap: data && data.personal_data ? data.personal_data.nama_lengkap : null 
+  };
+
+  if (data) {
+    res.status(200).json({ success: true, data: responseData });
+  } else {
+    res.status(404).json({ success: false, message: 'User not found' });
+  }
+});
+
+exports.uploadFotoNarsum = asyncHandler(async (req, res) => {
+  const userLoginId = req.user.user_id;
+  const file = req.file;
+
+  if (!file) {
+    res.status(400);
+    throw new Error("Please fill in one file.");
+  }
+
+  const findData = await DB.query(
+    "SELECT * FROM tb_data_pribadi WHERE user_id = $1",
+    [userLoginId]
+  );
+
+  if (!findData.rows.length) {
+    res.status(400);
+    throw new Error("Data not found.");
+  }
+
+  if (findData.rows[0].foto_narsum) {
+    await fs.remove(path.join(`public/foto-narsum/${findData.rows[0].ttd}`));
+  }
+
+  const updated_at = unixTimestamp;
+  const convert = convertDate(updated_at);
+
+  const updateData = await DB.query(
+    `UPDATE tb_data_pribadi SET foto_narsum = $1, updated_at = $2 WHERE user_id = $3 RETURNING ttd`,
     [file.filename, convert, userLoginId]
   );
 

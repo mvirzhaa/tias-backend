@@ -7,6 +7,9 @@ const {
   updateStatusMhs,
   updateProfileImage,
   uploadTtd,
+  updateFotoNarsum,
+  uploadFotoNarsum,
+  getFotoNarsum,
 } = require("../../controllers/profile/dataPribadiController");
 const {
   createDokumenPribadi,
@@ -36,13 +39,13 @@ const {
   editDataKepangkatan,
   deleteDataKepangkatan,
   detailDataKepangkatan,
-  updateStatusKepangkatan,
   approveStatusKepangkatan,
   rejectStatusKepangkatan,
 } = require("../../controllers/profile/kepangkatanController");
 const { profileUpload } = require("../../middleware/profileUpload");
 const { profileImageUpload } = require("../../middleware/profileImageUpload");
 const { profileUploadTtd } = require("../../middleware/profileUploadTtd");
+const { fotoNarsumUpload } = require("../../middleware/fotoNarsumUpload");
 
 const router = express.Router();
 
@@ -54,6 +57,8 @@ router.delete("/deleteData/:dataID", protected, adminOnly, deleteDataPribadi);
 router.patch("/updateStatusMhs/:id", protected, adminOnly, updateStatusMhs);
 router.patch("/updateImage", protected, profileImageUpload, updateProfileImage);
 router.patch("/update-ttd", protected, profileUploadTtd, uploadTtd);
+router.patch("/update-foto-narsum", protected, fotoNarsumUpload, uploadFotoNarsum);
+router.get("/get-narsum", getFotoNarsum)
 // ============= END DATA PRIBADI =============
 
 // ============= DOKUMEN PRIBADI ==============
