@@ -32,7 +32,7 @@ router.get("/all", protected, getUsesDsnMhs);
 router.get("/all-mhs", protected, getUserMhsAgain);
 router.get("/all-dosen", protected, listDosen);
 router.get("/all-dosen-ext", protected, listDosenExt);
-router.get("/all-users", getUsers);
+router.get("/all-users", protected, getUsers);
 router.get("/all-mhs-beasiswa", protected, getMhsBeasiswa);
 
 router.get("/all-mhs-skripsi", protected, getUsersForNotaDinas);

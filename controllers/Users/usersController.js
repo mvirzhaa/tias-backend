@@ -636,55 +636,79 @@ exports.getUsersForNotaDinas = asyncHandler(async (req, res) => {
   });
 });
 
-exports.getUsers = async (req, res) => {
+// exports.getUsers = async (req, res) => {
+//   try {
+//     let { limit, page, order, orderBy, search, filter, filterValue } =
+//       req.query;
+//     limit = parseInt(limit) > 0 ? parseInt(limit) : 10;
+//     page = page ? parseInt(page) : 1;
+//     order = order ? order : "user_id";
+//     orderBy = orderBy ? orderBy : "DESC";
+//     const pagelimit = getPagination(limit, page);
+
+//     let whereCondition = {};
+
+//     if (filter && filterValue) {
+//       const filters = Array.isArray(filter) ? filter : [filter];
+//       const filterValues = Array.isArray(filterValue)
+//         ? filterValue
+//         : [filterValue];
+
+//       filters.forEach((f, index) => {
+//         if (f && filterValues[index] !== undefined) {
+//           whereCondition[f] = filterValues[index];
+//         }
+//       });
+//     }
+
+//     let condition = {
+//       [Op.and]: whereCondition,
+//     };
+
+//     if (search) {
+//       condition = {
+//         ...condition,
+//         [Op.or]: {
+//           npm: {
+//             [Op.like]: `%${search}%`,
+//           },
+//           nidn: {
+//             [Op.like]: `%${search}%`,
+//           },
+//         },
+//       };
+//     }
+
+//     const data = await User.findAndCountAll({
+//       distinct: true,
+//       where: condition,
+//       order: [[order, orderBy]],
+//       limit: pagelimit.limit,
+//       offset: pagelimit.offset,
+//       include: [
+//         {
+//           model: DataPribadi,
+//           as: "personal_data",
+//           required: true,
+//         },
+//       ],
+//     });
+
+//     return response(res, true, "success", {
+//       limit,
+//       page,
+//       total: data.count,
+//       total_page: Math.ceil(parseInt(data.count) / limit),
+//       rows: data.rows,
+//     });
+//   } catch (error) {
+//     return response(res, false, error.message, error);
+//   }
+// };
+
+exports.getUsers = asyncHandler(async (req, res) => {
   try {
-    let { limit, page, order, orderBy, search, filter, filterValue } =
-      req.query;
-    limit = parseInt(limit) > 0 ? parseInt(limit) : 10;
-    page = page ? parseInt(page) : 1;
-    order = order ? order : "user_id";
-    orderBy = orderBy ? orderBy : "DESC";
-    const pagelimit = getPagination(limit, page);
-
-    let whereCondition = {};
-
-    if (filter && filterValue) {
-      const filters = Array.isArray(filter) ? filter : [filter];
-      const filterValues = Array.isArray(filterValue)
-        ? filterValue
-        : [filterValue];
-
-      filters.forEach((f, index) => {
-        if (f && filterValues[index] !== undefined) {
-          whereCondition[f] = filterValues[index];
-        }
-      });
-    }
-
-    let condition = {
-      [Op.and]: whereCondition,
-    };
-
-    if (search) {
-      condition = {
-        ...condition,
-        [Op.or]: {
-          npm: {
-            [Op.like]: `%${search}%`,
-          },
-          nidn: {
-            [Op.like]: `%${search}%`,
-          },
-        },
-      };
-    }
-
-    const data = await User.findAndCountAll({
-      distinct: true,
-      where: condition,
-      order: [[order, orderBy]],
-      limit: pagelimit.limit,
-      offset: pagelimit.offset,
+    const data = await User.findAll({
       include: [
         {
           model: DataPribadi,
@@ -693,18 +717,14 @@ exports.getUsers = async (req, res) => {
         },
       ],
     });
-
-    return response(res, true, "success", {
-      limit,
-      page,
-      total: data.count,
-      total_page: Math.ceil(parseInt(data.count) / limit),
-      rows: data.rows,
+    res.status(200).json({
+      message: "Success get data.",
+      data: data,
     });
   } catch (error) {
     return response(res, false, error.message, error);
   }
-};
+});
 
 exports.listDosen = asyncHandler(async (req, res) => {
   const findDosen = await DB.query(

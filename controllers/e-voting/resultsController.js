@@ -1,4 +1,3 @@
-const DB = require("../../db-evoting");
 const DB_TIAS = require("../../database");
 const asyncHandler = require("express-async-handler");
 const md5 = require("md5");
@@ -61,13 +60,13 @@ exports.createResult = asyncHandler(async (req, res) => {
   }
 
   try {
-    const findQuestion = await DB.query(
-      "SELECT * FROM tb_pertanyaan WHERE id = $1 and status_pertanyaan = $2",
+    const findQuestion = await DB_TIAS.query(
+      "SELECT * FROM tb_voting_pertanyaan WHERE id = $1 and status_pertanyaan = $2",
       [newData.id_pertanyaan, 0]
     );
 
-    const findAnswer = await DB.query(
-      "SELECT * FROM tb_jawaban WHERE id = $1 and status_jawaban = $2",
+    const findAnswer = await DB_TIAS.query(
+      "SELECT * FROM tb_voting_jawaban WHERE id = $1 and status_jawaban = $2",
       [newData.id_jawaban, 0]
     );
 
@@ -76,8 +75,8 @@ exports.createResult = asyncHandler(async (req, res) => {
       throw new Error("Voting is no longer active.");
     }
 
-    const hasAnswered = await DB.query(
-      "SELECT * FROM tb_verifikasi_hasil WHERE id_pertanyaan = $1 AND user_id = $2",
+    const hasAnswered = await DB_TIAS.query(
+      "SELECT * FROM tb_voting_verifikasi_hasil WHERE id_pertanyaan = $1 AND user_id = $2",
       [newData.id_pertanyaan, userLoginId]
     );
 
@@ -87,8 +86,8 @@ exports.createResult = asyncHandler(async (req, res) => {
         .json({ message: "You have already answered this question." });
     }
 
-    await DB.query(
-      "UPDATE tb_hasil SET hasil = hasil + 1 WHERE id_jawaban = $1",
+    await DB_TIAS.query(
+      "UPDATE tb_voting_hasil SET hasil = hasil + 1 WHERE id_jawaban = $1",
       [newData.id_jawaban]
     );
 
@@ -111,8 +110,8 @@ exports.createResult = asyncHandler(async (req, res) => {
 
     const readyCekSum = await combineValue(hashMd5, hashIdAnswer);
 
-    const saveVerifikasi = await DB.query(
-      "INSERT INTO tb_verifikasi_hasil(id_pertanyaan, user_id, cek_sum) VALUES($1, $2, $3) RETURNING *",
+    const saveVerifikasi = await DB_TIAS.query(
+      "INSERT INTO tb_voting_verifikasi_hasil(id_pertanyaan, user_id, cek_sum) VALUES($1, $2, $3) RETURNING *",
       [newData.id_pertanyaan, userLoginId, readyCekSum]
     );
 
@@ -163,8 +162,8 @@ exports.cekSum = asyncHandler(async (req, res) => {
 
     const id = parseInt(angkaIdJawaban);
 
-    const findJawaban = await DB.query(
-      "SELECT * FROM tb_jawaban WHERE id = $1",
+    const findJawaban = await DB_TIAS.query(
+      "SELECT * FROM tb_voting_jawaban WHERE id = $1",
       [id]
     );
 

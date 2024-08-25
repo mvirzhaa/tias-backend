@@ -74,6 +74,19 @@ class RuanganController {
     }
   };
 
+  static all = async (req, res) => {
+    try {
+      const data = await Ruangan.findAll();
+
+      res.status(200).json({
+        message: "Success get data.",
+        data: data,
+      });
+    } catch (error) {
+      return response(res, false, "error", error.message);
+    }
+  };
+
   static detail = async (req, res) => {
     try {
       const { id } = req.params;

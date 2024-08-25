@@ -1,4 +1,3 @@
-const DB = require("../../db-evoting");
 const DB_TIAS = require("../../database");
 const asyncHandler = require("express-async-handler");
 const { unixTimestamp, convertDate } = require("../../utils");
@@ -63,12 +62,12 @@ exports.getGroupVoting = asyncHandler(async (req, res) => {
   query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
 
   try {
-    const result = await DB.query(query);
+    const result = await DB_TIAS.query(query);
 
     let responseData = result.rows;
 
     const totalRecordsQuery = "SELECT COUNT(*) AS total FROM tb_group";
-    const totalRecordsResult = await DB.query(totalRecordsQuery);
+    const totalRecordsResult = await DB_TIAS.query(totalRecordsQuery);
     const totalRecords = totalRecordsResult.rows[0].total;
 
     if (dataTable === "true") {
@@ -95,7 +94,7 @@ exports.getGroupVoting = asyncHandler(async (req, res) => {
 });
 
 exports.getAllGroup = asyncHandler(async (req, res) => {
-  const data = await DB.query("SELECT * FROM tb_group");
+  const data = await DB_TIAS.query("SELECT * FROM tb_group");
   res.status(200).json({
     message: "Successfully get data",
     data: data.rows,
@@ -111,7 +110,7 @@ exports.createGroup = asyncHandler(async (req, res) => {
     });
   }
 
-  const findNewData = await DB.query(
+  const findNewData = await DB_TIAS.query(
     "SELECT * FROM tb_group WHERE nama_group = $1",
     [newData.nama_group]
   );
@@ -122,7 +121,7 @@ exports.createGroup = asyncHandler(async (req, res) => {
     });
   }
 
-  const saveData = await DB.query(
+  const saveData = await DB_TIAS.query(
     "INSERT INTO tb_group(nama_group) VALUES($1)",
     [newData.nama_group]
   );
@@ -141,9 +140,10 @@ exports.deleteGroup = asyncHandler(async (req, res) => {
     throw new Error("ID parameter is missing.");
   }
 
-  const deleteQuery = await DB.query("DELETE FROM tb_group WHERE id = $1", [
-    idToDelete,
-  ]);
+  const deleteQuery = await DB_TIAS.query(
+    "DELETE FROM tb_group WHERE id = $1",
+    [idToDelete]
+  );
 
   if (deleteQuery.rowCount === 0) {
     res.status(404);
@@ -158,7 +158,9 @@ exports.deleteGroup = asyncHandler(async (req, res) => {
 exports.detailGroup = asyncHandler(async (req, res) => {
   const id = req.params.id;
 
-  const findData = await DB.query("SELECT * FROM tb_group WHERE id = $1", [id]);
+  const findData = await DB_TIAS.query("SELECT * FROM tb_group WHERE id = $1", [
+    id,
+  ]);
 
   if (!findData.rows.length) {
     return res.status(400).json({
@@ -175,7 +177,9 @@ exports.detailGroup = asyncHandler(async (req, res) => {
 exports.editGroup = asyncHandler(async (req, res) => {
   const id = req.params.id;
 
-  const findData = await DB.query("SELECT * FROM tb_group WHERE id = $1", [id]);
+  const findData = await DB_TIAS.query("SELECT * FROM tb_group WHERE id = $1", [
+    id,
+  ]);
 
   if (!findData.rows.length) {
     return res.status(400).json({
@@ -185,7 +189,7 @@ exports.editGroup = asyncHandler(async (req, res) => {
 
   const { nama_group } = req.body;
 
-  const updatedData = await DB.query(
+  const updatedData = await DB_TIAS.query(
     "UPDATE tb_group SET nama_group = $1 WHERE id = $2 RETURNING *",
     [nama_group, id]
   );
@@ -199,7 +203,9 @@ exports.editGroup = asyncHandler(async (req, res) => {
 exports.detailToCreateUserGroup = asyncHandler(async (req, res) => {
   const id = req.params.id;
 
-  const findData = await DB.query("SELECT * FROM tb_group WHERE id = $1", [id]);
+  const findData = await DB_TIAS.query("SELECT * FROM tb_group WHERE id = $1", [
+    id,
+  ]);
 
   if (!findData.rows.length) {
     return res.status(400).json({
@@ -207,7 +213,7 @@ exports.detailToCreateUserGroup = asyncHandler(async (req, res) => {
     });
   }
 
-  const findUserGroup = await DB.query(
+  const findUserGroup = await DB_TIAS.query(
     "SELECT DISTINCT ON (user_id) * FROM tb_group_user WHERE $1 = ANY(id_group)",
     [id]
   );
@@ -263,8 +269,8 @@ exports.getGroupUsersAgain = asyncHandler(async (req, res) => {
     }
   }
 
-  const findUsersGroup = await DB.query(query);
-  const findGroup = await DB.query("SELECT * FROM tb_group");
+  const findUsersGroup = await DB_TIAS.query(query);
+  const findGroup = await DB_TIAS.query("SELECT * FROM tb_group");
 
   const result = findUsersGroup.rows.map((user) => {
     const groups = user.id_group.map((groupId) => {
@@ -333,7 +339,7 @@ exports.getGroupUsers = asyncHandler(async (req, res) => {
 
   query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
 
-  const result = await DB.query(query);
+  const result = await DB_TIAS.query(query);
 
   const userIds = result.rows.map((data) => data.user_id);
 
@@ -359,7 +365,7 @@ exports.getGroupUsers = asyncHandler(async (req, res) => {
   let responseData = mergedData;
 
   const totalRecordsQuery = "SELECT COUNT(*) AS total FROM tb_group";
-  const totalRecordsResult = await DB.query(totalRecordsQuery);
+  const totalRecordsResult = await DB_TIAS.query(totalRecordsQuery);
   const totalRecords = totalRecordsResult.rows[0].total;
 
   if (dataTable === "true") {
@@ -408,7 +414,7 @@ exports.userGroupRegister = asyncHandler(async (req, res) => {
 
   const userIds = users.map((user) => user.user_id);
 
-  const findGroupUsers = await DB.query(
+  const findGroupUsers = await DB_TIAS.query(
     `SELECT DISTINCT ON (id) * FROM tb_group_user WHERE user_id = ANY(ARRAY['${userIds.join(
       "','"
     )}']) AND '${data.id}' = ANY(id_group)`
@@ -426,13 +432,13 @@ exports.userGroupRegister = asyncHandler(async (req, res) => {
       code: user.code,
     };
 
-    const findData = await DB.query(
+    const findData = await DB_TIAS.query(
       "SELECT * FROM tb_group_user WHERE user_id = $1",
       [dataUser.user_id]
     );
 
     if (findData.rows.length) {
-      await DB.query(
+      await DB_TIAS.query(
         "UPDATE tb_group_user SET id_group = array_append(id_group, $1) WHERE user_id = $2",
         [data.id, dataUser.user_id]
       );
@@ -440,7 +446,7 @@ exports.userGroupRegister = asyncHandler(async (req, res) => {
       const created_at = unixTimestamp;
       const convert = convertDate(created_at);
       const id_group = [data.id];
-      await DB.query(
+      await DB_TIAS.query(
         "INSERT INTO tb_group_user(user_id, code, id_group, created_at) VALUES($1, $2, $3, $4) RETURNING *",
         [dataUser.user_id, dataUser.code, id_group, convert]
       );
@@ -459,7 +465,7 @@ exports.deleteUserFromGroup = asyncHandler(async (req, res) => {
     throw new Error("ID parameter is missing.");
   }
 
-  const deleteQuery = await DB.query(
+  const deleteQuery = await DB_TIAS.query(
     "UPDATE tb_group_user SET id_group = array_remove(id_group, $1) WHERE user_id = $2",
     [id, user_id]
   );

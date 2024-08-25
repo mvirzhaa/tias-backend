@@ -1,5 +1,4 @@
 const asyncHandler = require("express-async-handler");
-const DB = require("../../db-evoting");
 const DB_TIAS = require("../../database");
 const axios = require("axios");
 const FormData = require("form-data");
@@ -16,6 +15,13 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
     tanggal,
     waktu,
     peserta,
+    waktu_end,
+    tipe_kegiatan,
+    sub_tema,
+    narsum,
+    ket_narsum,
+    contact,
+    link_online,
   } = req.body;
 
   if (
@@ -26,6 +32,13 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
     !status_ruangan ||
     !tanggal ||
     !waktu ||
+    !waktu_end ||
+    !tipe_kegiatan ||
+    !sub_tema ||
+    !narsum ||
+    !ket_narsum ||
+    !contact ||
+    !link_online ||
     !peserta
   ) {
     res.status(400);
@@ -41,7 +54,7 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
 
   if (groups && groups.length > 0) {
     const groupArray = groups.map((obj) => Object.values(obj)[0]);
-    const saveGroupMeet = await DB.query(
+    const saveGroupMeet = await DB_TIAS.query(
       "INSERT INTO tb_group_meet(id_meet, id_group) VALUES($1, $2) RETURNING *",
       [0, groupArray]
     );
@@ -59,6 +72,13 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
     formData.append("tanggal", tanggal);
     formData.append("waktu", waktu);
     formData.append("id_group_tias", id_group_tias);
+    formData.append("waktu_end", waktu_end);
+    formData.append("tipe_kegiatan", tipe_kegiatan);
+    formData.append("sub_tema", sub_tema);
+    formData.append("narsum", narsum);
+    formData.append("ket_narsum", ket_narsum);
+    formData.append("contact", contact);
+    formData.append("link_online", link_online);
 
     const response = await axios.post(API_URL, formData, {
       headers: {
@@ -69,10 +89,10 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
     const id = response.data.data.id;
 
     if (groups && groups.length > 0) {
-      await DB.query("UPDATE tb_group_meet SET id_meet = $1 WHERE id = $2", [
-        id,
-        id_group_tias,
-      ]);
+      await DB_TIAS.query(
+        "UPDATE tb_group_meet SET id_meet = $1 WHERE id = $2",
+        [id, id_group_tias]
+      );
     }
 
     const INSERT_MEET_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting-invite/store`;
@@ -138,9 +158,9 @@ exports.getGroupUserMeet = asyncHandler(async (req, res) => {
     }
   }
 
-  const findMeetGroup = await DB.query(query);
-  const findGroup = await DB.query("SELECT * FROM tb_group");
-  const findGroupUsers = await DB.query("SELECT * FROM tb_group_user");
+  const findMeetGroup = await DB_TIAS.query(query);
+  const findGroup = await DB_TIAS.query("SELECT * FROM tb_group");
+  const findGroupUsers = await DB_TIAS.query("SELECT * FROM tb_group_user");
   const findDataPribadi = await DB_TIAS.query(
     "SELECT user_id, nama_lengkap FROM tb_data_pribadi"
   );

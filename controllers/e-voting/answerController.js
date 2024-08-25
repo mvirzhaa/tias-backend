@@ -1,4 +1,4 @@
-const DB = require("../../db-evoting");
+const DB = require("../../database");
 const asyncHandler = require("express-async-handler");
 
 exports.getAnswer = asyncHandler(async (req, res) => {
@@ -17,7 +17,7 @@ exports.getAnswer = asyncHandler(async (req, res) => {
 
   const offset = (pageNumber - 1) * itemsPerPage;
 
-  let query = "SELECT * FROM tb_jawaban";
+  let query = "SELECT * FROM tb_voting_jawaban";
 
   if (filter && filterValue) {
     if (Array.isArray(filter) && Array.isArray(filterValue)) {
@@ -85,7 +85,7 @@ exports.createAnswer = asyncHandler(async (req, res) => {
 
   try {
     const saveData = await DB.query(
-      "INSERT INTO tb_jawaban(id_pertanyaan, jawaban) VALUES($1, $2) RETURNING *",
+      "INSERT INTO tb_voting_jawaban(id_pertanyaan, jawaban) VALUES($1, $2) RETURNING *",
       [newData.id_pertanyaan, newData.jawaban]
     );
 
@@ -111,7 +111,7 @@ exports.updateAnswer = asyncHandler(async (req, res) => {
 
   try {
     const updateQuery =
-      "UPDATE tb_jawaban SET jawaban = $1 WHERE id = $2 RETURNING *";
+      "UPDATE tb_voting_jawaban SET jawaban = $1 WHERE id = $2 RETURNING *";
     const updateValues = [updatedData.jawaban, idToUpdate];
 
     const updateResult = await DB.query(updateQuery, updateValues);
@@ -140,7 +140,7 @@ exports.deleteAnswer = asyncHandler(async (req, res) => {
     throw new Error("ID parameter is missing.");
   }
 
-  const deleteQuery = "DELETE FROM tb_jawaban WHERE id = $1";
+  const deleteQuery = "DELETE FROM tb_voting_jawaban WHERE id = $1";
   const deleteResult = await DB.query(deleteQuery, [idToDelete]);
 
   if (deleteResult.rowCount === 0) {

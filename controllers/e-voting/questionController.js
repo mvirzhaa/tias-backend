@@ -1,8 +1,9 @@
-const DB = require("../../db-evoting");
+const DB = require("../../database");
 const asyncHandler = require("express-async-handler");
 
 exports.getActiveQuestion = asyncHandler(async (req, res) => {
-  const query = "SELECT * FROM tb_pertanyaan WHERE status_pertanyaan = $1";
+  const query =
+    "SELECT * FROM tb_voting_pertanyaan WHERE status_pertanyaan = $1";
 
   const result = await DB.query(query, [1]);
 
@@ -28,7 +29,7 @@ exports.getQuestion = asyncHandler(async (req, res) => {
 
   const offset = (pageNumber - 1) * itemsPerPage;
 
-  let query = "SELECT * FROM tb_pertanyaan";
+  let query = "SELECT * FROM tb_voting_pertanyaan";
 
   if (filter && filterValue) {
     if (Array.isArray(filter) && Array.isArray(filterValue)) {
@@ -63,7 +64,8 @@ exports.getQuestion = asyncHandler(async (req, res) => {
 
   let responseData = result.rows;
 
-  const totalRecordsQuery = "SELECT COUNT(*) AS total FROM tb_pertanyaan";
+  const totalRecordsQuery =
+    "SELECT COUNT(*) AS total FROM tb_voting_pertanyaan";
   const totalRecordsResult = await DB.query(totalRecordsQuery);
   const totalRecords = totalRecordsResult.rows[0].total;
 
@@ -95,17 +97,17 @@ exports.detailQuestion = asyncHandler(async (req, res) => {
 
   try {
     const question = await DB.query(
-      "SELECT * FROM tb_pertanyaan WHERE id = $1",
+      "SELECT * FROM tb_voting_pertanyaan WHERE id = $1",
       [id]
     );
 
     const options = await DB.query(
-      "SELECT tb_jawaban.*, tb_hasil.* FROM tb_jawaban JOIN tb_hasil ON tb_jawaban.id = tb_hasil.id_jawaban WHERE tb_jawaban.id_pertanyaan = $1 AND tb_jawaban.status_jawaban = $2 ORDER BY tb_hasil.hasil DESC",
+      "SELECT tb_voting_jawaban.*, tb_voting_hasil.* FROM tb_voting_jawaban JOIN tb_voting_hasil ON tb_voting_jawaban.id = tb_voting_hasil.id_jawaban WHERE tb_voting_jawaban.id_pertanyaan = $1 AND tb_voting_jawaban.status_jawaban = $2 ORDER BY tb_voting_hasil.hasil DESC",
       [id, 1]
     );
 
     const findJmlSuara = await DB.query(
-      "SELECT * FROM tb_verifikasi_hasil WHERE id_pertanyaan = $1",
+      "SELECT * FROM tb_voting_verifikasi_hasil WHERE id_pertanyaan = $1",
       [id]
     );
 
@@ -151,11 +153,11 @@ exports.detailForEditQuestion = asyncHandler(async (req, res) => {
 
   try {
     const question = await DB.query(
-      "SELECT * FROM tb_pertanyaan WHERE id = $1",
+      "SELECT * FROM tb_voting_pertanyaan WHERE id = $1",
       [id]
     );
     const options = await DB.query(
-      "SELECT * FROM tb_jawaban WHERE id_pertanyaan = $1",
+      "SELECT * FROM tb_voting_jawaban WHERE id_pertanyaan = $1",
       [id]
     );
 
@@ -185,7 +187,7 @@ exports.createQuestion = asyncHandler(async (req, res) => {
 
   try {
     const saveData = await DB.query(
-      "INSERT INTO tb_pertanyaan(deskripsi) VALUES($1) RETURNING *",
+      "INSERT INTO tb_voting_pertanyaan(deskripsi) VALUES($1) RETURNING *",
       [newData.deskripsi]
     );
 
@@ -193,14 +195,14 @@ exports.createQuestion = asyncHandler(async (req, res) => {
 
     const saveDataJawabanPromises = newData.jawaban.map(async (jawaban) => {
       const saveJawaban = await DB.query(
-        "INSERT INTO tb_jawaban(id_pertanyaan, jawaban) VALUES($1, $2) RETURNING *",
+        "INSERT INTO tb_voting_jawaban(id_pertanyaan, jawaban) VALUES($1, $2) RETURNING *",
         [pertanyaan_id, jawaban]
       );
 
       const jawabanId = saveJawaban.rows[0].id;
 
       const saveDataHasil = await DB.query(
-        "INSERT INTO tb_hasil(id_jawaban) VALUES ($1) RETURNING *",
+        "INSERT INTO tb_voting_hasil(id_jawaban) VALUES ($1) RETURNING *",
         [jawabanId]
       );
 
@@ -238,7 +240,7 @@ exports.updateQuestion = asyncHandler(async (req, res) => {
     };
 
     const updateQuery =
-      "UPDATE tb_pertanyaan SET deskripsi = $1, status_pertanyaan = $2 WHERE id = $3 RETURNING *";
+      "UPDATE tb_voting_pertanyaan SET deskripsi = $1, status_pertanyaan = $2 WHERE id = $3 RETURNING *";
     const updateValues = [
       dataAnswer.deskripsi,
       dataAnswer.status_pertanyaan,
@@ -250,18 +252,18 @@ exports.updateQuestion = asyncHandler(async (req, res) => {
       for (const opt of dataToUpdate.dataOptions) {
         if (opt.id) {
           await DB.query(
-            "UPDATE tb_jawaban SET jawaban = $1, status_jawaban = $2 WHERE id = $3",
+            "UPDATE tb_voting_jawaban SET jawaban = $1, status_jawaban = $2 WHERE id = $3",
             [opt.jawaban, opt.status_jawaban, opt.id]
           );
         } else {
           const insertedJawaban = await DB.query(
-            "INSERT INTO tb_jawaban(id_pertanyaan, jawaban, status_jawaban) VALUES ($1, $2, $3) RETURNING id",
+            "INSERT INTO tb_voting_jawaban(id_pertanyaan, jawaban, status_jawaban) VALUES ($1, $2, $3) RETURNING id",
             [idToUpdate, opt.jawaban, opt.status_jawaban]
           );
           const newJawabanId = insertedJawaban.rows[0].id;
 
           await DB.query(
-            "INSERT INTO tb_hasil(id_jawaban) VALUES ($1) RETURNING *",
+            "INSERT INTO tb_voting_hasil(id_jawaban) VALUES ($1) RETURNING *",
             [newJawabanId]
           );
         }
@@ -286,11 +288,12 @@ exports.deleteQuestion = asyncHandler(async (req, res) => {
     throw new Error("ID parameter is missing.");
   }
 
-  await DB.query("DELETE FROM tb_jawaban WHERE id_pertanyaan = $1", [
+  await DB.query("DELETE FROM tb_voting_jawaban WHERE id_pertanyaan = $1", [
     idToDelete,
   ]);
 
-  const deleteQuery = "DELETE FROM tb_pertanyaan WHERE id = $1 RETURNING *";
+  const deleteQuery =
+    "DELETE FROM tb_voting_pertanyaan WHERE id = $1 RETURNING *";
   const deleteResult = await DB.query(deleteQuery, [idToDelete]);
 
   if (deleteResult.rowCount === 0) {

@@ -6,6 +6,7 @@ const { ruanganUpload } = require("../../middleware/ruanganUpload");
 const router = express.Router();
 
 router.get("/", protected, adminOnly, RuanganController.index);
+router.get("/all", protected, adminOnly, RuanganController.all);
 router.get("/:id", protected, RuanganController.detail);
 router.post("/", protected, adminOnly, ruanganUpload, RuanganController.create);
 router.put(

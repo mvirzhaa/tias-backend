@@ -50,6 +50,7 @@ const {
   editDataByIdRekomendasi,
 } = require("../../controllers/kategori/pointRekomendasiController");
 const KategoriLaporanController = require("../../controllers/kategori/kategoriLaporanController");
+const KategoriKegiatanController = require("../../controllers/kategori/kategoriKegiatan");
 
 const router = express.Router();
 
@@ -116,5 +117,12 @@ router.get("/laporan/:id", protected, KategoriLaporanController.detail);
 router.post("/laporan", protected, KategoriLaporanController.create);
 router.put("/laporan/:id", protected, KategoriLaporanController.update);
 router.delete("/laporan/:id", protected, KategoriLaporanController.destroy);
+
+router.get("/kegiatan", protected, KategoriKegiatanController.index);
+router.get("/kegiatan/all", protected, KategoriKegiatanController.all);
+router.get("/kegiatan/:id", protected, KategoriKegiatanController.detail);
+router.post("/kegiatan", protected, KategoriKegiatanController.create);
+router.put("/kegiatan/:id", protected, KategoriKegiatanController.update);
+router.delete("/kegiatan/:id", protected, KategoriKegiatanController.destroy);
 
 module.exports = router;

@@ -1,7 +1,7 @@
 const express = require("express");
 const { protected } = require("../../middleware/authMiddleware");
 const { storeMeeting } = require("../../controllers/jadwal-rapat/jadwalRapatController");
-const { getMeeting, meetingStore, getMeetingInvite, meetingInviteStore } = require("../../controllers/jadwal-rapat/meetingController");
+const { getMeeting, meetingStore, getMeetingInvite, meetingInviteStore, petaSebaran } = require("../../controllers/jadwal-rapat/meetingController");
 const { getAbsensiMeeting, absensiMeetStore, showQr, scanQr } = require("../../controllers/jadwal-rapat/absensiMeetController");
 
 
@@ -13,6 +13,7 @@ router.post("/store", storeMeeting);
 
 // Absensi
 router.get("/meeting", getMeeting);
+router.get("/peta-sebaran", petaSebaran);
 router.post("/meeting/store", meetingStore);
 router.get("/meeting-invite", getMeetingInvite);
 router.post("/meeting-invite/store", meetingInviteStore);
