@@ -34,11 +34,9 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
     !waktu ||
     !waktu_end ||
     !tipe_kegiatan ||
-    !sub_tema ||
     !narsum ||
     !ket_narsum ||
     !contact ||
-    !link_online ||
     !peserta
   ) {
     res.status(400);

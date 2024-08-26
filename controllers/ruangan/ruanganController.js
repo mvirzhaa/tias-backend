@@ -3,7 +3,7 @@ const _ = require("lodash");
 const { getPagination } = require("../../lib/pagination-parser");
 const { response } = require("../../lib/response");
 const { CastObject } = require("../../lib/general");
-const Ruangan = require("../../models/Ruangan");
+const Ruangan = require("../../models/master/Ruangan");
 const path = require("path");
 const fs = require("fs-extra");
 

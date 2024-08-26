@@ -4,7 +4,7 @@ const { getPagination } = require("../../lib/pagination-parser");
 const KategoriLaporan = require("../../models/master/KategoriLaporan");
 const { response } = require("../../lib/response");
 const { CastObject } = require("../../lib/general");
-const Laporan = require("../../models/Laporan");
+const Laporan = require("../../models/master/group/Group");
 const path = require("path");
 const fs = require("fs-extra");
 const User = require("../../models/User");
@@ -236,15 +236,18 @@ class LaporanController {
 
       if (tanggal_mulai && tanggal_akhir) {
         whereCondition.created_at = {
-          [Op.between]: [new Date(tanggal_mulai + 'T00:00:00Z'), new Date(tanggal_akhir + 'T23:59:59Z')],
+          [Op.between]: [
+            new Date(tanggal_mulai + "T00:00:00Z"),
+            new Date(tanggal_akhir + "T23:59:59Z"),
+          ],
         };
       } else if (tanggal_mulai) {
         whereCondition.created_at = {
-          [Op.gte]: new Date(tanggal_mulai + 'T00:00:00Z'),
+          [Op.gte]: new Date(tanggal_mulai + "T00:00:00Z"),
         };
       } else if (tanggal_akhir) {
         whereCondition.created_at = {
-          [Op.lte]: new Date(tanggal_akhir + 'T23:59:59Z'),
+          [Op.lte]: new Date(tanggal_akhir + "T23:59:59Z"),
         };
       }
 
@@ -286,8 +289,6 @@ class LaporanController {
       return response(res, false, error.message, error);
     }
   };
-
-
 
   static dataChart = async (req, res) => {
     try {

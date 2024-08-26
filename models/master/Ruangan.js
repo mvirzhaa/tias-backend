@@ -1,5 +1,5 @@
 const { DataTypes, Model } = require("sequelize");
-const db = require("../config");
+const db = require("../../config");
 
 class Ruangan extends Model {}
 Ruangan.init(
