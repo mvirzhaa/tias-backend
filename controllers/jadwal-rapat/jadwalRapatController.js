@@ -2,6 +2,9 @@ const asyncHandler = require("express-async-handler");
 const DB_TIAS = require("../../database");
 const axios = require("axios");
 const FormData = require("form-data");
+const KategoriKegiatan = require("../../models/master/KategoriKegiatan");
+const DataPribadi = require("../../models/DataPribadi");
+const Ruangan = require("../../models/master/Ruangan");
 
 exports.storeMeeting = asyncHandler(async (req, res) => {
   const API_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting/store`;
@@ -83,6 +86,37 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
         "Content-Type": "multipart/form-data",
       },
     });
+
+    if (response.data.data) {
+      const GENERATE_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/generate-pamplet`;
+      const tipeKegiatan = await KategoriKegiatan.findOne({
+        id: response.data.data.tipe_kegiatan,
+      });
+      const narsum = await DataPribadi.findOne({
+        user_id: response.data.data.narsum,
+      });
+
+      const ruangan = await Ruangan.findOne({
+        id: response.data.data.ruangan,
+      });
+      const generatePamflet = await axios.post(GENERATE_URL, {
+        tipe_kegiatan: tipeKegiatan?.nama_kegiatan,
+        nm_kegiatan: response.data.data?.nm_kegiatan,
+        sub_tema: response.data.data?.sub_tema,
+        narsum: narsum?.nama_lengkap,
+        ket_narsum: response.data.data?.ket_narsum,
+        ruangan: ruangan?.nama_ruangan,
+        tanggal: response.data.data?.tanggal,
+        waktu: response.data.data?.waktu,
+        waktu_end: response.data.data?.waktu_end,
+        contact: response.data.data?.contact,
+        foto_narsum: narsum?.foto_narsum
+          ? `${process.env.API_URL}/foto-narsum/${narsum.foto_narsum}`
+          : undefined,
+      });
+
+      console.log(generatePamflet.data);
+    }
 
     const id = response.data.data.id;
 
