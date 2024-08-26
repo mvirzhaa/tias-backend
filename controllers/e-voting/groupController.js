@@ -412,7 +412,12 @@ exports.userGroupRegister = asyncHandler(async (req, res) => {
     }
   }
 
-  const userIds = users.map((user) => user.user_id);
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  const userIds = users
+    .map((user) => user.user_id)
+    .filter((id) => uuidRegex.test(id));
 
   const findGroupUsers = await DB_TIAS.query(
     `SELECT DISTINCT ON (id) * FROM tb_group_user WHERE user_id = ANY(ARRAY['${userIds.join(

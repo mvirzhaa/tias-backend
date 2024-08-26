@@ -27,7 +27,7 @@ router.post("/store", storeMeeting);
 router.get("/meeting", getMeeting);
 router.get("/peta-sebaran", petaSebaran);
 router.post("/meeting/store", meetingStore);
-router.get("/meeting-invite", protected, getMeetingInvite);
+router.get("/meeting-invite", getMeetingInvite);
 router.get("/user-meeting-invite", protected, getMeetingInvite);
 router.post("/meeting-invite/store", meetingInviteStore);
 

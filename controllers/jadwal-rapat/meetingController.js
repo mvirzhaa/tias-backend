@@ -159,6 +159,7 @@ exports.getMeetingInvite = asyncHandler(async (req, res) => {
   const API_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting-invite`;
 
   let { filterValue, page = 1, perPage = 10 } = req.query;
+
   let dataResponse;
   const response = await axios.get(API_URL, {
     params: {
@@ -212,6 +213,7 @@ exports.getMeetingInvite = asyncHandler(async (req, res) => {
         page: parseInt(page),
         perPage: parseInt(perPage),
         recordsFiltered: paginatedData.length,
+        pageCount: Math.ceil(data.length / perPage),
         data: paginatedData,
       };
     } else {
@@ -231,6 +233,7 @@ exports.getMeetingInvite = asyncHandler(async (req, res) => {
         page: parseInt(page),
         perPage: parseInt(perPage),
         recordsFiltered: paginatedData.length,
+        pageCount: Math.ceil(senitizedResponse.length / perPage),
         data: paginatedData,
       };
     }
@@ -241,6 +244,7 @@ exports.getMeetingInvite = asyncHandler(async (req, res) => {
       page: 1,
       perPage: 10,
       recordsFiltered: 0,
+      pageCount: 0,
       data: [],
     };
   }
