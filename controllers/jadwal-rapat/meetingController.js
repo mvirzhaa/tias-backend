@@ -160,100 +160,91 @@ exports.getMeetingInvite = asyncHandler(async (req, res) => {
 
   let { filterValue, page = 1, perPage = 10 } = req.query;
   let dataResponse;
-  try {
-    const response = await axios.get(API_URL, {
-      params: {
-        ...req.query,
+  const response = await axios.get(API_URL, {
+    params: {
+      ...req.query,
+    },
+  });
+
+  const idMeet = parseInt(filterValue ? filterValue[0] : null);
+
+  if (idMeet) {
+    const groupMeet = await GroupMeet.findOne({
+      where: {
+        id_meet: idMeet,
       },
     });
 
-    const idMeet = parseInt(filterValue ? filterValue[0] : null);
+    if (groupMeet) {
+      const groupIds = groupMeet.id_group;
 
-    if (idMeet) {
-      const groupMeet = await GroupMeet.findOne({
+      const groupUsers = await GroupUsers.findAll({
         where: {
-          id_meet: idMeet,
+          id_group: {
+            [Op.overlap]: groupIds,
+          },
+        },
+        include: {
+          model: DataPribadi,
+          as: "personal_data",
+          attributes: ["nama_lengkap"],
         },
       });
 
-      if (groupMeet) {
-        const groupIds = groupMeet.id_group;
+      const senitizedResponse = response.data.data.map((iterate) => ({
+        code: iterate.nip_dosen ? iterate.nip_dosen : iterate.npm,
+        nama: iterate.nip_dosen ? iterate.dosen?.nama : iterate.mahasiswa?.name,
+      }));
 
-        const groupUsers = await GroupUsers.findAll({
-          where: {
-            id_group: {
-              [Op.overlap]: groupIds,
-            },
-          },
-          include: {
-            model: DataPribadi,
-            as: "personal_data",
-            attributes: ["nama_lengkap"],
-          },
-        });
+      const senitizedGroupUsers = groupUsers.map((iterate) => ({
+        code: iterate.code,
+        nama: iterate.personal_data.nama_lengkap,
+      }));
 
-        const senitizedResponse = response.data.data.map((iterate) => ({
-          code: iterate.nip_dosen ? iterate.nip_dosen : iterate.npm,
-          nama: iterate.nip_dosen
-            ? iterate.dosen?.nama
-            : iterate.mahasiswa?.name,
-        }));
+      const data = [...senitizedResponse, ...senitizedGroupUsers];
 
-        const senitizedGroupUsers = groupUsers.map((iterate) => ({
-          code: iterate.code,
-          nama: iterate.personal_data.nama_lengkap,
-        }));
+      const offset = (parseInt(page) - 1) * parseInt(perPage);
+      const paginatedData = data.slice(offset, offset + parseInt(perPage));
 
-        const data = [...senitizedResponse, ...senitizedGroupUsers];
-
-        const offset = (parseInt(page) - 1) * parseInt(perPage);
-        const paginatedData = data.slice(offset, offset + parseInt(perPage));
-
-        dataResponse = {
-          message: "success",
-          recordsTotal: data.length,
-          page: parseInt(page),
-          perPage: parseInt(perPage),
-          recordsFiltered: paginatedData.length,
-          data: paginatedData,
-        };
-      } else {
-        const senitizedResponse = response.data.data.map((iterate) => ({
-          code: iterate.nip_dosen ? iterate.nip_dosen : iterate.npm,
-          nama: iterate.nip_dosen
-            ? iterate.dosen?.nama
-            : iterate.mahasiswa?.name,
-        }));
-
-        const offset = (parseInt(page) - 1) * parseInt(perPage);
-        const paginatedData = senitizedResponse.slice(
-          offset,
-          offset + parseInt(perPage)
-        );
-        dataResponse = {
-          message: "success",
-          recordsTotal: senitizedResponse.length,
-          page: parseInt(page),
-          perPage: parseInt(perPage),
-          recordsFiltered: paginatedData.length,
-          data: paginatedData,
-        };
-      }
-    } else {
       dataResponse = {
         message: "success",
-        recordsTotal: 0,
-        page: 1,
-        perPage: 10,
-        recordsFiltered: 0,
-        data: [],
+        recordsTotal: data.length,
+        page: parseInt(page),
+        perPage: parseInt(perPage),
+        recordsFiltered: paginatedData.length,
+        data: paginatedData,
+      };
+    } else {
+      const senitizedResponse = response.data.data.map((iterate) => ({
+        code: iterate.nip_dosen ? iterate.nip_dosen : iterate.npm,
+        nama: iterate.nip_dosen ? iterate.dosen?.nama : iterate.mahasiswa?.name,
+      }));
+
+      const offset = (parseInt(page) - 1) * parseInt(perPage);
+      const paginatedData = senitizedResponse.slice(
+        offset,
+        offset + parseInt(perPage)
+      );
+      dataResponse = {
+        message: "success",
+        recordsTotal: senitizedResponse.length,
+        page: parseInt(page),
+        perPage: parseInt(perPage),
+        recordsFiltered: paginatedData.length,
+        data: paginatedData,
       };
     }
-    res.status(201).json(dataResponse);
-  } catch (error) {
-    console.error("Error retrieving Meeting:", error);
-    res.status(500).send("Internal Server Error");
+  } else {
+    dataResponse = {
+      message: "success",
+      recordsTotal: 0,
+      page: 1,
+      perPage: 10,
+      recordsFiltered: 0,
+      data: [],
+    };
   }
+  res.status(201).json(dataResponse);
 });
 
 exports.getMeetingInviteByUser = asyncHandler(async (req, res) => {
