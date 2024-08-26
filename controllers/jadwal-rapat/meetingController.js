@@ -158,7 +158,7 @@ exports.petaSebaran = asyncHandler(async (req, res) => {
 exports.getMeetingInvite = asyncHandler(async (req, res) => {
   const API_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting-invite`;
 
-  let { filterValue, page = 1, perPage = 10 } = req.query;
+  let { filterValue, page = 1, perPage = 10, search } = req.query;
 
   let dataResponse;
   const response = await axios.get(API_URL, {
@@ -202,7 +202,15 @@ exports.getMeetingInvite = asyncHandler(async (req, res) => {
         nama: iterate.personal_data.nama_lengkap,
       }));
 
-      const data = [...senitizedResponse, ...senitizedGroupUsers];
+      let data = [...senitizedResponse, ...senitizedGroupUsers];
+
+      if (search) {
+        data = data.filter(
+          (item) =>
+            item.code.toLowerCase().includes(search.toLowerCase()) ||
+            item.nama.toLowerCase().includes(search.toLowerCase())
+        );
+      }
 
       const offset = (parseInt(page) - 1) * parseInt(perPage);
       const paginatedData = data.slice(offset, offset + parseInt(perPage));
@@ -217,16 +225,26 @@ exports.getMeetingInvite = asyncHandler(async (req, res) => {
         data: paginatedData,
       };
     } else {
-      const senitizedResponse = response.data.data.map((iterate) => ({
+      let senitizedResponse = response.data.data.map((iterate) => ({
         code: iterate.nip_dosen ? iterate.nip_dosen : iterate.npm,
         nama: iterate.nip_dosen ? iterate.dosen?.nama : iterate.mahasiswa?.name,
       }));
+
+      if (search) {
+        senitizedResponse = senitizedResponse.filter((item) =>
+          item.code && item.nama
+            ? item.code.toLowerCase().includes(search.toLowerCase()) ||
+              item.nama.toLowerCase().includes(search.toLowerCase())
+            : item.code || item.nam
+        );
+      }
 
       const offset = (parseInt(page) - 1) * parseInt(perPage);
       const paginatedData = senitizedResponse.slice(
         offset,
         offset + parseInt(perPage)
       );
+
       dataResponse = {
         message: "success",
         recordsTotal: senitizedResponse.length,
@@ -248,6 +266,7 @@ exports.getMeetingInvite = asyncHandler(async (req, res) => {
       data: [],
     };
   }
+
   res.status(201).json(dataResponse);
 });
 
