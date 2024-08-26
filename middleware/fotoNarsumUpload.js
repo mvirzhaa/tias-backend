@@ -24,7 +24,7 @@ const fileUpload = multer({
   limits: {
     fileSize: 20000000, // 10 MB file size limit
   },
-}).single("ttd");
+}).single("file");
 
 // Middleware function to use multer for file uploads
 const fotoNarsumUpload = (req, res, next) => {

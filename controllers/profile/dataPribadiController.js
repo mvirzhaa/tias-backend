@@ -324,23 +324,20 @@ exports.uploadTtd = asyncHandler(async (req, res) => {
 
 exports.getFotoNarsum = asyncHandler(async (req, res) => {
   const { code } = req.query;
-  
+
   let data = await User.findOne({
     where: {
-      [Op.or]: [
-        { npm: code },
-        { nidn: code }
-      ]
+      [Op.or]: [{ npm: code }, { nidn: code }],
     },
     attributes: ["npm", "nidn"],
     include: [
       {
         model: DataPribadi,
-        as: 'personal_data',
+        as: "personal_data",
         required: false,
-        attributes: ['foto_narsum', 'nip', 'nama_lengkap']
-      }
-    ]
+        attributes: ["foto_narsum", "nip", "nama_lengkap"],
+      },
+    ],
   });
 
   if (!data) {
@@ -349,14 +346,14 @@ exports.getFotoNarsum = asyncHandler(async (req, res) => {
       include: [
         {
           model: DataPribadi,
-          as: 'personal_data',
+          as: "personal_data",
           required: true,
-          attributes: ['foto_narsum', 'nip', 'nama_lengkap'],
+          attributes: ["foto_narsum", "nip", "nama_lengkap"],
           where: {
-            nip: code
-          }
-        }
-      ]
+            nip: code,
+          },
+        },
+      ],
     });
   }
 
@@ -365,13 +362,14 @@ exports.getFotoNarsum = asyncHandler(async (req, res) => {
     nidn: data ? data.nidn : null,
     nip: data && data.personal_data ? data.personal_data.nip : null,
     foto_narsum: `${process.env.API_URL}/foto-narsum/${data.personal_data?.foto_narsum}`,
-    nama_lengkap: data && data.personal_data ? data.personal_data.nama_lengkap : null 
+    nama_lengkap:
+      data && data.personal_data ? data.personal_data.nama_lengkap : null,
   };
 
   if (data) {
     res.status(200).json({ success: true, data: responseData });
   } else {
-    res.status(404).json({ success: false, message: 'User not found' });
+    res.status(404).json({ success: false, message: "User not found" });
   }
 });
 
