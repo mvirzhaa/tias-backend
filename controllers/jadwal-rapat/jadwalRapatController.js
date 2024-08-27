@@ -41,6 +41,7 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
     !narsum ||
     !ket_narsum ||
     !contact ||
+    !sub_tema ||
     !peserta
   ) {
     res.status(400);
