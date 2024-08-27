@@ -88,10 +88,12 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
       },
     });
 
+    console.log("tipe_kegiatan:", tipe_kegiatan);
+
     if (response.data.data) {
       const GENERATE_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/generate-pamplet`;
       const tipeKegiatan = await KategoriKegiatan.findOne({
-        id: response.data.data.tipe_kegiatan,
+        id: tipe_kegiatan,
       });
 
       const narsum = await DB_TIAS.query(
@@ -100,8 +102,11 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
       );
 
       const ruangan = await Ruangan.findOne({
-        id: response.data.data.ruangan,
+        where: {
+          id: response.data.data.ruangan,
+        },
       });
+
       const generatePamflet = await axios.post(GENERATE_URL, {
         tipe_kegiatan: tipeKegiatan?.nama_kegiatan,
         nm_kegiatan: response.data.data?.nm_kegiatan,
@@ -113,24 +118,8 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
         waktu: response.data.data?.waktu,
         waktu_end: response.data.data?.waktu_end,
         contact: response.data.data?.contact,
-        foto_narsum: `${process.env.API_URL}/foto-narsum/${narsum.rows[0].foto_narsum}`,
+        foto_narsum: `https://api-tias.ti.ft.uika-bogor.ac.id/profile/get-narsum?code=201106040468`,
       });
-
-      console.log({
-        tipe_kegiatan: tipeKegiatan?.nama_kegiatan,
-        nm_kegiatan: response.data.data?.nm_kegiatan,
-        sub_tema: response.data.data?.sub_tema,
-        narsum: narsum.rows[0].nama_lengkap,
-        ket_narsum: response.data.data?.ket_narsum,
-        ruangan: ruangan?.nama_ruangan,
-        tanggal: response.data.data?.tanggal,
-        waktu: response.data.data?.waktu,
-        waktu_end: response.data.data?.waktu_end,
-        contact: response.data.data?.contact,
-        foto_narsum: `${process.env.API_URL}/foto-narsum/${narsum.rows[0].foto_narsum}`,
-      });
-
-      console.log(generatePamflet.data);
 
       if (!generatePamflet.data) {
         const delete_url = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting/delete/${response.data.data.id}`;
@@ -186,8 +175,7 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
 
     res.status(201).json(response.data);
   } catch (error) {
-    console.error("Error retrieving add pembelajaran Absensi:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).send(error);
   }
 });
 
