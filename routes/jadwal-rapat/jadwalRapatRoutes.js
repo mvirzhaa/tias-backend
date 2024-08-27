@@ -25,11 +25,11 @@ router.post("/store", storeMeeting);
 
 // Absensi
 router.get("/meeting", getMeeting);
-router.get("/peta-sebaran", petaSebaran);
-router.post("/meeting/store", meetingStore);
-router.get("/meeting-invite", getMeetingInvite);
+router.get("/peta-sebaran", protected, petaSebaran);
+router.post("/meeting/store", protected, meetingStore);
+router.get("/meeting-invite", protected, getMeetingInvite);
 router.get("/user-meeting-invite", protected, getMeetingInvite);
-router.post("/meeting-invite/store", meetingInviteStore);
+router.post("/meeting-invite/store", protected, meetingInviteStore);
 
 // Absensi Meet
 router.get("/absensi", getAbsensiMeeting);

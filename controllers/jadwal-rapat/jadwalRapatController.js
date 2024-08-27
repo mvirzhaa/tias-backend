@@ -118,7 +118,8 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
 
       if (!generatePamflet.data) {
         const delete_url = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting/delete/${response.data.data.id}`;
-        await axios.delete(delete_url);
+        const deleteData = await axios.delete(delete_url);
+        console.log(deleteData);
         throw new Error("Narasumber belum mememiliki foto.");
       }
     }

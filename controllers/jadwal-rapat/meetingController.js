@@ -8,24 +8,47 @@ const GroupMeet = require("../../models/master/group/GroupMeet");
 const GroupUsers = require("../../models/master/group/GroupUsers");
 const User = require("../../models/User");
 const DataPribadi = require("../../models/DataPribadi");
+const KategoriKegiatan = require("../../models/master/KategoriKegiatan");
 
 exports.getMeeting = asyncHandler(async (req, res) => {
-  const API_URL = `${process.env.API_LOCAL_ABSEN}/meeting`;
-
-  const { dataTable, orderField, orderValue, filter, filterValue } = req.query;
+  const API_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting`;
 
   try {
     const response = await axios.get(API_URL, {
       params: {
-        dataTable: dataTable,
-        orderField: orderField,
-        orderValue: orderValue,
-        filter: filter,
-        filterValue: filterValue,
+        ...req.query,
       },
     });
 
-    res.status(201).json(response.data);
+    const data = await Promise.all(
+      response.data.data.map(async (data) => {
+        const tipeKegiatanId = parseInt(data.tipe_kegiatan);
+        const getKegiatan = await KategoriKegiatan.findOne({
+          where: { id: tipeKegiatanId },
+        });
+
+        const ruanganId = parseInt(data.ruangan);
+        const getRuangan = await Ruangan.findOne({
+          where: { id: ruanganId },
+        });
+
+        const narsumId = data.narsum;
+        const getNarsum = await DataPribadi.findOne({
+          where: {
+            user_id: narsumId,
+          },
+        });
+
+        return {
+          ...data,
+          tipe_kegiatan: getKegiatan ? getKegiatan.nama_kegiatan : null,
+          ruangan: getRuangan ? getRuangan.nama_ruangan : null,
+          narsum: getNarsum ? getNarsum.nama_lengkap : null,
+        };
+      })
+    );
+
+    res.status(201).json({ data });
   } catch (error) {
     console.error("Error retrieving Meeting:", error);
     res.status(500).send("Internal Server Error");
