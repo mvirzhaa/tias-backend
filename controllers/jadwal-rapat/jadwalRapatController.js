@@ -5,6 +5,7 @@ const FormData = require("form-data");
 const KategoriKegiatan = require("../../models/master/KategoriKegiatan");
 const DataPribadi = require("../../models/DataPribadi");
 const Ruangan = require("../../models/master/Ruangan");
+const User = require("../../models/User");
 
 exports.storeMeeting = asyncHandler(async (req, res) => {
   const API_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting/store`;
@@ -92,9 +93,11 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
       const tipeKegiatan = await KategoriKegiatan.findOne({
         id: response.data.data.tipe_kegiatan,
       });
-      const narsum = await DataPribadi.findOne({
-        user_id: response.data.data.narsum,
-      });
+
+      const narsum = await DB_TIAS.query(
+        "SELECT tb_data_pribadi.nama_lengkap, tb_data_pribadi.foto_narsum FROM tb_data_pribadi WHERE user_id = $1",
+        [response.data.data.narsum]
+      );
 
       const ruangan = await Ruangan.findOne({
         id: response.data.data.ruangan,
@@ -103,19 +106,21 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
         tipe_kegiatan: tipeKegiatan?.nama_kegiatan,
         nm_kegiatan: response.data.data?.nm_kegiatan,
         sub_tema: response.data.data?.sub_tema,
-        narsum: narsum?.nama_lengkap,
+        narsum: narsum.rows[0].nama_lengkap,
         ket_narsum: response.data.data?.ket_narsum,
         ruangan: ruangan?.nama_ruangan,
         tanggal: response.data.data?.tanggal,
         waktu: response.data.data?.waktu,
         waktu_end: response.data.data?.waktu_end,
         contact: response.data.data?.contact,
-        foto_narsum: narsum?.foto_narsum
-          ? `${process.env.API_URL}/foto-narsum/${narsum.foto_narsum}`
-          : undefined,
+        foto_narsum: `${process.env.API_URL}/foto-narsum/${narsum.rows[0].foto_narsum}`,
       });
 
-      console.log(generatePamflet.data);
+      if (!generatePamflet.data) {
+        const delete_url = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting/delete/${response.data.data.id}`;
+        await axios.delete(delete_url);
+        throw new Error("Narasumber belum mememiliki foto.");
+      }
     }
 
     const id = response.data.data.id;
