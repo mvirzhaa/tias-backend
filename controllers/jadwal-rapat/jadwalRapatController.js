@@ -88,8 +88,6 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
       },
     });
 
-    console.log("tipe_kegiatan:", tipe_kegiatan);
-
     if (response.data.data) {
       const GENERATE_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/generate-pamplet`;
       const narsum = await DB_TIAS.query(
@@ -99,13 +97,13 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
 
       const tipeKegiatan = await KategoriKegiatan.findOne({
         where: {
-          id: tipe_kegiatan, // Memastikan 'id' dicocokkan dengan 'tipe_kegiatan'
+          id: response.data.data.tipe_kegiatan, // Memastikan 'id' dicocokkan dengan 'tipe_kegiatan'
         },
       });
 
       const ruangan = await Ruangan.findOne({
         where: {
-          id: ruangan, // Memastikan 'id' dicocokkan dengan 'ruangan'
+          id: response.data.data.ruangan, // Memastikan 'id' dicocokkan dengan 'ruangan'
         },
       });
 
