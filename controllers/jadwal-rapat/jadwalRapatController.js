@@ -92,20 +92,20 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
 
     if (response.data.data) {
       const GENERATE_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/generate-pamplet`;
-      const tipeKegiatan = await KategoriKegiatan.findOne({
-        where: {
-          id: tipe_kegiatan,
-        },
-      });
-
       const narsum = await DB_TIAS.query(
         "SELECT tb_data_pribadi.nama_lengkap, tb_data_pribadi.foto_narsum FROM tb_data_pribadi WHERE user_id = $1",
         [response.data.data.narsum]
       );
 
+      const tipeKegiatan = await KategoriKegiatan.findOne({
+        where: {
+          id: tipe_kegiatan, // Memastikan 'id' dicocokkan dengan 'tipe_kegiatan'
+        },
+      });
+
       const ruangan = await Ruangan.findOne({
         where: {
-          id: response.data.data.ruangan,
+          id: ruangan, // Memastikan 'id' dicocokkan dengan 'ruangan'
         },
       });
 
