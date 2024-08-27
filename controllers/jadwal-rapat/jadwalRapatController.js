@@ -116,6 +116,22 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
         foto_narsum: `${process.env.API_URL}/foto-narsum/${narsum.rows[0].foto_narsum}`,
       });
 
+      console.log({
+        tipe_kegiatan: tipeKegiatan?.nama_kegiatan,
+        nm_kegiatan: response.data.data?.nm_kegiatan,
+        sub_tema: response.data.data?.sub_tema,
+        narsum: narsum.rows[0].nama_lengkap,
+        ket_narsum: response.data.data?.ket_narsum,
+        ruangan: ruangan?.nama_ruangan,
+        tanggal: response.data.data?.tanggal,
+        waktu: response.data.data?.waktu,
+        waktu_end: response.data.data?.waktu_end,
+        contact: response.data.data?.contact,
+        foto_narsum: `${process.env.API_URL}/foto-narsum/${narsum.rows[0].foto_narsum}`,
+      });
+
+      console.log(generatePamflet.data);
+
       if (!generatePamflet.data) {
         const delete_url = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting/delete/${response.data.data.id}`;
         const deleteData = await axios.delete(delete_url);
