@@ -93,7 +93,9 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
     if (response.data.data) {
       const GENERATE_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/generate-pamplet`;
       const tipeKegiatan = await KategoriKegiatan.findOne({
-        id: tipe_kegiatan,
+        where: {
+          id: tipe_kegiatan,
+        },
       });
 
       const narsum = await DB_TIAS.query(
@@ -118,7 +120,7 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
         waktu: response.data.data?.waktu,
         waktu_end: response.data.data?.waktu_end,
         contact: response.data.data?.contact,
-        foto_narsum: `https://api-tias.ti.ft.uika-bogor.ac.id/profile/get-narsum?code=201106040468`,
+        foto_narsum: `${process.env.API_URL}/foto-narsum/${narsum.rows[0].foto_narsum}`,
       });
 
       if (!generatePamflet.data) {
