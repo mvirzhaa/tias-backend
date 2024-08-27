@@ -48,7 +48,13 @@ exports.getMeeting = asyncHandler(async (req, res) => {
       })
     );
 
-    res.status(201).json({ data });
+    res
+      .status(201)
+      .json({
+        recordsTotal: response.data.recordsTotal,
+        recordsFiltered: response.data.recordsFiltered,
+        data: data,
+      });
   } catch (error) {
     console.error("Error retrieving Meeting:", error);
     res.status(500).send("Internal Server Error");
@@ -119,8 +125,6 @@ exports.petaSebaran = asyncHandler(async (req, res) => {
   const API_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting`;
 
   const { tanggal_mulai, tanggal_selesai } = req.query;
-
-  console.log(tanggal_mulai, tanggal_selesai);
 
   try {
     const response = await axios.get(API_URL, {
@@ -293,102 +297,69 @@ exports.getMeetingInvite = asyncHandler(async (req, res) => {
   res.status(201).json(dataResponse);
 });
 
-exports.getMeetingInviteByUser = asyncHandler(async (req, res) => {
+exports.getMeetingByUser = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
-  const API_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting-invite`;
+  const API_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting`;
 
-  let { filterValue, page = 1, perPage = 10 } = req.query;
-  let dataResponse;
   try {
-    const response = await axios.get(API_URL, {
-      params: {
-        ...req.query,
+    const findGroupUser = await GroupUsers.findOne({
+      where: {
+        user_id: userLoginId,
       },
     });
 
-    const idMeet = parseInt(filterValue ? filterValue[0] : null);
+    const groupIds = findGroupUser.id_group;
 
-    if (idMeet) {
-      const groupMeet = await GroupMeet.findOne({
-        where: {
-          id_meet: idMeet,
+    const groupMeet = await GroupMeet.findAll({
+      where: {
+        id_group: {
+          [Op.overlap]: groupIds,
         },
-      });
+      },
+    });
 
-      if (groupMeet) {
-        const groupIds = groupMeet.id_group;
+    const meetIds = groupMeet.map((data) => data.id_meet);
 
-        const groupUsers = await GroupUsers.findAll({
+    const response = await axios.get(API_URL, {
+      params: {
+        ...req.query,
+        meetIds: meetIds,
+      },
+    });
+
+    const data = await Promise.all(
+      response.data.data.map(async (data) => {
+        const tipeKegiatanId = parseInt(data.tipe_kegiatan);
+        const getKegiatan = await KategoriKegiatan.findOne({
+          where: { id: tipeKegiatanId },
+        });
+
+        const ruanganId = parseInt(data.ruangan);
+        const getRuangan = await Ruangan.findOne({
+          where: { id: ruanganId },
+        });
+
+        const narsumId = data.narsum;
+        const getNarsum = await DataPribadi.findOne({
           where: {
-            id_group: {
-              [Op.overlap]: groupIds,
-            },
-          },
-          include: {
-            model: DataPribadi,
-            as: "personal_data",
-            attributes: ["nama_lengkap"],
+            user_id: narsumId,
           },
         });
 
-        const senitizedResponse = response.data.data.map((iterate) => ({
-          code: iterate.nip_dosen ? iterate.nip_dosen : iterate.npm,
-          nama: iterate.nip_dosen
-            ? iterate.dosen?.nama
-            : iterate.mahasiswa?.name,
-        }));
-
-        const senitizedGroupUsers = groupUsers.map((iterate) => ({
-          code: iterate.code,
-          nama: iterate.personal_data.nama_lengkap,
-        }));
-
-        const data = [...senitizedResponse, ...senitizedGroupUsers];
-
-        const offset = (parseInt(page) - 1) * parseInt(perPage);
-        const paginatedData = data.slice(offset, offset + parseInt(perPage));
-
-        dataResponse = {
-          message: "success",
-          recordsTotal: data.length,
-          page: parseInt(page),
-          perPage: parseInt(perPage),
-          recordsFiltered: paginatedData.length,
-          data: paginatedData,
+        return {
+          ...data,
+          tipe_kegiatan: getKegiatan ? getKegiatan.nama_kegiatan : null,
+          ruangan: getRuangan ? getRuangan.nama_ruangan : null,
+          narsum: getNarsum ? getNarsum.nama_lengkap : null,
         };
-      } else {
-        const senitizedResponse = response.data.data.map((iterate) => ({
-          code: iterate.nip_dosen ? iterate.nip_dosen : iterate.npm,
-          nama: iterate.nip_dosen
-            ? iterate.dosen?.nama
-            : iterate.mahasiswa?.name,
-        }));
+      })
+    );
 
-        const offset = (parseInt(page) - 1) * parseInt(perPage);
-        const paginatedData = senitizedResponse.slice(
-          offset,
-          offset + parseInt(perPage)
-        );
-        dataResponse = {
-          message: "success",
-          recordsTotal: senitizedResponse.length,
-          page: parseInt(page),
-          perPage: parseInt(perPage),
-          recordsFiltered: paginatedData.length,
-          data: paginatedData,
-        };
-      }
-    } else {
-      dataResponse = {
-        message: "success",
-        recordsTotal: 0,
-        page: 1,
-        perPage: 10,
-        recordsFiltered: 0,
-        data: [],
-      };
-    }
-    res.status(201).json(dataResponse);
+    res.status(201).json({
+      recordsTotal: response.data.recordsTotal,
+      recordsFiltered: response.data.recordsFiltered,
+      data: data,
+    });
   } catch (error) {
     console.error("Error retrieving Meeting:", error);
     res.status(500).send("Internal Server Error");

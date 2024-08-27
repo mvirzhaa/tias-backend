@@ -9,6 +9,7 @@ const {
   getMeetingInvite,
   meetingInviteStore,
   petaSebaran,
+  getMeetingByUser,
 } = require("../../controllers/jadwal-rapat/meetingController");
 const {
   getAbsensiMeeting,
@@ -28,7 +29,7 @@ router.get("/meeting", getMeeting);
 router.get("/peta-sebaran", protected, petaSebaran);
 router.post("/meeting/store", protected, meetingStore);
 router.get("/meeting-invite", protected, getMeetingInvite);
-router.get("/user-meeting-invite", protected, getMeetingInvite);
+router.get("/user-meeting", protected, getMeetingByUser);
 router.post("/meeting-invite/store", protected, meetingInviteStore);
 
 // Absensi Meet
