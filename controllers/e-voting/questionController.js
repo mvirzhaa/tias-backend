@@ -1,5 +1,11 @@
 const DB = require("../../database");
 const asyncHandler = require("express-async-handler");
+const GroupVoting = require("../../models/master/group/GroupVoting");
+const GroupUsers = require("../../models/master/group/GroupUsers");
+const Question = require("../../models/Evoting/Qestion");
+const { response } = require("../../lib/response");
+const { getPagination } = require("../../lib/pagination-parser");
+const { Op } = require("sequelize");
 
 exports.getActiveQuestion = asyncHandler(async (req, res) => {
   const query =
@@ -14,77 +20,103 @@ exports.getActiveQuestion = asyncHandler(async (req, res) => {
 });
 
 exports.getQuestion = asyncHandler(async (req, res) => {
-  const {
-    filter,
-    filterValue,
-    dataTable,
-    orderField,
-    orderValue,
-    page,
-    perPage,
-  } = req.query;
+  try {
+    const { user_id, role } = req.user;
+    let { limit, page, order, orderBy, search, filter, filterValue } =
+      req.query;
 
-  const pageNumber = parseInt(page, 10) || 1;
-  const itemsPerPage = parseInt(perPage, 10) || 10;
+    limit = parseInt(limit) > 0 ? parseInt(limit) : 10;
+    page = page ? parseInt(page) : 1;
+    order = order ? order : "id";
+    orderBy = orderBy ? orderBy : "DESC";
+    const pagelimit = getPagination(limit, page);
 
-  const offset = (pageNumber - 1) * itemsPerPage;
+    let whereCondition;
 
-  let query = "SELECT * FROM tb_voting_pertanyaan";
+    // Jika peran adalah admin, ambil semua data
+    if (role === "Admin") {
+      whereCondition = {};
+    } else {
+      const findGroupUser = await GroupUsers.findOne({
+        where: {
+          user_id: user_id,
+        },
+      });
 
-  if (filter && filterValue) {
-    if (Array.isArray(filter) && Array.isArray(filterValue)) {
-      for (let i = 0; i < filter.length; i++) {
-        query += ` WHERE ${filter[i]} = '${filterValue[i]}'`;
-        if (i !== filter.length - 1) {
-          query += " AND";
+      const groupIds = findGroupUser.id_group;
+
+      const groupVoting = await GroupVoting.findAll({
+        where: {
+          id_group: {
+            [Op.in]: groupIds,
+          },
+        },
+      });
+
+      const votingIds = groupVoting.map((data) => data.id_voting);
+
+      whereCondition = {
+        [Op.or]: [
+          {
+            group: false,
+          },
+          {
+            group: true,
+            id: {
+              [Op.in]: votingIds,
+            },
+          },
+        ],
+      };
+    }
+
+    if (filter && filterValue) {
+      const filters = Array.isArray(filter) ? filter : [filter];
+      const filterValues = Array.isArray(filterValue)
+        ? filterValue
+        : [filterValue];
+
+      filters.forEach((f, index) => {
+        if (f && filterValues[index] !== undefined) {
+          whereCondition[Op.and] = whereCondition[Op.and] || [];
+          whereCondition[Op.and].push({ [f]: filterValues[index] });
         }
-      }
-    } else {
-      res
-        .status(400)
-        .json({ message: "Filter and filterValue must be arrays." });
-      return;
+      });
     }
-  }
 
-  if (orderField && orderValue) {
-    if (typeof orderField === "string" && typeof orderValue === "string") {
-      query += ` ORDER BY ${orderField} ${orderValue}`;
-    } else {
-      res
-        .status(400)
-        .json({ message: "orderField and orderValue must be strings." });
-      return;
+    let condition = {
+      [Op.and]: whereCondition,
+    };
+
+    if (search) {
+      condition = {
+        ...condition,
+        [Op.or]: {
+          deskripsi: {
+            [Op.like]: `%${search}%`,
+          },
+        },
+      };
     }
+
+    const data = await Question.findAndCountAll({
+      distinct: true,
+      where: condition,
+      order: [[order, orderBy]],
+      limit: pagelimit.limit,
+      offset: pagelimit.offset,
+    });
+
+    return response(res, true, "success", {
+      limit,
+      page,
+      total: data.count,
+      total_page: Math.ceil(parseInt(data.count) / limit),
+      rows: data.rows,
+    });
+  } catch (error) {
+    return response(res, false, error.message, error);
   }
-
-  query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
-
-  const result = await DB.query(query);
-
-  let responseData = result.rows;
-
-  const totalRecordsQuery =
-    "SELECT COUNT(*) AS total FROM tb_voting_pertanyaan";
-  const totalRecordsResult = await DB.query(totalRecordsQuery);
-  const totalRecords = totalRecordsResult.rows[0].total;
-
-  if (dataTable === "true") {
-    responseData = {
-      message: "success",
-      draw: 1,
-      recordsTotal: totalRecords,
-      recordsFiltered: totalRecords,
-      data: responseData,
-    };
-  } else {
-    responseData = {
-      message: "success",
-      data: responseData,
-    };
-  }
-
-  res.status(200).json(responseData);
 });
 
 exports.detailQuestion = asyncHandler(async (req, res) => {
@@ -208,8 +240,31 @@ exports.createQuestion = asyncHandler(async (req, res) => {
 
       return saveDataHasil.rows[0];
     });
-
     const saveDataJawabanResults = await Promise.all(saveDataJawabanPromises);
+
+    if (newData.groups?.length) {
+      let dataInput = [];
+      for (const iterator of newData.groups) {
+        if (iterator != "" && iterator != null) {
+          dataInput.push({
+            id_voting: pertanyaan_id,
+            id_group: iterator,
+          });
+        }
+      }
+      await GroupVoting.bulkCreate(dataInput);
+
+      await Question.update(
+        {
+          group: true,
+        },
+        {
+          where: {
+            id: pertanyaan_id,
+          },
+        }
+      );
+    }
 
     res.status(200).json({
       message: "Successfully created data.",
