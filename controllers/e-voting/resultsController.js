@@ -1,6 +1,9 @@
 const DB_TIAS = require("../../database");
 const asyncHandler = require("express-async-handler");
 const md5 = require("md5");
+const GroupVoting = require("../../models/master/group/GroupVoting");
+const GroupUsers = require("../../models/master/group/GroupUsers");
+const { Op } = require("sequelize");
 
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
@@ -60,6 +63,30 @@ exports.createResult = asyncHandler(async (req, res) => {
   }
 
   try {
+    const findVotingGroup = await GroupVoting.findAll({
+      where: {
+        id_voting: newData.id_pertanyaan,
+      },
+    });
+
+    if (findVotingGroup) {
+      const groupIds = findVotingGroup.map((data) => data.id_group);
+      const findUserGroup = await GroupUsers.findAll({
+        where: {
+          id_user: userLoginId,
+          id_group: {
+            [Op.in]: groupIds,
+          },
+        },
+      });
+
+      if (!findUserGroup) {
+        return res
+          .status(400)
+          .json({ message: "You don't have access answered this question." });
+      }
+    }
+
     const findQuestion = await DB_TIAS.query(
       "SELECT * FROM tb_voting_pertanyaan WHERE id = $1 and status_pertanyaan = $2",
       [newData.id_pertanyaan, 0]
