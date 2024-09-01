@@ -7,6 +7,7 @@ const User = require("../../models/User");
 const KategoriKegiatan = require("../../models/master/KategoriKegiatan");
 const Ruangan = require("../../models/master/Ruangan");
 const GroupMeet = require("../../models/master/group/GroupMeet");
+const { Op } = require("sequelize");
 
 exports.storeMeeting = asyncHandler(async (req, res) => {
   const API_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting/store`;
@@ -126,7 +127,7 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
         waktu: response.data.data?.waktu,
         waktu_end: response.data.data?.waktu_end,
         contact: response.data.data?.contact,
-        foto_narsum: `${process.env.API_URL}/foto-narsum/${narsum.rows[0].foto_narsum}`,
+        foto_narsum: `https://api-tias.ti.ft.uika-bogor.ac.id/foto-narsum/1724489880652-computer-administrator.png`,
       });
 
       if (!generatePamflet.data) {
