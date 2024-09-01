@@ -1,6 +1,5 @@
 const DB_TIAS = require("../../database");
 const asyncHandler = require("express-async-handler");
-const { unixTimestamp, convertDate } = require("../../utils");
 const GroupUsers = require("../../models/master/group/GroupUsers");
 const { Op } = require("sequelize");
 const DataPribadi = require("../../models/DataPribadi");
@@ -294,104 +293,6 @@ exports.getGroupUsersAgain = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
-// exports.getGroupUsers = asyncHandler(async (req, res) => {
-//   const {
-//     filter,
-//     filterValue,
-//     dataTable,
-//     orderField,
-//     orderValue,
-//     page,
-//     perPage,
-//   } = req.query;
-
-//   const pageNumber = parseInt(page, 10) || 1;
-//   const itemsPerPage = parseInt(perPage, 10) || 10;
-
-//   const offset = (pageNumber - 1) * itemsPerPage;
-
-//   let query = "SELECT * FROM tb_group_user";
-
-//   if (filter && filterValue) {
-//     if (Array.isArray(filter) && Array.isArray(filterValue)) {
-//       for (let i = 0; i < filter.length; i++) {
-//         if (filter[i] === "id_group") {
-//           query = `SELECT DISTINCT ON (id) * FROM tb_group_user WHERE '${filterValue[i]}' = ANY(id_group)`;
-//         } else {
-//           query += ` WHERE ${filter[i]} = '${filterValue[i]}'`;
-//         }
-//         if (i !== filter.length - 1) {
-//           query += " AND";
-//         }
-//       }
-//     } else {
-//       res
-//         .status(400)
-//         .json({ message: "Filter and filterValue must be arrays." });
-//       return;
-//     }
-//   }
-
-//   if (orderField && orderValue) {
-//     if (typeof orderField === "string" && typeof orderValue === "string") {
-//       query += ` ORDER BY ${orderField} ${orderValue}`;
-//     } else {
-//       res
-//         .status(400)
-//         .json({ message: "orderField and orderValue must be strings." });
-//       return;
-//     }
-//   }
-
-//   query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
-
-//   const result = await DB_TIAS.query(query);
-
-//   const userIds = result.rows.map((data) => data.user_id);
-
-//   const findUserFromTias = await DB_TIAS.query(
-//     "SELECT tb_users.user_id, tb_users.role, tb_users.npm, tb_data_pribadi.nip, tb_data_pribadi.nama_lengkap FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE tb_users.user_id = ANY($1)",
-//     [userIds]
-//   );
-
-//   const userMap = {};
-//   findUserFromTias.rows.forEach((user) => {
-//     userMap[user.user_id] = user;
-//   });
-
-//   const mergedData = result.rows.map((user) => ({
-//     id: user.id,
-//     user_id: user.user_id,
-//     code: userMap[user.user_id]?.npm || userMap[user.user_id]?.nip,
-//     id_group: user.id_group,
-//     nama_lengkap: userMap[user.user_id]?.nama_lengkap || null,
-//     role: userMap[user.user_id]?.role || null,
-//   }));
-
-//   let responseData = mergedData;
-
-//   const totalRecordsQuery = "SELECT COUNT(*) AS total FROM tb_group";
-//   const totalRecordsResult = await DB_TIAS.query(totalRecordsQuery);
-//   const totalRecords = totalRecordsResult.rows[0].total;
-
-//   if (dataTable === "true") {
-//     responseData = {
-//       message: "success",
-//       draw: 1,
-//       recordsTotal: totalRecords,
-//       recordsFiltered: totalRecords,
-//       data: responseData,
-//     };
-//   } else {
-//     responseData = {
-//       message: "success",
-//       data: responseData,
-//     };
-//   }
-
-//   res.status(200).json(responseData);
-// });
-
 exports.getGroupUsers = asyncHandler(async (req, res) => {
   try {
     let { limit, page, order, orderBy, search, filter, filterValue } =
@@ -412,24 +313,9 @@ exports.getGroupUsers = asyncHandler(async (req, res) => {
 
       filters.forEach((f, index) => {
         if (f && filterValues[index] !== undefined) {
-          if (f === "id_group") {
-            // Ensure that filterValues[index] is an array
-            whereCondition[f] = {
-              [Op.contains]: Array.isArray(filterValues[index])
-                ? filterValues[index]
-                : [filterValues[index]],
-            };
-          } else {
-            whereCondition[f] = filterValues[index];
-          }
+          whereCondition[f] = filterValues[index];
         }
       });
-    }
-
-    if (filter && filter === "id_group" && typeof filterValue === "string") {
-      whereCondition["id_group"] = {
-        [Op.contains]: [filterValue],
-      };
     }
 
     let condition = { [Op.and]: whereCondition };
@@ -471,7 +357,7 @@ exports.getGroupUsers = asyncHandler(async (req, res) => {
       rows: data.rows,
     });
   } catch (error) {
-    console.error("Error in getGroupUsers:", error); // Debugging output
+    console.error("Error in getGroupUsers:", error);
     return response(res, false, error.message, error);
   }
 });
@@ -503,18 +389,15 @@ exports.userGroupRegister = asyncHandler(async (req, res) => {
   }
 
   const userIds = users.map((user) => user.user_id);
-  const dataId = data.id.toString();
+  const dataId = data.id;
 
   const findGroupUsers = await GroupUsers.findAll({
     where: {
       user_id: {
         [Op.in]: userIds,
       },
-      id_group: {
-        [Op.overlap]: [dataId],
-      },
+      id_group: dataId,
     },
-    distinct: true,
     attributes: ["id", "user_id", "id_group"],
   });
 
@@ -524,32 +407,15 @@ exports.userGroupRegister = asyncHandler(async (req, res) => {
       .json({ message: "Salah satu user sudah didaftarkan." });
   }
 
-  for (const user of users) {
-    const dataUser = {
+  const createPromises = users.map((user) =>
+    GroupUsers.create({
       user_id: user.user_id,
       code: user.code,
-    };
+      id_group: data.id,
+    })
+  );
 
-    const findData = await DB_TIAS.query(
-      "SELECT * FROM tb_group_user WHERE user_id = $1",
-      [dataUser.user_id]
-    );
-
-    if (findData.rows.length) {
-      await DB_TIAS.query(
-        "UPDATE tb_group_user SET id_group = array_append(id_group, $1) WHERE user_id = $2",
-        [data.id, dataUser.user_id]
-      );
-    } else {
-      const created_at = unixTimestamp;
-      const convert = convertDate(created_at);
-      const id_group = [data.id];
-      await DB_TIAS.query(
-        "INSERT INTO tb_group_user(user_id, code, id_group, created_at) VALUES($1, $2, $3, $4) RETURNING *",
-        [dataUser.user_id, dataUser.code, id_group, convert]
-      );
-    }
-  }
+  await Promise.all(createPromises);
 
   res.status(200).json({ message: "Successfully registered to the group." });
 });
@@ -558,19 +424,24 @@ exports.deleteUserFromGroup = asyncHandler(async (req, res) => {
   const user_id = req.params.user_id;
   const id = req.body.id;
 
-  if (!id) {
-    res.status(400);
-    throw new Error("ID parameter is missing.");
+  if (!id || !user_id) {
+    return res.status(400).json({ message: "ID parameter is missing." });
   }
 
-  const deleteQuery = await DB_TIAS.query(
-    "UPDATE tb_group_user SET id_group = array_remove(id_group, $1) WHERE user_id = $2",
-    [id, user_id]
+  const [affectedRows] = await GroupUsers.update(
+    {
+      deletedAt: new Date(),
+    },
+    {
+      where: {
+        id: id,
+        user_id: user_id,
+      },
+    }
   );
 
-  if (deleteQuery.rowCount === 0) {
-    res.status(404);
-    throw new Error("Data not found for the given user_id.");
+  if (affectedRows === 0) {
+    return res.status(404).json({ message: "User not found in the group." });
   }
 
   res.status(200).json({

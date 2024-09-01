@@ -10,15 +10,33 @@ GroupMeet.init(
       primaryKey: true,
     },
     id_group: {
-      type: DataTypes.ARRAY(DataTypes.STRING),
+      type: DataTypes.INTEGER,
     },
     id_meet: {
-      type: DataTypes.UUID,
+      type: DataTypes.INTEGER,
+    },
+    created_at: {
+      type: DataTypes.DATE,
+    },
+    deleted_at: {
+      type: DataTypes.DATE,
     },
   },
   {
+    defaultScope: {
+      where: {
+        deleted_at: null,
+      },
+    },
+    scopes: {
+      deleted: {
+        where: {
+          deleted_at: null,
+        },
+      },
+    },
     timestamps: false,
-    tableName: "tb_group_meet",
+    tableName: "trx_meet_group",
     modelName: "GroupMeet",
     sequelize: db,
   }

@@ -37,13 +37,13 @@ exports.getQuestion = asyncHandler(async (req, res) => {
     if (role === "Admin") {
       whereCondition = {};
     } else {
-      const findGroupUser = await GroupUsers.findOne({
+      const findGroupUser = await GroupUsers.findAll({
         where: {
           user_id: user_id,
         },
       });
 
-      const groupIds = findGroupUser.id_group;
+      const groupIds = findGroupUser.map((data) => data.id_group);
 
       const groupVoting = await GroupVoting.findAll({
         where: {

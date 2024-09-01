@@ -6,6 +6,7 @@ const DataPribadi = require("../../models/DataPribadi");
 const User = require("../../models/User");
 const KategoriKegiatan = require("../../models/master/KategoriKegiatan");
 const Ruangan = require("../../models/master/Ruangan");
+const GroupMeet = require("../../models/master/group/GroupMeet");
 
 exports.storeMeeting = asyncHandler(async (req, res) => {
   const API_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting/store`;
@@ -53,16 +54,22 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
   const pesertaDosen = pesertaData.peserta_dosen;
   const groups = pesertaData.groups;
 
-  let id_group_tias = 0;
+  let idGroupMeet = [];
 
-  if (groups && groups.length > 0) {
-    const groupArray = groups.map((obj) => Object.values(obj)[0]);
-    const saveGroupMeet = await DB_TIAS.query(
-      "INSERT INTO tb_group_meet(id_meet, id_group) VALUES($1, $2) RETURNING *",
-      [0, groupArray]
-    );
+  if (groups?.length) {
+    let dataInput = [];
+    for (const iterator of groups) {
+      if (iterator !== "" && iterator !== null) {
+        dataInput.push({
+          id_meet: 0,
+          id_group: iterator.id,
+        });
+      }
+    }
 
-    id_group_tias = saveGroupMeet.rows[0].id;
+    const inserts = await GroupMeet.bulkCreate(dataInput, { returning: true });
+
+    idGroupMeet = inserts.map((insert) => insert.id_group);
   }
 
   try {
@@ -74,7 +81,7 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
     formData.append("status_ruangan", status_ruangan);
     formData.append("tanggal", tanggal);
     formData.append("waktu", waktu);
-    formData.append("id_group_tias", id_group_tias);
+    // formData.append("id_group_tias", idGroupMeet);
     formData.append("waktu_end", waktu_end);
     formData.append("tipe_kegiatan", tipe_kegiatan);
     formData.append("sub_tema", sub_tema);
@@ -132,10 +139,18 @@ exports.storeMeeting = asyncHandler(async (req, res) => {
 
     const id = response.data.data.id;
 
-    if (groups && groups.length > 0) {
-      await DB_TIAS.query(
-        "UPDATE tb_group_meet SET id_meet = $1 WHERE id = $2",
-        [id, id_group_tias]
+    if (groups?.length) {
+      await GroupMeet.update(
+        {
+          id_meet: id,
+        },
+        {
+          where: {
+            id_group: {
+              [Op.in]: idGroupMeet,
+            },
+          },
+        }
       );
     }
 

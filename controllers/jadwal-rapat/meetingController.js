@@ -48,13 +48,11 @@ exports.getMeeting = asyncHandler(async (req, res) => {
       })
     );
 
-    res
-      .status(201)
-      .json({
-        recordsTotal: response.data.recordsTotal,
-        recordsFiltered: response.data.recordsFiltered,
-        data: data,
-      });
+    res.status(201).json({
+      recordsTotal: response.data.recordsTotal,
+      recordsFiltered: response.data.recordsFiltered,
+      data: data,
+    });
   } catch (error) {
     console.error("Error retrieving Meeting:", error);
     res.status(500).send("Internal Server Error");
@@ -197,19 +195,19 @@ exports.getMeetingInvite = asyncHandler(async (req, res) => {
   const idMeet = parseInt(filterValue ? filterValue[0] : null);
 
   if (idMeet) {
-    const groupMeet = await GroupMeet.findOne({
+    const groupMeet = await GroupMeet.findAll({
       where: {
         id_meet: idMeet,
       },
     });
 
     if (groupMeet) {
-      const groupIds = groupMeet.id_group;
+      const groupIds = groupMeet.map((data) => data.id_group);
 
       const groupUsers = await GroupUsers.findAll({
         where: {
           id_group: {
-            [Op.overlap]: groupIds,
+            [Op.in]: groupIds,
           },
         },
         include: {
@@ -302,18 +300,18 @@ exports.getMeetingByUser = asyncHandler(async (req, res) => {
   const API_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/meeting`;
 
   try {
-    const findGroupUser = await GroupUsers.findOne({
+    const findGroupUser = await GroupUsers.findAll({
       where: {
         user_id: userLoginId,
       },
     });
 
-    const groupIds = findGroupUser.id_group;
+    const groupIds = findGroupUser.map((data) => data.id_group);
 
     const groupMeet = await GroupMeet.findAll({
       where: {
         id_group: {
-          [Op.overlap]: groupIds,
+          [Op.in]: groupIds,
         },
       },
     });
