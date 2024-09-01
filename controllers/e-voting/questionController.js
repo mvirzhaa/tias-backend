@@ -8,14 +8,51 @@ const { getPagination } = require("../../lib/pagination-parser");
 const { Op } = require("sequelize");
 
 exports.getActiveQuestion = asyncHandler(async (req, res) => {
-  const query =
-    "SELECT * FROM tb_voting_pertanyaan WHERE status_pertanyaan = $1";
+  const { user_id, role } = req.user;
 
-  const result = await DB.query(query, [1]);
+  const findGroupUser = await GroupUsers.findAll({
+    where: {
+      user_id: user_id,
+    },
+  });
+
+  const groupIds = findGroupUser.map((data) => data.id_group);
+
+  const groupVoting = await GroupVoting.findAll({
+    where: {
+      id_group: {
+        [Op.in]: groupIds,
+      },
+    },
+  });
+
+  const votingIds = groupVoting.map((data) => data.id_voting);
+
+  const data = await Question.findAll({
+    where: {
+      [Op.or]: [
+        {
+          group: false,
+          status_pertanyaan: 1,
+        },
+        {
+          group: true,
+          status_pertanyaan: 1,
+          id: {
+            [Op.in]: votingIds,
+          },
+        },
+      ],
+    },
+  });
+  // const query =
+  //   "SELECT * FROM tb_voting_pertanyaan WHERE status_pertanyaan = $1";
+
+  // const result = await DB.query(query, [1]);
 
   res.status(200).json({
     message: "success",
-    data: result.rows,
+    data: data,
   });
 });
 
