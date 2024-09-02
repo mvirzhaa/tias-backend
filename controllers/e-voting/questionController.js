@@ -3,9 +3,10 @@ const asyncHandler = require("express-async-handler");
 const GroupVoting = require("../../models/master/group/GroupVoting");
 const GroupUsers = require("../../models/master/group/GroupUsers");
 const Question = require("../../models/Evoting/Qestion");
-const { response } = require("../../lib/response");
 const { getPagination } = require("../../lib/pagination-parser");
 const { Op } = require("sequelize");
+const Group = require("../../models/master/group/Group");
+const { response } = require("../../lib/response");
 
 exports.getActiveQuestion = asyncHandler(async (req, res) => {
   const { user_id, role } = req.user;
@@ -180,6 +181,20 @@ exports.detailQuestion = asyncHandler(async (req, res) => {
       [id]
     );
 
+    const votingGroup = await GroupVoting.findAll({
+      where: {
+        id_voting: id,
+      },
+      include: [
+        {
+          model: Group,
+          required: false,
+          attributes: ["id", "nama_group"],
+          as: "group",
+        },
+      ],
+    });
+
     const label = [];
     const data = [];
 
@@ -200,11 +215,13 @@ exports.detailQuestion = asyncHandler(async (req, res) => {
         option: options.rows,
         realCount: dataChart,
         jmlSuara: findJmlSuara.rowCount,
+        group: votingGroup,
       },
     };
 
     res.status(200).json(response);
   } catch (error) {
+    console.log(error);
     res.status(500).json({
       message: "error",
       error: error.message,
@@ -396,4 +413,32 @@ exports.deleteQuestion = asyncHandler(async (req, res) => {
   res.status(200).json({
     message: "Successfully deleted data.",
   });
+});
+
+exports.deleteGroupQuestion = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+    const check = await GroupVoting.findOne({
+      where: {
+        id: id,
+      },
+    });
+
+    if (!check) {
+      return response(res, false, "group not found", null);
+    }
+
+    await GroupVoting.update(
+      {
+        deletedAt: new Date(),
+      },
+      {
+        where: {
+          id: check.id,
+        },
+      }
+    );
+  } catch (error) {
+    return response(res, false, error.message, error);
+  }
 });

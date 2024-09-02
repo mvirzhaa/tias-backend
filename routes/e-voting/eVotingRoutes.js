@@ -8,6 +8,7 @@ const {
   deleteQuestion,
   detailQuestion,
   detailForEditQuestion,
+  deleteGroupQuestion,
 } = require("../../controllers/e-voting/questionController");
 const {
   getAnswer,
@@ -59,7 +60,9 @@ router.get("/group-voting", protected, getGroupVoting);
 router.get("/group-voting/:id", protected, detailGroup);
 router.get("/group-voting/detail-to-create/:id", detailToCreateUserGroup);
 router.post("/group-voting", protected, createGroup);
-router.delete("/group-voting/:id", protected, deleteGroup);
+// router.delete("/group-voting/:id", protected, deleteGroup);
+router.delete("/group-voting/:id", protected, deleteGroupQuestion);
+
 router.put("/group-voting/:id", protected, editGroup);
 
 router.get("/group-users", protected, getGroupUsers);

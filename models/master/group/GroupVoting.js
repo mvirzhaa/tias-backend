@@ -1,5 +1,6 @@
 const { DataTypes, Model } = require("sequelize");
 const db = require("../../../config");
+const Group = require("./Group");
 
 class GroupVoting extends Model {}
 GroupVoting.init(
@@ -10,10 +11,10 @@ GroupVoting.init(
       primaryKey: true,
     },
     id_voting: {
-      type: DataTypes.NUMBER,
+      type: DataTypes.INTEGER,
     },
     id_group: {
-      type: DataTypes.NUMBER,
+      type: DataTypes.INTEGER,
     },
     created_at: {
       type: DataTypes.DATE,
@@ -41,5 +42,10 @@ GroupVoting.init(
     sequelize: db,
   }
 );
+
+GroupVoting.belongsTo(Group, {
+  foreignKey: "id_group",
+  as: "group",
+});
 
 module.exports = GroupVoting;
