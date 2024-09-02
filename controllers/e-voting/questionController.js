@@ -425,12 +425,12 @@ exports.deleteGroupQuestion = asyncHandler(async (req, res) => {
     });
 
     if (!check) {
-      return response(res, false, "group not found", null);
+      return response(res, false, "Group not found", null, 404);
     }
 
-    await GroupVoting.update(
+    const update = await GroupVoting.update(
       {
-        deletedAt: new Date(),
+        deleted_at: new Date(),
       },
       {
         where: {
@@ -438,7 +438,9 @@ exports.deleteGroupQuestion = asyncHandler(async (req, res) => {
         },
       }
     );
+
+    return response(res, true, "Group successfully deleted", update, 200);
   } catch (error) {
-    return response(res, false, error.message, error);
+    return response(res, false, error.message, error, 500);
   }
 });
