@@ -428,23 +428,30 @@ exports.deleteUserFromGroup = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "ID parameter is missing." });
   }
 
-  const [affectedRows] = await GroupUsers.update(
+  const findData = await GroupUsers.findOne({
+    where: {
+      user_id: user_id,
+    },
+  });
+
+  if (!findData) {
+    return res.status(404).json({ message: "User not found in the group." });
+  }
+
+  const update = await GroupUsers.update(
     {
-      deletedAt: new Date(),
+      deleted_at: new Date(),
     },
     {
       where: {
-        id: id,
-        user_id: user_id,
+        id: findData.id,
+        user_id: findData.user_id,
       },
     }
   );
 
-  if (affectedRows === 0) {
-    return res.status(404).json({ message: "User not found in the group." });
-  }
-
   res.status(200).json({
     message: "Successfully removed from group.",
+    data: update,
   });
 });
