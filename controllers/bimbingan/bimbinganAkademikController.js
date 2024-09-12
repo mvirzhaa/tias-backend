@@ -1,9 +1,18 @@
 const asyncHandler = require("express-async-handler");
-const DB = require("../../db-bimbingan-akademik");
 const DB_TIAS = require("../../database");
 const { unixTimestamp, convertDate } = require("../../utils");
 const path = require("path");
 const fs = require("fs-extra");
+const { getDataImportBk } = require("../../helper/general");
+const User = require("../../models/User");
+const BimbinganAkademik = require("../../models/BimbinganAkademik/BimbinganAkademik");
+
+const { Op } = require("sequelize");
+const MhsBk = require("../../models/BimbinganAkademik/MhsBk");
+const SemesterBk = require("../../models/BimbinganAkademik/SemesterBk");
+const { response } = require("../../lib/response");
+const { getPagination } = require("../../lib/pagination-parser");
+const DataPribadi = require("../../models/DataPribadi");
 
 // ====================  BIMBINGAN MAHASISWA ==========================
 exports.addDataBimbinganAkademik = asyncHandler(async (req, res) => {
@@ -13,7 +22,7 @@ exports.addDataBimbinganAkademik = asyncHandler(async (req, res) => {
     throw new Error("Pleas fill in all the required fields.");
   }
   const mhsIds = JSON.parse(data.mhs_bimbingan).map((mhs) => mhs.user_id);
-  const existingMhsIds = await DB.query(
+  const existingMhsIds = await DB_TIAS.query(
     "SELECT mhs_id FROM mhs_bk WHERE mhs_id = ANY($1)",
     [mhsIds]
   );
@@ -40,7 +49,7 @@ exports.addDataBimbinganAkademik = asyncHandler(async (req, res) => {
   const values = [...Object.values(dataBimbingan), convert];
   const placeholders = keys.map((key, index) => `$${index + 1}`);
 
-  const saveData = await DB.query(
+  const saveData = await DB_TIAS.query(
     `INSERT INTO tb_bk(${keys.join(", ")}) VALUES (${placeholders.join(
       ", "
     )}) returning *`,
@@ -63,7 +72,7 @@ exports.addDataBimbinganAkademik = asyncHandler(async (req, res) => {
       const valuesData = [bimbinganId, ...Object.values(mhsBimbingan)];
       const placeholdersData = keysData.map((key, index) => `$${index + 1}`);
 
-      await DB.query(
+      await DB_TIAS.query(
         `INSERT INTO mhs_bk(${keysData.join(
           ", "
         )}) VALUES (${placeholdersData.join(", ")}) returning *`,
@@ -72,7 +81,7 @@ exports.addDataBimbinganAkademik = asyncHandler(async (req, res) => {
 
       // Buat entri semester_bk 1-8 untuk setiap mahasiswa
       for (let i = 1; i <= 8; i++) {
-        await DB.query(
+        await DB_TIAS.query(
           "INSERT INTO semester_bk(id_mhs, semester, dok_frs) VALUES($1, $2, $3) returning *",
           [mhsBimbingan.mhs_id, i, "index.pdf"]
         );
@@ -93,14 +102,109 @@ exports.addDataBimbinganAkademik = asyncHandler(async (req, res) => {
   }
 });
 
+exports.importDataBimbingan = asyncHandler(async (req, res) => {
+  let file = req.file;
+
+  const dataExcel = await getDataImportBk(file.path);
+
+  const emails = dataExcel.map((data) => data.email);
+  const npms = dataExcel.map((data) => data.npm);
+
+  const dosens = await User.findAll({
+    where: {
+      email: {
+        [Op.in]: emails,
+      },
+    },
+  });
+
+  const students = await User.findAll({
+    where: {
+      npm: {
+        [Op.in]: npms,
+      },
+    },
+  });
+
+  const dosenIdMap = dosens.reduce((acc, dosen) => {
+    acc[dosen.email] = dosen.user_id;
+    return acc;
+  }, {});
+
+  const studentIdMap = students.reduce((acc, student) => {
+    acc[student.npm] = student.user_id;
+    return acc;
+  }, {});
+
+  const uniqueDataMap = new Map();
+
+  dataExcel.forEach((data) => {
+    const key = `${dosenIdMap[data.email]}-${data.angkatan}`;
+
+    if (!uniqueDataMap.has(key)) {
+      uniqueDataMap.set(key, {
+        dosen_id: dosenIdMap[data.email],
+        tahun_angkatan: data.angkatan,
+      });
+    }
+  });
+
+  const dataToCreate = Array.from(uniqueDataMap.values());
+
+  const insertedBk = await BimbinganAkademik.bulkCreate(dataToCreate, {
+    returning: true,
+  });
+
+  const bkIdMap = insertedBk.reduce((acc, bk) => {
+    const key = `${bk.dosen_id}-${bk.tahun_angkatan}`;
+    acc[key] = bk.id;
+    return acc;
+  }, {});
+
+  const mhsDataToCreate = dataExcel
+    .map((data) => {
+      const key = `${dosenIdMap[data.email]}-${data.angkatan}`;
+      const bk_id = bkIdMap[key];
+      const mhs_id = studentIdMap[data.npm];
+
+      return {
+        bk_id,
+        mhs_id,
+      };
+    })
+    .filter((data) => data.bk_id && data.mhs_id);
+
+  await MhsBk.bulkCreate(mhsDataToCreate);
+  const semesters = [1, 2, 3, 4, 5, 6, 7, 8];
+  const semesterBks = mhsDataToCreate.flatMap(({ mhs_id }) =>
+    semesters.map((semester) => ({
+      id_mhs: mhs_id,
+      semester,
+      dok_frs: "index.pdf",
+    }))
+  );
+
+  await SemesterBk.bulkCreate(semesterBks);
+
+  res.status(200).json({
+    message: "Data successfully processed.",
+    data: {
+      bimbinganAkademik: insertedBk,
+      mhsBk: mhsDataToCreate,
+      semesterBk: semesterBks, // Optional: include semesterBk data in response
+    },
+  });
+});
+
 exports.getDataBimbingan = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
   const role = req.user.role;
 
   if (role === "Dosen") {
-    const findData = await DB.query("SELECT * FROM tb_bk WHERE dosen_id = $1", [
-      userLoginId,
-    ]);
+    const findData = await DB_TIAS.query(
+      "SELECT * FROM tb_bk WHERE dosen_id = $1",
+      [userLoginId]
+    );
 
     const mergedData = findData.rows.map((data) => ({
       ...data,
@@ -109,7 +213,7 @@ exports.getDataBimbingan = asyncHandler(async (req, res) => {
 
     const bkIds = findData.rows.map((data) => data.id);
 
-    const findMhsBk = await DB.query(
+    const findMhsBk = await DB_TIAS.query(
       "SELECT * FROM mhs_bk WHERE bk_id = ANY($1)",
       [bkIds]
     );
@@ -148,14 +252,14 @@ exports.getDataBimbingan = asyncHandler(async (req, res) => {
       data: mergedData,
     });
   } else if (role === "Mahasiswa") {
-    const findData = await DB.query(
+    const findData = await DB_TIAS.query(
       "SELECT mhs_bk.*, tb_bk.* FROM mhs_bk JOIN tb_bk ON mhs_bk.bk_id = tb_bk.id WHERE mhs_bk.mhs_id = $1",
       [userLoginId]
     );
 
     const mhsIds = findData.rows[0].mhs_id;
 
-    const findDataSemester = await DB.query(
+    const findDataSemester = await DB_TIAS.query(
       "SELECT * FROM semester_bk WHERE id_mhs = $1",
       [mhsIds]
     );
@@ -167,7 +271,7 @@ exports.getDataBimbingan = asyncHandler(async (req, res) => {
       semesters: findDataSemester.rows,
     });
   } else {
-    const findData = await DB.query("SELECT * FROM tb_bk");
+    const findData = await DB_TIAS.query("SELECT * FROM tb_bk");
 
     const dosenIds = findData.rows.map((data) => data.dosen_id);
 
@@ -189,7 +293,7 @@ exports.getDataBimbingan = asyncHandler(async (req, res) => {
 
     const bkIds = findData.rows.map((data) => data.id);
 
-    const findMhsBk = await DB.query(
+    const findMhsBk = await DB_TIAS.query(
       "SELECT * FROM mhs_bk WHERE bk_id = ANY($1)",
       [bkIds]
     );
@@ -230,10 +334,78 @@ exports.getDataBimbingan = asyncHandler(async (req, res) => {
   }
 });
 
+exports.getDataBimbinganForAdmin = asyncHandler(async (req, res) => {
+  try {
+    let { limit, page, order, orderBy, search, filter, filterValue } =
+      req.query;
+    limit = parseInt(limit) > 0 ? parseInt(limit) : 10;
+    page = page ? parseInt(page) : 1;
+    order = order ? order : "id";
+    orderBy = orderBy ? orderBy : "DESC";
+    const pagelimit = getPagination(limit, page);
+
+    let whereCondition = {};
+
+    if (filter && filterValue) {
+      const filters = Array.isArray(filter) ? filter : [filter];
+      const filterValues = Array.isArray(filterValue)
+        ? filterValue
+        : [filterValue];
+
+      filters.forEach((f, index) => {
+        if (f && filterValues[index] !== undefined) {
+          whereCondition[f] = filterValues[index];
+        }
+      });
+    }
+
+    let condition = {
+      [Op.and]: whereCondition,
+    };
+
+    if (search) {
+      condition = {
+        ...condition,
+        [Op.or]: {
+          tahun_angkatan: {
+            [Op.like]: `%${search}%`,
+          },
+        },
+      };
+    }
+
+    const data = await BimbinganAkademik.findAndCountAll({
+      distinct: true,
+      where: condition,
+      order: [[order, orderBy]],
+      limit: pagelimit.limit,
+      offset: pagelimit.offset,
+      include: [
+        {
+          model: DataPribadi,
+          as: "personal_data",
+        },
+      ],
+    });
+
+    return response(res, true, "success", {
+      limit,
+      page,
+      total: data.count,
+      total_page: Math.ceil(parseInt(data.count) / limit),
+      rows: data.rows,
+    });
+  } catch (error) {
+    return response(res, false, error.message, error);
+  }
+});
+
 exports.detailDataBimbingan = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const findData = await DB.query("SELECT * FROM tb_bk WHERE id = $1", [id]);
+  const findData = await DB_TIAS.query("SELECT * FROM tb_bk WHERE id = $1", [
+    id,
+  ]);
 
   if (findData.rows.length === 0) {
     res.status(404).json({
@@ -245,15 +417,16 @@ exports.detailDataBimbingan = asyncHandler(async (req, res) => {
 
   const bimbinganData = findData.rows[0];
 
-  const mhsBimbingan = await DB.query("SELECT * FROM mhs_bk WHERE bk_id = $1", [
-    id,
-  ]);
+  const mhsBimbingan = await DB_TIAS.query(
+    "SELECT * FROM mhs_bk WHERE bk_id = $1",
+    [id]
+  );
 
   const mhsIds = mhsBimbingan.rows.map((data) => data.mhs_id);
 
   const semesterData = await Promise.all(
     mhsIds.map(async (mhsId) => {
-      const semesters = await DB.query(
+      const semesters = await DB_TIAS.query(
         "SELECT * FROM semester_bk WHERE id_mhs = $1",
         [mhsId]
       );
@@ -292,21 +465,24 @@ exports.detailDataBimbingan = asyncHandler(async (req, res) => {
 exports.deleteDataBimbingan = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const findData = await DB.query("SELECT * FROM tb_bk WHERE id = $1", [id]);
+  const findData = await DB_TIAS.query("SELECT * FROM tb_bk WHERE id = $1", [
+    id,
+  ]);
 
   if (!findData.rows.length) {
     res.status(400);
     throw new Error("Data not found.");
   }
 
-  await DB.query("DELETE FROM tb_bk WHERE id = $1", [id]);
+  await DB_TIAS.query("DELETE FROM tb_bk WHERE id = $1", [id]);
 
-  const mhsBimbingan = await DB.query("SELECT * FROM mhs_bk WHERE bk_id = $1", [
-    id,
-  ]);
+  const mhsBimbingan = await DB_TIAS.query(
+    "SELECT * FROM mhs_bk WHERE bk_id = $1",
+    [id]
+  );
   const idMhsList = mhsBimbingan.rows.map((mhs) => mhs.mhs_id);
 
-  const deleteSemester = await DB.query(
+  const deleteSemester = await DB_TIAS.query(
     "DELETE FROM semester_bk WHERE id_mhs = ANY($1) RETURNING *",
     [idMhsList]
   );
@@ -318,7 +494,7 @@ exports.deleteDataBimbingan = asyncHandler(async (req, res) => {
     }
   }
 
-  await DB.query("DELETE FROM mhs_bk WHERE bk_id = $1", [id]);
+  await DB_TIAS.query("DELETE FROM mhs_bk WHERE bk_id = $1", [id]);
 
   res.status(200).json({ message: "Data deleted successfully." });
 });
@@ -326,21 +502,23 @@ exports.deleteDataBimbingan = asyncHandler(async (req, res) => {
 exports.deleteMhsBimbingan = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const findData = await DB.query("SELECT * FROM mhs_bk WHERE id = $1", [id]);
+  const findData = await DB_TIAS.query("SELECT * FROM mhs_bk WHERE id = $1", [
+    id,
+  ]);
 
   if (!findData.rows.length) {
     res.status(400);
     throw new Error("Data not found.");
   }
 
-  const deleteMhs = await DB.query(
+  const deleteMhs = await DB_TIAS.query(
     "DELETE FROM mhs_bk WHERE id = $1 RETURNING *",
     [id]
   );
 
   const mhsIds = deleteMhs.rows[0].mhs_id;
 
-  await DB.query("DELETE FROM semester_bk WHERE id_mhs = $1 RETURNING *", [
+  await DB_TIAS.query("DELETE FROM semester_bk WHERE id_mhs = $1 RETURNING *", [
     mhsIds,
   ]);
 
@@ -369,7 +547,7 @@ exports.updateForAdmin = asyncHandler(async (req, res) => {
       bimbinganAkademik.tahun_angkatan,
       idToUpdate,
     ];
-    await DB.query(updateQuery, updateValues);
+    await DB_TIAS.query(updateQuery, updateValues);
 
     // Menguraikan string mhs_bimbingan menjadi objek JavaScript
     const mhsBimbingan = JSON.parse(dataToUpdate.mhs_bimbingan);
@@ -379,18 +557,18 @@ exports.updateForAdmin = asyncHandler(async (req, res) => {
         if (opt.mhs_id) {
           if (opt.hasOwnProperty("id")) {
             // Memeriksa keberadaan properti 'id'
-            await DB.query("UPDATE mhs_bk SET mhs_id = $1 WHERE id = $2", [
+            await DB_TIAS.query("UPDATE mhs_bk SET mhs_id = $1 WHERE id = $2", [
               opt.mhs_id,
               opt.id,
             ]);
           } else {
-            await DB.query(
+            await DB_TIAS.query(
               "INSERT INTO mhs_bk(bk_id, mhs_id) VALUES ($1, $2) RETURNING id",
               [idToUpdate, opt.mhs_id]
             );
 
             for (let i = 1; i <= 8; i++) {
-              await DB.query(
+              await DB_TIAS.query(
                 "INSERT INTO semester_bk(id_mhs, semester, dok_frs) VALUES($1, $2, $3) returning *",
                 [opt.mhs_id, i, "index.pdf"]
               );
@@ -448,7 +626,7 @@ exports.updateForDosen = asyncHandler(async (req, res) => {
 
     if (updateValues.length > 0) {
       updateValues.push(id);
-      await DB.query(
+      await DB_TIAS.query(
         `UPDATE semester_bk SET ${setQuery} WHERE id = $${updateValues.length}`,
         updateValues
       );
@@ -473,9 +651,10 @@ exports.updateForMhs = asyncHandler(async (req, res) => {
     throw new Error("Please fill in one file.");
   }
 
-  const findData = await DB.query("SELECT * FROM semester_bk WHERE id = $1", [
-    id,
-  ]);
+  const findData = await DB_TIAS.query(
+    "SELECT * FROM semester_bk WHERE id = $1",
+    [id]
+  );
 
   if (!findData.rows.length) {
     res.status(400);
@@ -488,7 +667,7 @@ exports.updateForMhs = asyncHandler(async (req, res) => {
     );
   }
 
-  const updateDok = await DB.query(
+  const updateDok = await DB_TIAS.query(
     `UPDATE semester_bk SET dok_frs = $1 WHERE id = $2 returning *`,
     [file.filename, id]
   );
