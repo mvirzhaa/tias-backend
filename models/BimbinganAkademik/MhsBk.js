@@ -15,6 +15,12 @@ MhsBk.init(
     mhs_id: {
       type: DataTypes.UUID,
     },
+    kelas: {
+      type: DataTypes.STRING,
+    },
+    semester: {
+      type: DataTypes.STRING,
+    },
   },
   {
     timestamps: false,

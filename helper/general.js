@@ -10,11 +10,13 @@ const getDataImportBk = async (url) => {
     let sheet = workbook.getWorksheet(sheetName);
     sheet.eachRow((row, rowNumber) => {
       if (rowNumber > 2) {
-        const angkatan = `20${row.getCell(3).value.result}`;
+        const angkatan = `20${row.getCell(2).value.result}`;
         data.push({
-          email: row.getCell(2).value.toString(),
+          nidn: row.getCell(1).value.toString().replace(/['"]/g, "").trim(),
           angkatan: angkatan,
-          npm: row.getCell(4).value.toString(),
+          npm: row.getCell(3).value.toString(),
+          kelas: row.getCell(4).value.toString(),
+          semester: row.getCell(5).value.toString(),
         });
       }
     });

@@ -6,7 +6,6 @@ const fs = require("fs-extra");
 const { getDataImportBk } = require("../../helper/general");
 const User = require("../../models/User");
 const BimbinganAkademik = require("../../models/BimbinganAkademik/BimbinganAkademik");
-
 const { Op } = require("sequelize");
 const MhsBk = require("../../models/BimbinganAkademik/MhsBk");
 const SemesterBk = require("../../models/BimbinganAkademik/SemesterBk");
@@ -103,20 +102,30 @@ exports.addDataBimbinganAkademik = asyncHandler(async (req, res) => {
 });
 
 exports.importDataBimbingan = asyncHandler(async (req, res) => {
-  let file = req.file;
+  let { file } = req.body;
+  const dataExcel = await getDataImportBk(file[0].filepath);
 
-  const dataExcel = await getDataImportBk(file.path);
-
-  const emails = dataExcel.map((data) => data.email);
   const npms = dataExcel.map((data) => data.npm);
+  const nidns = dataExcel.map((data) => data.nidn.trim());
+  const uniqueNidns = [...new Set(nidns)];
 
-  const dosens = await User.findAll({
-    where: {
-      email: {
-        [Op.in]: emails,
-      },
-    },
-  });
+  const nidnsList = uniqueNidns.map((nidn) => `'${nidn}'`).join(",");
+
+  const result = await DB_TIAS.query(`
+    SELECT 
+      tb_users.nidn, 
+      tb_users.user_id, 
+      tb_data_pribadi.dp_id, 
+      tb_data_pribadi.dp_id,
+      tb_data_pribadi.nama_lengkap,
+      tb_data_pribadi.nip 
+    FROM tb_users 
+    JOIN tb_data_pribadi ON tb_data_pribadi.user_id = tb_users.user_id
+    WHERE tb_users.nidn IN (${nidnsList}) 
+    OR tb_data_pribadi.nip IN (${nidnsList});
+  `);
+
+  const dosens = result.rows;
 
   const students = await User.findAll({
     where: {
@@ -127,7 +136,7 @@ exports.importDataBimbingan = asyncHandler(async (req, res) => {
   });
 
   const dosenIdMap = dosens.reduce((acc, dosen) => {
-    acc[dosen.email] = dosen.user_id;
+    acc[dosen.nidn] = dosen.user_id;
     return acc;
   }, {});
 
@@ -139,44 +148,92 @@ exports.importDataBimbingan = asyncHandler(async (req, res) => {
   const uniqueDataMap = new Map();
 
   dataExcel.forEach((data) => {
-    const key = `${dosenIdMap[data.email]}-${data.angkatan}`;
+    const dosenId = dosenIdMap[data.nidn];
+    const key = `${dosenId}-${data.angkatan}`;
 
-    if (!uniqueDataMap.has(key)) {
+    if (dosenId && !uniqueDataMap.has(key)) {
       uniqueDataMap.set(key, {
-        dosen_id: dosenIdMap[data.email],
+        dosen_id: dosenId,
         tahun_angkatan: data.angkatan,
       });
     }
   });
 
-  const dataToCreate = Array.from(uniqueDataMap.values());
+  const dataBk = Array.from(uniqueDataMap.values());
 
-  const insertedBk = await BimbinganAkademik.bulkCreate(dataToCreate, {
-    returning: true,
+  const existingBks = await BimbinganAkademik.findAll({
+    where: {
+      [Op.or]: dataBk.map(({ dosen_id, tahun_angkatan }) => ({
+        dosen_id,
+        tahun_angkatan,
+      })),
+    },
   });
 
-  const bkIdMap = insertedBk.reduce((acc, bk) => {
+  const existingBkMap = existingBks.reduce((acc, bk) => {
     const key = `${bk.dosen_id}-${bk.tahun_angkatan}`;
     acc[key] = bk.id;
     return acc;
   }, {});
 
+  const newBkData = dataBk.filter(
+    (bk) => !existingBkMap[`${bk.dosen_id}-${bk.tahun_angkatan}`]
+  );
+
+  let insertedBk = [];
+
+  if (newBkData.length > 0) {
+    insertedBk = await BimbinganAkademik.bulkCreate(newBkData, {
+      returning: true,
+    });
+
+    insertedBk.forEach((bk) => {
+      const key = `${bk.dosen_id}-${bk.tahun_angkatan}`;
+      existingBkMap[key] = bk.id;
+    });
+  }
+
   const mhsDataToCreate = dataExcel
     .map((data) => {
-      const key = `${dosenIdMap[data.email]}-${data.angkatan}`;
-      const bk_id = bkIdMap[key];
+      const key = `${dosenIdMap[data.nidn]}-${data.angkatan}`;
+      const bk_id = existingBkMap[key];
       const mhs_id = studentIdMap[data.npm];
+      const kelas = data.kelas;
+      const semester = data.semester;
 
       return {
         bk_id,
         mhs_id,
+        kelas,
+        semester,
       };
     })
-    .filter((data) => data.bk_id && data.mhs_id);
+    .filter((data) => data.bk_id && data.mhs_id && data.kelas && data.semester);
 
-  await MhsBk.bulkCreate(mhsDataToCreate);
+  const existingMhsBk = await MhsBk.findAll({
+    where: {
+      [Op.or]: mhsDataToCreate.map(({ bk_id, mhs_id }) => ({
+        bk_id,
+        mhs_id,
+      })),
+    },
+  });
+
+  const existingMhsBkMap = existingMhsBk.reduce((acc, mhsBk) => {
+    const key = `${mhsBk.bk_id}-${mhsBk.mhs_id}`;
+    acc[key] = true;
+    return acc;
+  }, {});
+
+  const newMhsBkData = mhsDataToCreate.filter(
+    ({ bk_id, mhs_id }) => !existingMhsBkMap[`${bk_id}-${mhs_id}`]
+  );
+
+  await MhsBk.bulkCreate(newMhsBkData);
+
   const semesters = [1, 2, 3, 4, 5, 6, 7, 8];
-  const semesterBks = mhsDataToCreate.flatMap(({ mhs_id }) =>
+
+  const semesterBks = newMhsBkData.flatMap(({ mhs_id }) =>
     semesters.map((semester) => ({
       id_mhs: mhs_id,
       semester,
@@ -184,14 +241,33 @@ exports.importDataBimbingan = asyncHandler(async (req, res) => {
     }))
   );
 
-  await SemesterBk.bulkCreate(semesterBks);
+  const existingSemesterBk = await SemesterBk.findAll({
+    where: {
+      [Op.or]: semesterBks.map(({ id_mhs, semester }) => ({
+        id_mhs,
+        semester,
+      })),
+    },
+  });
+
+  const existingSemesterBkMap = existingSemesterBk.reduce((acc, sbk) => {
+    const key = `${sbk.id_mhs}-${sbk.semester}`;
+    acc[key] = true;
+    return acc;
+  }, {});
+
+  const newSemesterBkData = semesterBks.filter(
+    ({ id_mhs, semester }) => !existingSemesterBkMap[`${id_mhs}-${semester}`]
+  );
+
+  await SemesterBk.bulkCreate(newSemesterBkData);
 
   res.status(200).json({
     message: "Data successfully processed.",
     data: {
       bimbinganAkademik: insertedBk,
-      mhsBk: mhsDataToCreate,
-      semesterBk: semesterBks, // Optional: include semesterBk data in response
+      mhsBk: newMhsBkData,
+      semesterBk: newSemesterBkData,
     },
   });
 });
@@ -676,4 +752,25 @@ exports.updateForMhs = asyncHandler(async (req, res) => {
     message: "Successfully update data.",
     data: updateDok.rows[0],
   });
+});
+
+exports.formatImport = asyncHandler(async (req, res) => {
+  try {
+    const filePath = path.join(
+      __dirname,
+      "../../public/format_import/format_import.xlsx"
+    );
+
+    console.log(filePath);
+
+    res.download(filePath, "format_import.xlsx", (err) => {
+      if (err) {
+        console.error("Error in downloading file:", err);
+        res.status(500).send("Error downloading file");
+      }
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Server Error");
+  }
 });

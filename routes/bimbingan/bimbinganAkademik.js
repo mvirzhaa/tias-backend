@@ -15,15 +15,18 @@ const {
   updateForMhs,
   importDataBimbingan,
   getDataBimbinganForAdmin,
+  formatImport,
 } = require("../../controllers/bimbingan/bimbinganAkademikController");
 const { frsUpload } = require("../../middleware/dokumen-frs");
 const {
   ImportBk,
 } = require("../../middleware/pelaks-pendidikan/bimbinganAkademikUpload");
+const formidable = require("../../middleware/functional/formidable");
 
 const router = express.Router();
 
 router.get("/for-admin", protected, getDataBimbinganForAdmin);
+router.get("/format-import", formatImport);
 
 router.post("/add", protected, adminOnly, addDataBimbinganAkademik);
 router.get("/get", protected, getDataBimbingan);
@@ -35,6 +38,6 @@ router.patch("/edit-mhs/:id", protected, frsUpload, updateForMhs);
 
 router.delete("/mhs-bimbingan/:id", protected, deleteMhsBimbingan);
 
-router.post("/import", ImportBk, importDataBimbingan);
+router.post("/import", formidable, importDataBimbingan);
 
 module.exports = router;
