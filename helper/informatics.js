@@ -48,8 +48,8 @@ async function getPmmStudent(npm) {
     const response = await axios.get(API_URL, {
       params: {
         menu: "mahasiswa-pmm",
-        academic_year: "2023/2024",
-        semester: "GENAP",
+        academic_year: "2024/2025",
+        semester: "GASAL",
         code: npm,
       },
     });
@@ -126,7 +126,7 @@ async function getAllMatkulByMhs(npm, curr_code) {
   }
 }
 
-async function getMatkulByNpm(npm, semester = "GENAP", tahun = "2023/2024") {
+async function getMatkulByNpm(npm, semester = "GASAL", tahun = "2024/2025") {
   const query = `
     SELECT a.*, d.student_code, e.name AS mahasiswa, b.name, c.name AS dosen, b.credit 
     FROM siak_lecture a 

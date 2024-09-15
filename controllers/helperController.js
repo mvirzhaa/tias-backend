@@ -159,8 +159,8 @@ exports.getSkpiPerkuliahan = asyncHandler(async (req, res) => {
   const npm = req.user.npm;
   const dataQuery = req.query;
 
-  const tahun = dataQuery.tahun || "2023/2024";
-  const semester = dataQuery.semester || "GENAP";
+  const tahun = dataQuery.tahun || "2024/2025";
+  const semester = dataQuery.semester || "GASAL";
 
   const responseQuery = await getMatkulByNpm(npm, semester, tahun);
 
