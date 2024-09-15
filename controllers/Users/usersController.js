@@ -40,13 +40,9 @@ exports.importDataDosen = asyncHandler(async (req, res) => {
   let { file } = req.body;
   const dataExcel = await getDataImportUsers(file[0].filepath);
 
-  // Filter out NIDNs that start with '41' and ensure they exist
+  // Filter out NIPs that start with '41' and ensure valid NIP/NIDN
   const filteredData = dataExcel.filter(
-    (data) =>
-      data.nidn &&
-      !data.nidn.startsWith("41") &&
-      data.nip &&
-      !data.nip.startsWith("41")
+    (data) => data.nip && !data.nip.startsWith("41")
   );
 
   const resultsDosen = await getDosen();
@@ -66,11 +62,22 @@ exports.importDataDosen = asyncHandler(async (req, res) => {
   const existingNidns = new Set(existingUsers.map((user) => user.nidn));
   const existingEmails = new Set(existingUsers.map((user) => user.email));
 
+  // Find existing personal data based on NIP
+  const existingPersonalData = await DataPribadi.findAll({
+    where: {
+      nip: filteredData.map((data) => data.nip),
+    },
+    attributes: ["nip"],
+  });
+
+  // Extract existing NIPs into a set for fast lookup
+  const existingNips = new Set(existingPersonalData.map((data) => data.nip));
+
   // Map filtered data to usersData, checking for duplicates
   const usersData = filteredData
     .map((data) => {
       const dosenWithNidn = resultsDosen.find(
-        (dosen) => dosen.nidn === data.nidn
+        (dosen) => dosen.nidn === data.nidn || dosen.nip === data.nip
       );
 
       if (
@@ -81,7 +88,7 @@ exports.importDataDosen = asyncHandler(async (req, res) => {
         return {
           nidn: data.nidn,
           email: data.email,
-          password: data.hashedPassword, // Since passwords are already hashed
+          password: data.hashedPassword, // Password sudah ter-hash
           role: process.env.ROLE_ID_DOSEN,
           curr_code: "9999",
           created_at: new Date(),
@@ -102,47 +109,74 @@ exports.importDataDosen = asyncHandler(async (req, res) => {
     });
   }
 
-  // Insert users in bulk
-  const createdUsers = await User.bulkCreate(usersData, { returning: true });
+  try {
+    // Insert users in bulk
+    const createdUsers = await User.bulkCreate(usersData, { returning: true });
 
-  // Map the created users to personalData
-  const personalData = createdUsers.map((user, index) => {
-    const dosenWithNidn = resultsDosen.find(
-      (dosen) => dosen.nidn === user.nidn
-    );
-    const jenkelSiak = dosenWithNidn.jenis_kelamin === "LAKI-LAKI" ? "L" : "P";
-    const statusKawin = dosenWithNidn.status_sipil === "MENIKAH" ? 1 : 0;
+    // Map the created users to personalData, ensuring unique NIPs
+    const personalData = createdUsers
+      .map((user) => {
+        const dosenWithNidn = resultsDosen.find(
+          (dosen) => dosen.nidn === user.nidn
+        );
+        const jenkelSiak =
+          dosenWithNidn.jenis_kelamin === "LAKI-LAKI" ? "L" : "P";
+        const statusKawin = dosenWithNidn.status_sipil === "MENIKAH" ? 1 : 0;
 
-    return {
-      user_id: user.user_id, // Using created user_id from bulkCreate
-      nama_lengkap: `${dosenWithNidn.gelar_depan} ${dosenWithNidn.nama} ${dosenWithNidn.gelar_belakang}`,
-      jenkel: jenkelSiak,
-      tanggal_lahir: dosenWithNidn.tanggal_lahir,
-      tempat_lahir: dosenWithNidn.tempat_lahir,
-      ibu_kandung: dosenWithNidn.nama_ibu_kandung,
-      agama: dosenWithNidn.agama,
-      email: user.email,
-      alamat: dosenWithNidn.alamat,
-      kota_kabupaten: dosenWithNidn.kota,
-      no_hp: dosenWithNidn.no_handphone,
-      provinsi: dosenWithNidn.propinsi,
-      kode_pos: dosenWithNidn.kodepos,
-      status_kawin: statusKawin,
-      nik: dosenWithNidn.no_ktp,
-      created_at: new Date(),
-      kode_mhs: dosenWithNidn.klasi_pegawai,
-      nip: dosenWithNidn.nip,
-      instansi_ext: "0",
-    };
-  });
+        if (!existingNips.has(dosenWithNidn.nip)) {
+          return {
+            user_id: user.user_id, // Using created user_id from bulkCreate
+            nama_lengkap: `${dosenWithNidn.gelar_depan} ${dosenWithNidn.nama} ${dosenWithNidn.gelar_belakang}`,
+            jenkel: jenkelSiak,
+            tanggal_lahir: dosenWithNidn.tanggal_lahir,
+            tempat_lahir: dosenWithNidn.tempat_lahir,
+            ibu_kandung: dosenWithNidn.nama_ibu_kandung,
+            agama: dosenWithNidn.agama,
+            email: user.email,
+            alamat: dosenWithNidn.alamat,
+            kota_kabupaten: dosenWithNidn.kota,
+            no_hp: dosenWithNidn.no_handphone,
+            provinsi: dosenWithNidn.propinsi,
+            kode_pos: dosenWithNidn.kodepos,
+            status_kawin: statusKawin,
+            nik: dosenWithNidn.no_ktp,
+            created_at: new Date(),
+            kode_mhs: dosenWithNidn.klasi_pegawai,
+            nip: dosenWithNidn.nip,
+            instansi_ext: "0",
+          };
+        }
+      })
+      .filter(Boolean); // Remove undefined values
 
-  // Insert personal data in bulk
-  await DataPribadi.bulkCreate(personalData);
+    // Insert personal data in bulk
+    if (personalData.length > 0) {
+      await DataPribadi.bulkCreate(personalData);
+    }
 
-  res.status(200).json({
-    message: "Data successfully processed and inserted.",
-    users: createdUsers,
-  });
+    res.status(200).json({
+      message: "Data successfully processed and inserted.",
+      users: createdUsers,
+    });
+  } catch (error) {
+    if (error.name === "SequelizeValidationError") {
+      console.error("Validation errors:", error.errors);
+      return res.status(400).json({
+        message: "Validation error",
+        errors: error.errors.map((err) => ({
+          message: err.message,
+          field: err.path,
+          value: err.value,
+        })),
+      });
+    }
+
+    console.error("Unexpected error:", error);
+    return res.status(500).json({
+      message: "Unexpected error occurred",
+      error: error.message,
+    });
+  }
 });
 
 exports.importDataPegawai = asyncHandler(async (req, res) => {
