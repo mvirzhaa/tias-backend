@@ -1,4 +1,4 @@
-const { DataTypes, Model } = require("sequelize");
+const { DataTypes, Model, Sequelize } = require("sequelize");
 const db = require("../config");
 const DataPribadi = require("./DataPribadi");
 
@@ -7,6 +7,7 @@ User.init(
   {
     user_id: {
       type: DataTypes.UUID,
+      defaultValue: Sequelize.UUIDV4,
       primaryKey: true,
     },
     role: {
@@ -23,6 +24,9 @@ User.init(
     },
     isverified: {
       type: DataTypes.BOOLEAN,
+    },
+    password: {
+      type: DataTypes.STRING,
     },
     // user_agent: {
     //   type: DataTypes.ARRAY,

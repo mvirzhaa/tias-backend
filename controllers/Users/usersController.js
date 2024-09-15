@@ -5,12 +5,17 @@ const {
   changePasswordUsersValidation,
 } = require("../../validation/formValidation");
 const mysql = require("mysql2");
-const { getMatkulByNpm } = require("../../helper/informatics");
+const {
+  getMatkulByNpm,
+  getDosen,
+  getPegawai,
+} = require("../../helper/informatics");
 const User = require("../../models/User");
 const { getPagination } = require("../../lib/pagination-parser");
 const { response } = require("../../lib/response");
-const { Op } = require("sequelize");
+const { Sequelize, Op } = require("sequelize");
 const DataPribadi = require("../../models/DataPribadi");
+const { getDataImportUsers } = require("../../helper/general");
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -30,6 +35,221 @@ function executeQuery(query, params = []) {
     });
   });
 }
+
+exports.importDataDosen = asyncHandler(async (req, res) => {
+  let { file } = req.body;
+  const dataExcel = await getDataImportUsers(file[0].filepath);
+
+  // Filter out NIDNs that start with '41' and ensure they exist
+  const filteredData = dataExcel.filter(
+    (data) =>
+      data.nidn &&
+      !data.nidn.startsWith("41") &&
+      data.nip &&
+      !data.nip.startsWith("41")
+  );
+
+  const resultsDosen = await getDosen();
+
+  // Find existing users based on NIDN or email
+  const existingUsers = await User.findAll({
+    where: {
+      [Sequelize.Op.or]: [
+        { nidn: filteredData.map((data) => data.nidn) },
+        { email: filteredData.map((data) => data.email) },
+      ],
+    },
+    attributes: ["nidn", "email"],
+  });
+
+  // Extract existing NIDNs and emails into sets for fast lookup
+  const existingNidns = new Set(existingUsers.map((user) => user.nidn));
+  const existingEmails = new Set(existingUsers.map((user) => user.email));
+
+  // Map filtered data to usersData, checking for duplicates
+  const usersData = filteredData
+    .map((data) => {
+      const dosenWithNidn = resultsDosen.find(
+        (dosen) => dosen.nidn === data.nidn
+      );
+
+      if (
+        dosenWithNidn &&
+        !existingNidns.has(data.nidn) &&
+        !existingEmails.has(data.email)
+      ) {
+        return {
+          nidn: data.nidn,
+          email: data.email,
+          password: data.hashedPassword, // Since passwords are already hashed
+          role: process.env.ROLE_ID_DOSEN,
+          curr_code: "9999",
+          created_at: new Date(),
+          department_code: dosenWithNidn.lookup_id,
+          isverified: true,
+        };
+      }
+    })
+    .filter(Boolean); // Remove undefined values
+
+  // Log usersData for debugging
+
+  // Check if there's any data to insert
+  if (usersData.length === 0) {
+    return res.status(200).json({
+      message:
+        "No valid data to insert (either all data already exists or invalid).",
+    });
+  }
+
+  // Insert users in bulk
+  const createdUsers = await User.bulkCreate(usersData, { returning: true });
+
+  // Map the created users to personalData
+  const personalData = createdUsers.map((user, index) => {
+    const dosenWithNidn = resultsDosen.find(
+      (dosen) => dosen.nidn === user.nidn
+    );
+    const jenkelSiak = dosenWithNidn.jenis_kelamin === "LAKI-LAKI" ? "L" : "P";
+    const statusKawin = dosenWithNidn.status_sipil === "MENIKAH" ? 1 : 0;
+
+    return {
+      user_id: user.user_id, // Using created user_id from bulkCreate
+      nama_lengkap: `${dosenWithNidn.gelar_depan} ${dosenWithNidn.nama} ${dosenWithNidn.gelar_belakang}`,
+      jenkel: jenkelSiak,
+      tanggal_lahir: dosenWithNidn.tanggal_lahir,
+      tempat_lahir: dosenWithNidn.tempat_lahir,
+      ibu_kandung: dosenWithNidn.nama_ibu_kandung,
+      agama: dosenWithNidn.agama,
+      email: user.email,
+      alamat: dosenWithNidn.alamat,
+      kota_kabupaten: dosenWithNidn.kota,
+      no_hp: dosenWithNidn.no_handphone,
+      provinsi: dosenWithNidn.propinsi,
+      kode_pos: dosenWithNidn.kodepos,
+      status_kawin: statusKawin,
+      nik: dosenWithNidn.no_ktp,
+      created_at: new Date(),
+      kode_mhs: dosenWithNidn.klasi_pegawai,
+      nip: dosenWithNidn.nip,
+    };
+  });
+
+  // Insert personal data in bulk
+  await DataPribadi.bulkCreate(personalData);
+
+  res.status(200).json({
+    message: "Data successfully processed and inserted.",
+    users: createdUsers,
+  });
+});
+
+exports.importDataPegawai = asyncHandler(async (req, res) => {
+  let { file } = req.body;
+  const dataExcel = await getDataImportUsers(file[0].filepath);
+
+  const filteredData = dataExcel.filter(
+    (data) => data.nip && data.nip.startsWith("41")
+  );
+
+  const resultsPegawai = await getPegawai();
+
+  const existingUsers = await User.findAll({
+    where: {
+      email: filteredData.map((data) => data.email),
+    },
+    include: {
+      model: DataPribadi,
+      as: "personal_data",
+      where: {
+        nip: filteredData.map((data) => data.nip),
+      },
+      attributes: ["nip"],
+    },
+    attributes: ["email"],
+  });
+
+  const existingEmails = new Set(existingUsers.map((user) => user.email));
+  const existingNips = new Set(
+    existingUsers.map((user) => user.personal_data.nip)
+  );
+
+  // Map filtered data to usersData, adding the NIP for mapping later
+  const usersData = filteredData
+    .map((data) => {
+      const pegawaiWithNip = resultsPegawai.find(
+        (pegawai) => pegawai.nip === data.nip
+      );
+
+      if (
+        pegawaiWithNip &&
+        !existingEmails.has(data.email) &&
+        !existingNips.has(data.nip)
+      ) {
+        return {
+          email: data.email,
+          password: data.hashedPassword, // Already hashed
+          role: process.env.ROLE_ID_PEGAWAI,
+          curr_code: "9999",
+          created_at: new Date(),
+          department_code: pegawaiWithNip.branch,
+          isverified: true,
+          // Add NIP to map later to DataPribadi
+          nip: data.nip,
+        };
+      }
+    })
+    .filter(Boolean); // Remove undefined values
+
+  // Check if there's any data to insert
+  if (usersData.length === 0) {
+    return res.status(200).json({
+      message:
+        "No valid data to insert (either all data already exists or invalid).",
+    });
+  }
+
+  // Insert users in bulk
+  const createdUsers = await User.bulkCreate(usersData, { returning: true });
+
+  // Map the created users to personalData using the stored NIP
+  const personalData = createdUsers.map((user, index) => {
+    const pegawaiWithNip = resultsPegawai.find(
+      (pegawai) => pegawai.nip === usersData[index].nip // Use nip from usersData
+    );
+    const jenkelSiak = pegawaiWithNip.jenis_kelamin === "LAKI-LAKI" ? "L" : "P";
+    const statusKawin = pegawaiWithNip.status_sipil === "MENIKAH" ? 1 : 0;
+
+    return {
+      user_id: user.user_id, // Using created user_id from bulkCreate
+      nama_lengkap: `${pegawaiWithNip.gelar_depan} ${pegawaiWithNip.nama} ${pegawaiWithNip.gelar_belakang}`,
+      jenkel: jenkelSiak,
+      tanggal_lahir: pegawaiWithNip.tanggal_lahir,
+      tempat_lahir: pegawaiWithNip.tempat_lahir,
+      ibu_kandung: pegawaiWithNip.nama_ibu_kandung,
+      agama: pegawaiWithNip.agama,
+      email: user.email,
+      alamat: pegawaiWithNip.alamat,
+      kota_kabupaten: pegawaiWithNip.kota,
+      no_hp: pegawaiWithNip.no_handphone,
+      provinsi: pegawaiWithNip.propinsi,
+      kode_pos: pegawaiWithNip.kodepos,
+      status_kawin: statusKawin,
+      nik: pegawaiWithNip.no_ktp,
+      created_at: new Date(),
+      kode_mhs: pegawaiWithNip.klasi_pegawai,
+      nip: pegawaiWithNip.nip, // Store NIP in DataPribadi
+    };
+  });
+
+  // Insert personal data in bulk
+  await DataPribadi.bulkCreate(personalData);
+
+  res.status(200).json({
+    message: "Data successfully processed and inserted.",
+    users: createdUsers,
+  });
+});
 
 exports.getUserMhs = asyncHandler(async (req, res) => {
   const { page, limit, searchQuery, nama_lengkap, npm, nidn, kode_mhs } =
@@ -750,4 +970,69 @@ exports.listDosenExt = asyncHandler(async (req, res) => {
     message: "Success get data.",
     data: resultsDosen,
   });
+});
+
+exports.getPegawai = asyncHandler(async (req, res) => {
+  try {
+    let { limit, page, order, orderBy, search, filter, filterValue } =
+      req.query;
+    limit = parseInt(limit) > 0 ? parseInt(limit) : 10;
+    page = page ? parseInt(page) : 1;
+    order = order ? order : "created_at";
+    orderBy = orderBy ? orderBy : "DESC";
+    const pagelimit = getPagination(limit, page);
+
+    let whereCondition = {
+      role: process.env.ROLE_ID_PEGAWAI,
+    };
+
+    if (filter && filterValue) {
+      const filters = Array.isArray(filter) ? filter : [filter];
+      const filterValues = Array.isArray(filterValue)
+        ? filterValue
+        : [filterValue];
+
+      filters.forEach((f, index) => {
+        if (f && filterValues[index] !== undefined) {
+          whereCondition[f] = filterValues[index];
+        }
+      });
+    }
+
+    let condition = {
+      [Op.and]: whereCondition,
+    };
+
+    if (search) {
+      condition = {
+        ...condition,
+        [Op.or]: [
+          { "$personal_data.nama_lengkap$": { [Op.like]: `%${search}%` } },
+          { "$personal_data.nip$": { [Op.like]: `%${search}%` } },
+        ],
+      };
+    }
+
+    const data = await User.findAndCountAll({
+      distinct: true,
+      where: condition,
+      order: [[order, orderBy]],
+      limit: pagelimit.limit,
+      offset: pagelimit.offset,
+      include: {
+        model: DataPribadi,
+        as: "personal_data",
+      },
+    });
+
+    return response(res, true, "success", {
+      limit,
+      page,
+      total: data.count,
+      total_page: Math.ceil(parseInt(data.count) / limit),
+      rows: data.rows,
+    });
+  } catch (error) {
+    return response(res, false, error.message, error);
+  }
 });

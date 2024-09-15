@@ -36,13 +36,13 @@ class KategoriLaporanController {
       };
 
       if (search) {
+        // Assuming you want to search multiple fields or ensure case-insensitivity
         condition = {
           ...condition,
-          [Op.or]: {
-            nama_kategori: {
-              [Op.like]: `%${search}%`,
-            },
-          },
+          [Op.or]: [
+            { nama_kategori: { [Op.iLike]: `%${search}%` } }, // Case-insensitive search
+            // Add more fields if needed
+          ],
         };
       }
 

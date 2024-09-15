@@ -38,6 +38,6 @@ router.patch("/edit-mhs/:id", protected, frsUpload, updateForMhs);
 
 router.delete("/mhs-bimbingan/:id", protected, deleteMhsBimbingan);
 
-router.post("/import", formidable, importDataBimbingan);
+router.post("/import", protected, formidable, importDataBimbingan);
 
 module.exports = router;

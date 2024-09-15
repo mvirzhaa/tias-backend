@@ -1,4 +1,4 @@
-const { DataTypes, Model } = require("sequelize");
+const { DataTypes, Model, Sequelize } = require("sequelize");
 const db = require("../config");
 
 class DataPribadi extends Model {}
@@ -6,6 +6,7 @@ DataPribadi.init(
   {
     dp_id: {
       type: DataTypes.UUID,
+      defaultValue: Sequelize.UUIDV4,
       primaryKey: true,
     },
     user_id: {
