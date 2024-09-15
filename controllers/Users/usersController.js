@@ -132,6 +132,7 @@ exports.importDataDosen = asyncHandler(async (req, res) => {
       created_at: new Date(),
       kode_mhs: dosenWithNidn.klasi_pegawai,
       nip: dosenWithNidn.nip,
+      instansi_ext: "0",
     };
   });
 
@@ -239,6 +240,7 @@ exports.importDataPegawai = asyncHandler(async (req, res) => {
       created_at: new Date(),
       kode_mhs: pegawaiWithNip.klasi_pegawai,
       nip: pegawaiWithNip.nip, // Store NIP in DataPribadi
+      instansi_ext: "0",
     };
   });
 
