@@ -19,6 +19,7 @@ const {
   importDataDosen,
   importDataPegawai,
   getPegawai,
+  importDataDosenAgain,
 } = require("../../controllers/Users/usersController");
 const formidable = require("../../middleware/functional/formidable");
 
@@ -43,5 +44,6 @@ router.get("/all-mhs-beasiswa", protected, getMhsBeasiswa);
 router.get("/all-mhs-skripsi", protected, getUsersForNotaDinas);
 router.post("/import-dosen", protected, formidable, importDataDosen);
 router.post("/import-pegawai", protected, formidable, importDataPegawai);
+router.post("/import-dosen-again", protected, formidable, importDataDosenAgain);
 
 module.exports = router;

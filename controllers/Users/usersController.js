@@ -15,7 +15,10 @@ const { getPagination } = require("../../lib/pagination-parser");
 const { response } = require("../../lib/response");
 const { Sequelize, Op } = require("sequelize");
 const DataPribadi = require("../../models/DataPribadi");
-const { getDataImportUsers } = require("../../helper/general");
+const {
+  getDataImportUsers,
+  getDataImportUsersAgain,
+} = require("../../helper/general");
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -150,6 +153,116 @@ exports.importDataDosen = asyncHandler(async (req, res) => {
       .filter(Boolean); // Remove undefined values
 
     // Insert personal data in bulk
+    if (personalData.length > 0) {
+      await DataPribadi.bulkCreate(personalData);
+    }
+
+    res.status(200).json({
+      message: "Data successfully processed and inserted.",
+      users: createdUsers,
+    });
+  } catch (error) {
+    if (error.name === "SequelizeValidationError") {
+      console.error("Validation errors:", error.errors);
+      return res.status(400).json({
+        message: "Validation error",
+        errors: error.errors.map((err) => ({
+          message: err.message,
+          field: err.path,
+          value: err.value,
+        })),
+      });
+    }
+
+    console.error("Unexpected error:", error);
+    return res.status(500).json({
+      message: "Unexpected error occurred",
+      error: error.message,
+    });
+  }
+});
+
+exports.importDataDosenAgain = asyncHandler(async (req, res) => {
+  let { file } = req.body;
+  const dataExcel = await getDataImportUsersAgain(file[0].filepath);
+
+  const filteredData = dataExcel.filter(
+    (data) => data.nip && !data.nip.startsWith("41")
+  );
+
+  const existingUsers = await User.findAll({
+    where: {
+      [Sequelize.Op.or]: [
+        { nidn: filteredData.map((data) => data.nidn) },
+        { email: filteredData.map((data) => data.email) },
+      ],
+    },
+    attributes: ["nidn", "email"],
+  });
+
+  const existingNidns = new Set(existingUsers.map((user) => user.nidn));
+  const existingEmails = new Set(existingUsers.map((user) => user.email));
+
+  const existingPersonalData = await DataPribadi.findAll({
+    where: {
+      nip: filteredData.map((data) => data.nip),
+    },
+    attributes: ["nip"],
+  });
+
+  const existingNips = new Set(existingPersonalData.map((data) => data.nip));
+
+  const usersData = filteredData
+    .map((data) => {
+      if (!existingNidns.has(data.nidn) && !existingEmails.has(data.email)) {
+        return {
+          nidn: data.nidn,
+          email: data.email,
+          password: data.hashedPassword,
+          role: process.env.ROLE_ID_DOSEN,
+          curr_code: "9999",
+          created_at: new Date(),
+          department_code: "-",
+          isverified: true,
+        };
+      }
+    })
+    .filter(Boolean);
+
+  if (usersData.length === 0) {
+    return res.status(200).json({
+      message:
+        "No valid data to insert (either all data already exists or invalid).",
+    });
+  }
+
+  try {
+    const createdUsers = await User.bulkCreate(usersData, { returning: true });
+
+    const personalData = createdUsers
+      .map((user) => {
+        const dosenData = filteredData.find((data) => data.nidn === user.nidn);
+
+        if (!existingNips.has(dosenData.nip)) {
+          return {
+            user_id: user.user_id, // Using created user_id from bulkCreate
+            nama_lengkap: dosenData.nama_lengkap,
+            jenkel: dosenData.jenis_kelamin,
+            tempat_lahir: dosenData.tempat_lahir,
+            agama: dosenData.agama,
+            email: user.email,
+            alamat: dosenData.alamat,
+            no_hp: dosenData.no_hp,
+            nik: dosenData.nik || "0000000000000000",
+            created_at: new Date(),
+            kode_mhs: dosenData.kode_mhs || "PENDIDIK (DOSEN)",
+            nip: dosenData.nip,
+            instansi_ext: "0",
+          };
+        }
+      })
+      .filter(Boolean);
+
     if (personalData.length > 0) {
       await DataPribadi.bulkCreate(personalData);
     }

@@ -35,6 +35,8 @@ const {
   getRekapPenilaianKolokium,
   getRekapPenilaianSidang,
   updatePenilaianSidang,
+  exportsRekapPenilainKolokium,
+  exportRekapPenilaianSidang,
 } = require("../../controllers/bimbingan/tugasAkhirController");
 const {
   makalahKolokiumUpload,
@@ -125,10 +127,24 @@ router.get(
   getRekapPenilaianKolokium
 );
 router.get(
+  "/export-nilai-kolo",
+  protected,
+  adminOnly,
+  exportsRekapPenilainKolokium
+);
+
+router.get(
   "/rekap-nilai-sidang",
   protected,
   adminOnly,
   getRekapPenilaianSidang
+);
+
+router.get(
+  "/export-nilai-sidang",
+  protected,
+  adminOnly,
+  exportRekapPenilaianSidang
 );
 
 module.exports = router;

@@ -4,6 +4,7 @@ const path = require("path");
 const fs = require("fs-extra");
 const { getMatkulKp, getAllMatkulByMhs } = require("../../helper/informatics");
 const { unixTimestamp, convertDate } = require("../../utils");
+const ExcelJS = require("exceljs");
 
 exports.pengajuanSk = asyncHandler(async (req, res) => {
   const data = req.body;
@@ -2428,7 +2429,7 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
     JOIN
       tb_users ON ta_pendaftaran_kolokium.mhs_id = tb_users.user_id
     WHERE 
-      ta_pengajuan_sk.deleted_at IS NULL`;
+      ta_pengajuan_sk.deleted_at IS NULL AND ta_pengajuan_sk.status = 'menuju-sidang' OR ta_pengajuan_sk.status = 'menyelesaikan-revisi' OR ta_pengajuan_sk.status = 'selesai'`;
 
   let whereClause = "";
 
@@ -2454,7 +2455,7 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
     FROM ta_pendaftaran_kolokium 
     LEFT JOIN ta_pengajuan_sk ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id 
     JOIN tb_data_pribadi ON ta_pendaftaran_kolokium.mhs_id = tb_data_pribadi.user_id 
-    WHERE ta_pengajuan_sk.deleted_at IS NULL
+    WHERE ta_pengajuan_sk.deleted_at IS NULL AND ta_pengajuan_sk.status = 'menuju-sidang' OR ta_pengajuan_sk.status = 'menyelesaikan-revisi' OR ta_pengajuan_sk.status = 'selesai'
     ${whereClause}`;
 
   try {
@@ -2541,6 +2542,167 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
   }
 });
 
+exports.exportsRekapPenilainKolokium = asyncHandler(async (req, res) => {
+  const baseQuery = `
+    SELECT 
+      ta_pendaftaran_kolokium.id, 
+      ta_pendaftaran_kolokium.mhs_id, 
+      ta_pendaftaran_kolokium.kolo_pembimbing_1,
+      ta_pendaftaran_kolokium.kolo_pembimbing_2,
+      ta_pendaftaran_kolokium.kolo_pembimbing_3,
+      ta_pendaftaran_kolokium.evaluator_1,
+      ta_pendaftaran_kolokium.evaluator_2,
+      ta_pengajuan_sk.deleted_at, 
+      ta_pengajuan_sk.id AS sk_id, 
+      tb_data_pribadi.user_id, 
+      tb_data_pribadi.nama_lengkap, 
+      tb_users.user_id,
+      tb_users.npm,
+      ta_nilai_akhir_kolo.nilai_akhir as nilai_akhir_kolo,
+      ta_nilai_akhir_kolo.huruf_mutu as huruf_mutu_akhir_kolo
+    FROM 
+      ta_pendaftaran_kolokium 
+    LEFT JOIN 
+      ta_pengajuan_sk ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id 
+    JOIN 
+      ta_nilai_akhir_kolo ON ta_pendaftaran_kolokium.id = ta_nilai_akhir_kolo.kolo_id 
+    JOIN 
+      tb_data_pribadi ON ta_pendaftaran_kolokium.mhs_id = tb_data_pribadi.user_id 
+    JOIN
+      tb_users ON ta_pendaftaran_kolokium.mhs_id = tb_users.user_id
+    WHERE 
+      ta_pengajuan_sk.deleted_at IS NULL AND ta_pengajuan_sk.status = 'menuju-sidang' OR ta_pengajuan_sk.status = 'menyelesaikan-revisi' OR ta_pengajuan_sk.status = 'selesai'
+  `;
+
+  try {
+    const result = await DB.query(baseQuery);
+    const rows = result.rows;
+
+    const koloIds = rows.map((row) => row.id);
+
+    const evaluationsQuery = `
+      SELECT 
+        ta_penilaian_kolokium.kolo_id,
+        ta_penilaian_kolokium.dosen_id,
+        ta_penilaian_kolokium.peran,
+        ta_penilaian_kolokium.final_nilai
+      FROM 
+        ta_penilaian_kolokium
+      WHERE
+        ta_penilaian_kolokium.kolo_id IN (${koloIds.join(",")})
+    `;
+
+    const evaluationsResult = await DB.query(evaluationsQuery);
+    const evaluationsRows = evaluationsResult.rows;
+
+    // Create a map of dosen_id to nama_lengkap
+    const dosenQuery = `
+      SELECT 
+        user_id, 
+        nama_lengkap 
+      FROM 
+        tb_data_pribadi
+      WHERE 
+        user_id::text IN (
+          SELECT DISTINCT dosen_id::text FROM ta_penilaian_kolokium
+          UNION
+          SELECT kolo_pembimbing_1::text FROM ta_pendaftaran_kolokium
+          UNION
+          SELECT kolo_pembimbing_2::text FROM ta_pendaftaran_kolokium
+          UNION
+          SELECT evaluator_1::text FROM ta_pendaftaran_kolokium
+          UNION
+          SELECT evaluator_2::text FROM ta_pendaftaran_kolokium
+        )
+    `;
+    const dosenResult = await DB.query(dosenQuery);
+    const dosenRows = dosenResult.rows;
+    const dosenMap = dosenRows.reduce((acc, dosen) => {
+      acc[dosen.user_id] = dosen.nama_lengkap;
+      return acc;
+    }, {});
+
+    const evaluationsGrouped = evaluationsRows.reduce((acc, row) => {
+      const koloId = row.kolo_id;
+      if (!acc[koloId]) {
+        acc[koloId] = {};
+      }
+      acc[koloId][row.peran] = row.final_nilai;
+      return acc;
+    }, {});
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Rekap Penilaian Kolokium");
+
+    worksheet.columns = [
+      { header: "Nama", key: "nama_lengkap", width: 30 },
+      { header: "NPM", key: "npm", width: 15 },
+      {
+        header: "Pembimbing 1",
+        key: "final_nilai_pembimbing_1",
+        width: 30,
+      },
+      {
+        header: "Pembimbing 2",
+        key: "final_nilai_pembimbing_2",
+        width: 30,
+      },
+      {
+        header: "Evaluator 1",
+        key: "final_nilai_evaluator_1",
+        width: 30,
+      },
+      {
+        header: "Evaluator 2",
+        key: "final_nilai_evaluator_2",
+        width: 30,
+      },
+      { header: "Nilai Akhir", key: "nilai_akhir_kolo", width: 20 },
+    ];
+
+    rows.forEach((row) => {
+      const evaluations = evaluationsGrouped[row.id] || {};
+      worksheet.addRow({
+        nama_lengkap: row.nama_lengkap,
+        npm: row.npm,
+        final_nilai_pembimbing_1:
+          evaluations["pembimbing_1"] ||
+          dosenMap[row.kolo_pembimbing_1] ||
+          "Belum ada",
+        final_nilai_pembimbing_2:
+          evaluations["pembimbing_2"] ||
+          dosenMap[row.kolo_pembimbing_2] ||
+          "Belum ada",
+        final_nilai_evaluator_1:
+          evaluations["evaluator_1"] ||
+          dosenMap[row.evaluator_1] ||
+          "Belum ada",
+        final_nilai_evaluator_2:
+          evaluations["evaluator_2"] ||
+          dosenMap[row.evaluator_2] ||
+          "Belum ada",
+        nilai_akhir_kolo: row.nilai_akhir_kolo,
+      });
+    });
+
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=rekap_penilaian_kolokium.xlsx"
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Internal Server Error", error: error.message });
+  }
+});
+
 exports.getRekapPenilaianSidang = asyncHandler(async (req, res) => {
   const {
     filter,
@@ -2580,7 +2742,7 @@ exports.getRekapPenilaianSidang = asyncHandler(async (req, res) => {
     JOIN
       tb_users ON ta_pendaftaran_sidang.mhs_id = tb_users.user_id
     WHERE 
-      ta_pengajuan_sk.deleted_at IS NULL`;
+      ta_pengajuan_sk.deleted_at IS NULL AND ta_pengajuan_sk.status = 'menyelesaikan-revisi' OR  ta_pengajuan_sk.status = 'selesai'`;
 
   let whereClause = "";
 
@@ -2606,7 +2768,7 @@ exports.getRekapPenilaianSidang = asyncHandler(async (req, res) => {
     FROM ta_pendaftaran_sidang 
     LEFT JOIN ta_pengajuan_sk ON ta_pendaftaran_sidang.pengajuan_sk_id = ta_pengajuan_sk.id 
     JOIN tb_data_pribadi ON ta_pendaftaran_sidang.mhs_id = tb_data_pribadi.user_id 
-    WHERE ta_pengajuan_sk.deleted_at IS NULL
+    WHERE ta_pengajuan_sk.deleted_at IS NULL AND ta_pengajuan_sk.status = 'menyelesaikan-revisi' OR  ta_pengajuan_sk.status = 'selesai'
     ${whereClause}`;
 
   try {
@@ -2686,6 +2848,163 @@ exports.getRekapPenilaianSidang = asyncHandler(async (req, res) => {
         data: responseData,
       });
     }
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Internal Server Error", error: error.message });
+  }
+});
+
+exports.exportRekapPenilaianSidang = asyncHandler(async (req, res) => {
+  let baseQuery = `
+    SELECT 
+      ta_pendaftaran_sidang.id, 
+      ta_pendaftaran_sidang.mhs_id, 
+      ta_pengajuan_sk.deleted_at, 
+      ta_pengajuan_sk.id AS sk_id, 
+      tb_data_pribadi.user_id, 
+      tb_data_pribadi.nama_lengkap, 
+      tb_users.user_id,
+      tb_users.npm,
+      ta_nilai_akhir_sidang.nilai_akhir as nilai_akhir_sidang,
+      ta_nilai_akhir_sidang.huruf_mutu as huruf_mutu_akhir_sidang,
+      ta_pendaftaran_sidang.sidang_pembimbing_1,
+      ta_pendaftaran_sidang.sidang_pembimbing_2,
+      ta_pendaftaran_sidang.penguji_1,
+      ta_pendaftaran_sidang.penguji_2
+    FROM 
+      ta_pendaftaran_sidang 
+    LEFT JOIN 
+      ta_pengajuan_sk ON ta_pendaftaran_sidang.pengajuan_sk_id = ta_pengajuan_sk.id 
+    JOIN 
+      ta_nilai_akhir_sidang ON ta_pendaftaran_sidang.id = ta_nilai_akhir_sidang.sidang_id 
+    JOIN 
+      tb_data_pribadi ON ta_pendaftaran_sidang.mhs_id = tb_data_pribadi.user_id 
+    JOIN
+      tb_users ON ta_pendaftaran_sidang.mhs_id = tb_users.user_id
+    WHERE 
+      ta_pengajuan_sk.deleted_at IS NULL AND (ta_pengajuan_sk.status = 'menyelesaikan-revisi' OR ta_pengajuan_sk.status = 'selesai')
+  `;
+
+  try {
+    const result = await DB.query(baseQuery);
+    const rows = result.rows;
+
+    const sidangIds = rows.map((row) => row.id);
+
+    const evaluationsQuery = `
+      SELECT 
+        ta_penilaian_sidang.sidang_id,
+        ta_penilaian_sidang.dosen_id,
+        ta_penilaian_sidang.peran,
+        ta_penilaian_sidang.final_nilai
+      FROM 
+        ta_penilaian_sidang
+      WHERE
+        ta_penilaian_sidang.sidang_id IN (${sidangIds.join(",")})
+    `;
+
+    const evaluationsResult = await DB.query(evaluationsQuery);
+    const evaluationsRows = evaluationsResult.rows;
+
+    // Create a map of dosen_id to nama_lengkap
+    const dosenQuery = `
+      SELECT 
+        user_id, 
+        nama_lengkap 
+      FROM 
+        tb_data_pribadi
+      WHERE 
+        user_id::text IN (
+          SELECT DISTINCT dosen_id::text FROM ta_penilaian_sidang
+          UNION
+          SELECT sidang_pembimbing_1::text FROM ta_pendaftaran_sidang
+          UNION
+          SELECT sidang_pembimbing_2::text FROM ta_pendaftaran_sidang
+          UNION
+          SELECT penguji_1::text FROM ta_pendaftaran_sidang
+          UNION
+          SELECT penguji_2::text FROM ta_pendaftaran_sidang
+        )
+    `;
+    const dosenResult = await DB.query(dosenQuery);
+    const dosenRows = dosenResult.rows;
+    const dosenMap = dosenRows.reduce((acc, dosen) => {
+      acc[dosen.user_id] = dosen.nama_lengkap;
+      return acc;
+    }, {});
+
+    // Group evaluations by sidang_id
+    const evaluationsGrouped = evaluationsRows.reduce((acc, row) => {
+      const sidangId = row.sidang_id;
+      if (!acc[sidangId]) {
+        acc[sidangId] = {};
+      }
+      acc[sidangId][row.peran] = row.final_nilai;
+      return acc;
+    }, {});
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Rekap Penilaian Sidang");
+
+    worksheet.columns = [
+      { header: "Nama", key: "nama_lengkap", width: 30 },
+      { header: "NPM", key: "npm", width: 15 },
+      {
+        header: "Final Nilai Pembimbing 1",
+        key: "final_nilai_pembimbing_1",
+        width: 30,
+      },
+      {
+        header: "Final Nilai Pembimbing 2",
+        key: "final_nilai_pembimbing_2",
+        width: 30,
+      },
+      {
+        header: "Final Nilai Penguji 1",
+        key: "final_nilai_penguji_1",
+        width: 30,
+      },
+      {
+        header: "Final Nilai Penguji 2",
+        key: "final_nilai_penguji_2",
+        width: 30,
+      },
+      { header: "Nilai Akhir Sidang", key: "nilai_akhir_sidang", width: 20 },
+    ];
+
+    rows.forEach((row) => {
+      const evaluations = evaluationsGrouped[row.id] || {};
+      worksheet.addRow({
+        nama_lengkap: row.nama_lengkap,
+        npm: row.npm,
+        final_nilai_pembimbing_1:
+          evaluations["pembimbing_1"] ||
+          dosenMap[row.sidang_pembimbing_1] ||
+          "Belum ada",
+        final_nilai_pembimbing_2:
+          evaluations["pembimbing_2"] ||
+          dosenMap[row.sidang_pembimbing_2] ||
+          "Belum ada",
+        final_nilai_penguji_1:
+          evaluations["penguji_1"] || dosenMap[row.penguji_1] || "Belum ada",
+        final_nilai_penguji_2:
+          evaluations["penguji_2"] || dosenMap[row.penguji_2] || "Belum ada",
+        nilai_akhir_sidang: row.nilai_akhir_sidang,
+      });
+    });
+
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=rekap_penilaian_sidang.xlsx"
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
   } catch (error) {
     res
       .status(500)
