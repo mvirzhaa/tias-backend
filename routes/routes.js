@@ -28,13 +28,8 @@ const votingRoutes = require("./e-voting/eVotingRoutes");
 const bimbinganAkademikRoutes = require("./bimbingan/bimbinganAkademik");
 const tugasAkhirRoutes = require("./bimbingan/tugasAkhirRoutes");
 const validasiRoutes = require("./validasi/validasiRoutes");
-const jabatanRoutes = require("./jabatan/jabatanRoutes");
-const strukturalRoutes = require("./jabatan/strukturalRoutes");
 const laporanRoutes = require("./laporan/laporanRoutes");
 const ruanganRoutes = require("./ruangan/ruanganRoutes");
-const {
-  getJabatanByquery,
-} = require("../controllers/jabatan/strukturalProdiController");
 
 const router = exporess.Router();
 
@@ -66,12 +61,9 @@ router.use("/voting", votingRoutes);
 router.use("/validasi", validasiRoutes);
 router.use("/bimbingan-akademik", bimbinganAkademikRoutes);
 router.use("/tugas-akhir", tugasAkhirRoutes);
-router.use("/jabatan", jabatanRoutes);
-router.use("/struktural", strukturalRoutes);
 router.use("/laporan", laporanRoutes);
 router.use("/ruangan", ruanganRoutes);
 
-router.get("/get-jabatan", getJabatanByquery);
 router.use("/help", helpRoutes);
 router.get("/", (req, res) => {
   res.send("Oooopss, route not found!");
