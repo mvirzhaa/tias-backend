@@ -1,5 +1,5 @@
 const express = require("express");
-const { protected } = require("../../middleware/authMiddleware");
+const { protected, adminOnly } = require("../../middleware/authMiddleware");
 const {
   getUserMhs,
   getUserDosen,
@@ -22,6 +22,7 @@ const {
   importDataDosenAgain,
 } = require("../../controllers/Users/usersController");
 const formidable = require("../../middleware/functional/formidable");
+const JabatanStrukturalController = require("../../controllers/Users/jabatanStrukturalController");
 
 const router = express.Router();
 
@@ -45,5 +46,36 @@ router.get("/all-mhs-skripsi", protected, getUsersForNotaDinas);
 router.post("/import-dosen", protected, formidable, importDataDosen);
 router.post("/import-pegawai", protected, formidable, importDataPegawai);
 router.post("/import-dosen-again", protected, formidable, importDataDosenAgain);
+
+router.get(
+  "/jabatan-struktural",
+  protected,
+  adminOnly,
+  JabatanStrukturalController.index
+);
+router.get(
+  "/jabatan-struktural/:id",
+  protected,
+  adminOnly,
+  JabatanStrukturalController.detail
+);
+router.post(
+  "/jabatan-struktural",
+  protected,
+  adminOnly,
+  JabatanStrukturalController.create
+);
+router.put(
+  "/jabatan-struktural/:id",
+  protected,
+  adminOnly,
+  JabatanStrukturalController.update
+);
+router.delete(
+  "/jabatan-struktural/:id",
+  protected,
+  adminOnly,
+  JabatanStrukturalController.destroy
+);
 
 module.exports = router;
