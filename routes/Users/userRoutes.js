@@ -54,6 +54,11 @@ router.get(
   JabatanStrukturalController.index
 );
 router.get(
+  "/user-jabatan",
+  protected,
+  JabatanStrukturalController.getByUserLogin
+);
+router.get(
   "/jabatan-struktural/:id",
   protected,
   adminOnly,

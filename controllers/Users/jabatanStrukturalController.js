@@ -89,6 +89,32 @@ class JabatanStrukturalController {
     }
   };
 
+  static getByUserLogin = async (req, res) => {
+    try {
+      const userLoginId = req.user.user_id;
+
+      const data = await TrxUserJabatanUnit.findAll({
+        where: {
+          user_id: userLoginId,
+        },
+        include: [
+          {
+            model: Jabatan,
+            as: "jabatan",
+          },
+          {
+            model: Unit,
+            as: "unit",
+          },
+        ],
+      });
+
+      response(res, true, "success", data);
+    } catch (error) {
+      response(res, false, "error", error.message);
+    }
+  };
+
   static detail = async (req, res) => {
     try {
       const { id } = req.params;
