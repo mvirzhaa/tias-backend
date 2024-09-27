@@ -34,6 +34,9 @@ const { updateGamifyKompetensi } = require("../../utils/gamifyKompetensi");
 const cryptr = new Cryptr(process.env.CRYPTR_KEY);
 
 const { default: axios } = require("axios");
+const TrxUserJabatanUnit = require("../../models/TrxUserJabatanUnit");
+const Jabatan = require("../../models/master/Jabatan");
+const Unit = require("../../models/master/Unit");
 
 exports.register = asyncHandler(async (req, res) => {
   const { error } = formRegisterValidation(req.body);
@@ -793,6 +796,23 @@ exports.loginUser = asyncHandler(async (req, res) => {
       [getPersonalData.rows[0].rank]
     );
 
+    const jabatanStruktural = await TrxUserJabatanUnit.findAll({
+      where: {
+        user_id: user_id,
+      },
+      attributes: ["user_id", "jabatan_id", "unit_id"],
+      include: [
+        {
+          model: Jabatan,
+          as: "jabatan",
+        },
+        {
+          model: Unit,
+          as: "unit",
+        },
+      ],
+    });
+
     const oneMonth = 30 * 24 * 60 * 60 * 1000;
 
     res.cookie("token", token, {
@@ -821,6 +841,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
         isverified,
         created_at,
         personalData: getPersonalData.rows[0],
+        jabatanStruktural,
         lencana:
           queryLencana.rows.length &&
           queryLencana.rows.map((iterate) => ({
@@ -858,7 +879,7 @@ exports.getLoginStatus = asyncHandler(async (req, res) => {
     return res.json(false);
   }
 
-  // Verified tokend 
+  // Verified tokend
   const verified = jwt.verify(token ? token : token2, process.env.JWT_SECRET);
 
   if (verified) {
@@ -1529,124 +1550,117 @@ exports.deleteExpired = asyncHandler(async (req, res) => {
   res.status(200).send({ message: "Oke" });
 });
 
-
 exports.eportalGoogle = asyncHandler(async (req, res) => {
-  
-   
-    const { email, token_google } = req.body;
-    const API_URL = `https://www.googleapis.com/oauth2/v1/tokeninfo?alt=json&access_token=${token_google}`;
-    const responseG = await axios.get(API_URL).then(function (resGoogle) {  
-      return resGoogle['data']; 
-    }).catch(function (error) {
+  const { email, token_google } = req.body;
+  const API_URL = `https://www.googleapis.com/oauth2/v1/tokeninfo?alt=json&access_token=${token_google}`;
+  const responseG = await axios
+    .get(API_URL)
+    .then(function (resGoogle) {
+      return resGoogle["data"];
+    })
+    .catch(function (error) {
       res.status(404);
       throw new Error("Invalid Token Goolge.");
     });
 
-    // return res.status(200).json({
-    //   message: "Login Success.",
-    //   data: { 
-    //     data: responseG
-    //   }
-    // });
+  // return res.status(200).json({
+  //   message: "Login Success.",
+  //   data: {
+  //     data: responseG
+  //   }
+  // });
 
-    if(responseG){
-      const user = await DB.query("SELECT * FROM tb_users WHERE email = $1", [
+  if (responseG) {
+    const user = await DB.query("SELECT * FROM tb_users WHERE email = $1", [
+      email,
+    ]);
+
+    if (!user.rows.length) {
+      res.status(404);
+      throw new Error("Invalid Email.");
+    }
+    if (!user.rows[0].isverified) {
+      res.status(404);
+      throw new Error("Please Verified your email");
+    }
+
+    const id = user.rows[0].user_id;
+    // // Generate Token
+    const token = generateToken(id);
+    if (user.rows.length && user.rows[0].isverified) {
+      const {
+        user_id,
+        npm,
+        nidn,
+        username,
         email,
-      ]);
-    
-      if (!user.rows.length) {
-        res.status(404);
-        throw new Error("Invalid Email.");
-      } 
-      if(!user.rows[0].isverified){
-        res.status(404);
-        throw new Error("Please Verified your email");
-      }
-  
-      const id = user.rows[0].user_id;
-      // // Generate Token
-      const token = generateToken(id);
-      if (user.rows.length && user.rows[0].isverified) {
-        const {
+        role,
+        isverified,
+        created_at,
+      } = user.rows[0];
+
+      const unix = unixTimestamp;
+      const createdAt = await convertDate(unix);
+      const unixExpires = expires_at;
+      const expiresAt = await convertDate(unixExpires);
+
+      await DB.query(
+        "INSERT INTO token(user_id, login_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
+        [id, token, createdAt, expiresAt]
+      );
+
+      const getPersonalData = await DB.query(
+        "SELECT * FROM tb_data_pribadi WHERE user_id = $1",
+        [user_id]
+      );
+
+      const queryLencana = await DB.query(
+        `SELECT * FROM achievements WHERE gamify = $1`,
+        [getPersonalData.rows[0].rank]
+      );
+
+      const oneMonth = 30 * 24 * 60 * 60 * 1000;
+
+      res.cookie("token", token, {
+        path: "/",
+        httpOnly: true,
+        expires: new Date(Date.now() + oneMonth),
+        sameSite: "none",
+        secure: true,
+      });
+
+      res.status(200).json({
+        message: "Login Success.",
+        data: {
           user_id,
           npm,
           nidn,
           username,
           email,
           role,
+          nip: getPersonalData.rows[0].nip,
+          nama_lengkap: getPersonalData.rows[0].nama_lengkap,
+          image: getPersonalData.rows[0].image,
+          no_hp: getPersonalData.rows[0].no_hp,
+          imageUrl: `${process.env.API_URL}/foto-profile/${getPersonalData.rows[0].image}`,
+          kode_mhs: getPersonalData.rows[0].kode_mhs,
           isverified,
           created_at,
-        } = user.rows[0];
-  
-        const unix = unixTimestamp;
-        const createdAt = await convertDate(unix);
-        const unixExpires = expires_at;
-        const expiresAt = await convertDate(unixExpires);
-  
-        await DB.query(
-          "INSERT INTO token(user_id, login_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
-          [id, token, createdAt, expiresAt]
-        );
-  
-        const getPersonalData = await DB.query(
-          "SELECT * FROM tb_data_pribadi WHERE user_id = $1",
-          [user_id]
-        );
-    
-        const queryLencana = await DB.query(
-          `SELECT * FROM achievements WHERE gamify = $1`,
-          [getPersonalData.rows[0].rank]
-        );
-    
-        const oneMonth = 30 * 24 * 60 * 60 * 1000;
-  
-        res.cookie("token", token, {
-          path: "/",
-          httpOnly: true,
-          expires: new Date(Date.now() + oneMonth),
-          sameSite: "none",
-          secure: true,
-        });
-    
-        res.status(200).json({
-          message: "Login Success.",
-          data: {
-            user_id,
-            npm,
-            nidn,
-            username,
-            email,
-            role,
-            nip: getPersonalData.rows[0].nip,
-            nama_lengkap: getPersonalData.rows[0].nama_lengkap,
-            image: getPersonalData.rows[0].image,
-            no_hp: getPersonalData.rows[0].no_hp,
-            imageUrl: `${process.env.API_URL}/foto-profile/${getPersonalData.rows[0].image}`,
-            kode_mhs: getPersonalData.rows[0].kode_mhs,
-            isverified,
-            created_at,
-            personalData: getPersonalData.rows[0],
-            lencana:
-              queryLencana.rows.length &&
-              queryLencana.rows.map((iterate) => ({
-                lencana: `${process.env.API_URL}/gamify/lencana/${iterate.lencana}`,
-              })),
-            token,
-          },
-        });
-  
-      }else{
-        res.status(500);
-        throw new Error("Somthing went wrong, Pleas try again.");
-      }
-    }else{
-      res.status(404);
-      throw new Error("Invalid Token Goolge.");
+          personalData: getPersonalData.rows[0],
+          lencana:
+            queryLencana.rows.length &&
+            queryLencana.rows.map((iterate) => ({
+              lencana: `${process.env.API_URL}/gamify/lencana/${iterate.lencana}`,
+            })),
+          token,
+        },
+      });
+    } else {
+      res.status(500);
+      throw new Error("Somthing went wrong, Pleas try again.");
     }
-
-    
-
-
- 
-   
+  } else {
+    res.status(404);
+    throw new Error("Invalid Token Goolge.");
+  }
 });
