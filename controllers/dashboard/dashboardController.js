@@ -91,48 +91,32 @@ exports.dashboardData = asyncHandler(async (req, res) => {
         status_frs,
       };
     } else if (role === "Dosen") {
-      let requestSks, reqPembelajaran;
-
-      try {
-        requestSks = await axios.get(
-          `${process.env.API_LOCAL_ABSEN_AGAIN}/dosen-for-mk`,
-          {
-            params: {
-              code: req.user.nip,
-              semester: "GASAL",
-              academic_year: "2024/2025",
-            },
-          }
-        );
-      } catch (error) {
-        console.error("Error in SKS request:", error);
-        requestSks = { data: { SKS: 0 } }; // Default value if error
-      }
-
-      try {
-        reqPembelajaran = await axios.get(
-          `${process.env.API_LOCAL_ABSEN_AGAIN}/pembelajaran`,
-          {
-            params: {
-              dataTable: true,
-              filter: ["nik_dosen"],
-              filterValue: [req.user.nip],
-            },
-          }
-        );
-      } catch (error) {
-        console.error("Error in Pembelajaran request:", error);
-        reqPembelajaran = { data: { recordsTotal: 0 } }; // Default value if error
-      }
+      const SKS_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/dosen-for-mk`;
+      const requestSks = await axios.get(SKS_URL, {
+        params: {
+          code: req.user.nip,
+        },
+      });
 
       const dataMhsBimbinganTa = await getMhsBimbinganTA(userLoginId);
       const dataMhsBimbinganAkademik = await getMhsBimbinganAkademik(
         userLoginId
       );
 
+      const PEMBELAJARAN_URI = `${process.env.API_LOCAL_ABSEN_AGAIN}/pembelajaran`;
+      const reqPembelajaran = await axios.get(PEMBELAJARAN_URI, {
+        params: {
+          dataTable: true,
+          filter: ["nik_dosen"],
+          filterValue: [req.user.nip],
+        },
+      });
+
       data = {
         sks: requestSks.data.SKS,
+        // sks: 0,
         pertemuanPerkuliahan: reqPembelajaran.data.recordsTotal,
+        // pertemuanPerkuliahan: 0,
         belum_kolo,
         besum_sidang,
         belum_revisi,
