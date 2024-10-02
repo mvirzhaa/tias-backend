@@ -30,7 +30,8 @@ const tugasAkhirRoutes = require("./bimbingan/tugasAkhirRoutes");
 const validasiRoutes = require("./validasi/validasiRoutes");
 const laporanRoutes = require("./laporan/laporanRoutes");
 const ruanganRoutes = require("./ruangan/ruanganRoutes");
-
+// const parentsRoutes = require("./parents/parentsRoutes");
+const absensiExternalRoutes = require("./absensi-external/indexRouter");
 const router = exporess.Router();
 
 router.use("/auth", authRoutes);
@@ -63,6 +64,8 @@ router.use("/bimbingan-akademik", bimbinganAkademikRoutes);
 router.use("/tugas-akhir", tugasAkhirRoutes);
 router.use("/laporan", laporanRoutes);
 router.use("/ruangan", ruanganRoutes);
+// router.use("/parents", parentsRoutes);
+router.use("/absensi-external", absensiExternalRoutes);
 
 router.use("/help", helpRoutes);
 router.get("/", (req, res) => {
