@@ -53,6 +53,8 @@ const KategoriLaporanController = require("../../controllers/kategori/kategoriLa
 const KategoriKegiatanController = require("../../controllers/kategori/kategoriKegiatan");
 const UnitController = require("../../controllers/kategori/unitController");
 const JabatanController = require("../../controllers/kategori/jabatanController");
+const MatakuliahController = require("../../controllers/kategori/matakuliahController");
+const KurikulumController = require("../../controllers/kategori/kurikulumController");
 
 const router = express.Router();
 
@@ -140,5 +142,19 @@ router.get("/jabatan/:id", protected, JabatanController.detail);
 router.post("/jabatan", protected, JabatanController.create);
 router.put("/jabatan/:id", protected, JabatanController.update);
 router.delete("/jabatan/:id", protected, JabatanController.destroy);
+
+router.get("/matakuliah", protected, MatakuliahController.index);
+router.get("/matakuliah/all", protected, MatakuliahController.all);
+router.get("/matakuliah/:id", protected, MatakuliahController.detail);
+router.post("/matakuliah", protected, MatakuliahController.create);
+router.put("/matakuliah/:id", protected, MatakuliahController.update);
+router.delete("/matakuliah/:id", protected, MatakuliahController.destroy);
+
+router.get("/kurikulum", protected, KurikulumController.index);
+router.get("/kurikulum/all", protected, KurikulumController.all);
+router.get("/kurikulum/:id", protected, KurikulumController.detail);
+router.post("/kurikulum", protected, KurikulumController.create);
+router.put("/kurikulum/:id", protected, KurikulumController.update);
+router.delete("/kurikulum/:id", protected, KurikulumController.destroy);
 
 module.exports = router;
