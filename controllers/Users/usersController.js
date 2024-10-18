@@ -1185,3 +1185,48 @@ exports.getPegawai = asyncHandler(async (req, res) => {
     return response(res, false, error.message, error);
   }
 });
+
+exports.getUsersAndGroup = asyncHandler(async (req, res) => {
+  try {
+    const findData = await DB.query(
+      "SELECT tb_users.user_id, tb_users.npm, tb_data_pribadi.nama_lengkap, tb_data_pribadi.image FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id"
+    );
+    const findGroup = await DB.query("SELECT * FROM tb_group");
+    const findJabatan = await DB.query("SELECT * FROM m_jabatan");
+    const findUnit = await DB.query("SELECT * FROM m_unit");
+
+    const resultUsers = findData.rows.map((data) => ({
+      ...data,
+      type: "users",
+    }));
+
+    const resultGroup = findGroup.rows.map((data) => ({
+      ...data,
+      type: "group",
+    }));
+
+    const resultsJabatan = findJabatan.rows.map((data) => ({
+      ...data,
+      type: "jabatan",
+    }));
+
+    const resultsUnit = findUnit.rows.map((data) => ({
+      ...data,
+      type: "unit",
+    }));
+
+    const resultsData = [
+      ...resultUsers,
+      ...resultGroup,
+      ...resultsJabatan,
+      ...resultsUnit,
+    ];
+
+    res.status(200).json({
+      message: "Success get data.",
+      data: resultsData,
+    });
+  } catch (error) {
+    return response(res, false, error.message, error);
+  }
+});
