@@ -7,12 +7,13 @@ async function insertValidasiDokumen(data = {}) {
     const convert = convertDate(created_at);
 
     const saveData = await DB_.query(
-      "INSERT INTO validasi_dokumen(dosen_id, mhs_id, nama_kegiatan, link_kegiatan, created_at) VALUES($1, $2, $3, $4, $5) RETURNING id",
+      "INSERT INTO validasi_dokumen(pelaksana, tertuju, nama_kegiatan, link_kegiatan, link_attachment, created_at) VALUES($1, $2, $3, $4, $5, $6) RETURNING id",
       [
-        data.dosen_id,
-        data.mhs_id,
+        data.pelaksana,
+        data.tertuju,
         data.nama_kegiatan,
         data.link_kegiatan,
+        data.link_attachment,
         convert,
       ]
     );

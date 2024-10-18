@@ -20,6 +20,7 @@ const {
   importDataPegawai,
   getPegawai,
   importDataDosenAgain,
+  getUsersAndGroup,
 } = require("../../controllers/Users/usersController");
 const formidable = require("../../middleware/functional/formidable");
 const JabatanStrukturalController = require("../../controllers/Users/jabatanStrukturalController");
@@ -82,5 +83,7 @@ router.delete(
   adminOnly,
   JabatanStrukturalController.destroy
 );
+
+router.get("/get-users-group", protected, getUsersAndGroup);
 
 module.exports = router;

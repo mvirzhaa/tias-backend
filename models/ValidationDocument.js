@@ -10,11 +10,11 @@ ValidationDocument.init(
       autoIncrement: true,
       primaryKey: true,
     },
-    dosen_id: {
-      type: DataTypes.UUID,
+    pelaksana: {
+      type: DataTypes.STRING,
     },
-    mhs_id: {
-      type: DataTypes.UUID,
+    tertuju: {
+      type: DataTypes.STRING,
     },
     nama_kegiatan: {
       type: DataTypes.STRING,
@@ -23,6 +23,9 @@ ValidationDocument.init(
       type: DataTypes.STRING,
     },
     link_validasi: {
+      type: DataTypes.STRING,
+    },
+    link_attachment: {
       type: DataTypes.STRING,
     },
     created_at: {
@@ -51,17 +54,5 @@ ValidationDocument.init(
     sequelize: db,
   }
 );
-
-ValidationDocument.hasOne(DataPribadi, {
-  foreignKey: "user_id",
-  sourceKey: "dosen_id",
-  as: "dosen",
-});
-
-ValidationDocument.hasOne(DataPribadi, {
-  foreignKey: "user_id",
-  sourceKey: "mhs_id",
-  as: "mahasiswa",
-});
 
 module.exports = ValidationDocument;

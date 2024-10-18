@@ -5,9 +5,8 @@ const { insertValidasiDokumen } = require("../../utils/validasiDigital");
 const ValidationDocument = require("../../models/ValidationDocument");
 const { CastObject } = require("../../lib/general");
 const { response } = require("../../lib/response");
-const DataPribadi = require("../../models/DataPribadi");
 const { getPagination } = require("../../lib/pagination-parser");
-const { Op, Sequelize } = require("sequelize");
+const { Op } = require("sequelize");
 
 exports.index = expressAsyncHandler(async (req, res) => {
   try {
@@ -46,6 +45,12 @@ exports.index = expressAsyncHandler(async (req, res) => {
             nama_kegiatan: {
               [Op.like]: `%${search}%`,
             },
+            pelaksana: {
+              [Op.like]: `%${search}%`,
+            },
+            tertuju: {
+              [Op.like]: `%${search}%`,
+            },
           },
         ],
       };
@@ -57,18 +62,6 @@ exports.index = expressAsyncHandler(async (req, res) => {
       order: [[order, orderBy]],
       limit: pagelimit.limit,
       offset: pagelimit.offset,
-      include: [
-        {
-          model: DataPribadi,
-          as: "dosen",
-          required: false,
-        },
-        {
-          model: DataPribadi,
-          as: "mahasiswa",
-          required: false,
-        },
-      ],
     });
 
     return response(res, true, "success", {
@@ -114,12 +107,7 @@ exports.showQr = expressAsyncHandler(async (req, res) => {
 exports.createValiation = expressAsyncHandler(async (req, res) => {
   const body = req.body;
 
-  if (
-    !body.dosen_id ||
-    !body.mhs_id ||
-    !body.nama_kegiatan ||
-    !body.link_validasi
-  ) {
+  if (!body.pelaksana || !body.tertuju || !body.nama_kegiatan) {
     res.status(400);
     throw new Error("Pleas fill in all the required fields.");
   }
@@ -189,16 +177,6 @@ exports.findOne = expressAsyncHandler(async (req, res) => {
       where: {
         id,
       },
-      include: [
-        {
-          model: DataPribadi,
-          as: "dosen",
-        },
-        {
-          model: DataPribadi,
-          as: "mahasiswa",
-        },
-      ],
     });
 
     return response(res, true, "Success", data);
