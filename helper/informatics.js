@@ -32,7 +32,7 @@ async function getInformaticsStudent() {
 
 async function getInformaticsStudentBeasiswa() {
   const query =
-    "SELECT * FROM siak_student WHERE department_code = 'FT_TI' AND funding_scheme != 'MANDIRI'";
+    "SELECT * FROM siak_student WHERE AND funding_scheme != 'MANDIRI'";
   try {
     const results = await executeQuery(query);
     return results;
@@ -117,7 +117,7 @@ async function getAllMatkulByMhs(npm, curr_code) {
   const query = `SELECT SUM(siak_course.credit) AS total_credit
   FROM siak_frs
   LEFT JOIN siak_course ON siak_frs.course_code = siak_course.code
-  WHERE student_code = '${npm}' AND siak_course.department_code = 'FT_TI' AND siak_course.active = "Y" AND siak_course.curr_code = '${curr_code}';`;
+  WHERE student_code = '${npm}' AND siak_course.active = "Y" AND siak_course.curr_code = '${curr_code}';`;
 
   try {
     const results = await executeQuery(query);
@@ -139,7 +139,6 @@ async function getMatkulByNpm(npm, semester = "GASAL", tahun = "2024/2025") {
     WHERE a.academic_year='${tahun}' 
       AND a.semester='${semester}' 
       AND d.curr_code=a.curr_code
-      AND a.department_code='FT_TI' 
       AND a.curr_code=b.curr_code 
       AND d.class=a.class 
       AND d.student_code=?

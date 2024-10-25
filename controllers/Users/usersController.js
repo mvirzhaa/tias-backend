@@ -93,7 +93,7 @@ exports.importDataDosen = asyncHandler(async (req, res) => {
           email: data.email,
           password: data.hashedPassword, // Password sudah ter-hash
           role: process.env.ROLE_ID_DOSEN,
-          curr_code: "9999",
+          curr_code: "",
           created_at: new Date(),
           department_code: dosenWithNidn.lookup_id,
           isverified: true,
@@ -220,7 +220,7 @@ exports.importDataDosenAgain = asyncHandler(async (req, res) => {
           email: data.email,
           password: data.hashedPassword,
           role: process.env.ROLE_ID_DOSEN,
-          curr_code: "9999",
+          curr_code: "",
           created_at: new Date(),
           department_code: "-",
           isverified: true,
@@ -338,7 +338,7 @@ exports.importDataPegawai = asyncHandler(async (req, res) => {
           email: data.email,
           password: data.hashedPassword, // Already hashed
           role: process.env.ROLE_ID_PEGAWAI,
-          curr_code: "9999",
+          curr_code: "",
           created_at: new Date(),
           department_code: pegawaiWithNip.branch,
           isverified: true,
@@ -702,7 +702,7 @@ exports.getMhsBeasiswa = asyncHandler(async (req, res) => {
 
   let baseQuery = `
     FROM siak_student
-    WHERE department_code = 'FT_TI' AND funding_scheme != 'MANDIRI'
+    WHERE funding_scheme != 'MANDIRI'
   `;
 
   if (search) {
