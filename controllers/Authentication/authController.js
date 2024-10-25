@@ -1664,3 +1664,31 @@ exports.eportalGoogle = asyncHandler(async (req, res) => {
     throw new Error("Invalid Token Goolge.");
   }
 });
+
+exports.verifyByAdmin = asyncHandler(async (req, res) => {
+  const { user_id } = req.params;
+  const { verified } = req.body;
+
+  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
+    user_id,
+  ]);
+
+  await DB.query(
+    "UPDATE tb_users SET isverified = $1 WHERE user_id = $2 returning *",
+    [verified, user.rows[0].user_id]
+  );
+
+  res.status(200).json({
+    message: "success",
+    data: {
+      user_id,
+      npm,
+      nidn,
+      username,
+      email,
+      role,
+      isverified,
+      created_at,
+    },
+  });
+});

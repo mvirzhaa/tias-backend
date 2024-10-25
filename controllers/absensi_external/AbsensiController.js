@@ -220,6 +220,45 @@ class AbsensiController {
       return response(res, false, error.message, error);
     }
   };
+
+  static scanQr = async (req, res) => {
+    try {
+      const chechkPembelajaran = await Pembelajaran.findOne({
+        where: {
+          token: req.body.token,
+        },
+      });
+
+      if (chechkPembelajaran.learning_done != null) {
+        return response(res, false, "pembelajaran sudah berakhir", null);
+      }
+
+      const findExists = await AbsensiMhs.findOne({
+        where: {
+          id_pembelajaran: chechkPembelajaran.id,
+          id_mhs: req.body.id_mhs,
+        },
+      });
+
+      if (findExists) {
+        return response(res, false, "mahasiswa sudah absen", null);
+      }
+
+      const casting = CastObject({
+        Model: AbsensiMhs,
+        body: req.body,
+      });
+
+      const save = await AbsensiMhs.create({
+        ...casting,
+        id_pembelajaran: parseInt(chechkPembelajaran.id),
+        status_absen: parseInt(req.body.status_absen),
+      });
+      return response(res, true, "success", save);
+    } catch (error) {
+      return response(res, true, error.message, error);
+    }
+  };
 }
 
 module.exports = AbsensiController;

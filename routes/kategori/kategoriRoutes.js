@@ -6,55 +6,55 @@ const {
   deleteDataById,
   getDataById,
   editDataById,
-} = require("../../controllers/kategori/kategoriSertifikasiController");
+} = require("../../controllers/master/kategoriSertifikasiController");
 const {
   getKategoriPublikasi,
   createDataKategoriPublikasi,
   getDataByIdPublikasi,
   deleteDataByIdPublikasi,
   editDataByIdPublikasi,
-} = require("../../controllers/kategori/kategoriPublikasiController");
+} = require("../../controllers/master/kategoriPublikasiController");
 const {
   getKategoriPrestasi,
   createDataKategoriPrestasi,
   getDataByIdPrestasi,
   editDataByIdPrestasi,
   deleteDataByIdPretasi,
-} = require("../../controllers/kategori/kategoriPrestasiController");
+} = require("../../controllers/master/kategoriPrestasiController");
 const {
   getKategoriHki,
   createDataKategoriHki,
   getDataByIdHki,
   deleteDataByIdHki,
   editDataByIdHki,
-} = require("../../controllers/kategori/kategoriHkiController");
+} = require("../../controllers/master/kategoriHkiController");
 const {
   getKategoriProf,
   createDataKategoriProfesi,
   getDataByIdProfesi,
   deleteDataByIdProfesi,
   editDataByIdProfesi,
-} = require("../../controllers/kategori/kategoriProfesiController");
+} = require("../../controllers/master/kategoriProfesiController");
 const {
   getKategoriIp,
   createDataKategoriIp,
   getDataByIdIp,
   deleteDataByIdIp,
   editDataByIdIp,
-} = require("../../controllers/kategori/kategoriIpController");
+} = require("../../controllers/master/kategoriIpController");
 const {
   getKategoriRekomendasi,
   createDataKategoriRekomendasi,
   getDataByIdRekomendasi,
   deleteDataByIdRekomendasi,
   editDataByIdRekomendasi,
-} = require("../../controllers/kategori/pointRekomendasiController");
-const KategoriLaporanController = require("../../controllers/kategori/kategoriLaporanController");
-const KategoriKegiatanController = require("../../controllers/kategori/kategoriKegiatan");
-const UnitController = require("../../controllers/kategori/unitController");
-const JabatanController = require("../../controllers/kategori/jabatanController");
-const MatakuliahController = require("../../controllers/kategori/matakuliahController");
-const KurikulumController = require("../../controllers/kategori/kurikulumController");
+} = require("../../controllers/master/pointRekomendasiController");
+const KategoriLaporanController = require("../../controllers/master/kategoriLaporanController");
+const KategoriKegiatanController = require("../../controllers/master/kategoriKegiatan");
+const UnitController = require("../../controllers/master/unitController");
+const JabatanController = require("../../controllers/master/jabatanController");
+const MatakuliahController = require("../../controllers/master/matakuliahController");
+const KurikulumController = require("../../controllers/master/kurikulumController");
 
 const router = express.Router();
 

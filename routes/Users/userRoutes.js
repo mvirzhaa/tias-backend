@@ -21,6 +21,7 @@ const {
   getPegawai,
   importDataDosenAgain,
   getUsersAndGroup,
+  getListUsers,
 } = require("../../controllers/Users/usersController");
 const formidable = require("../../middleware/functional/formidable");
 const JabatanStrukturalController = require("../../controllers/Users/jabatanStrukturalController");
@@ -85,5 +86,7 @@ router.delete(
 );
 
 router.get("/get-users-group", protected, getUsersAndGroup);
+
+router.get("/list-users", protected, getListUsers);
 
 module.exports = router;

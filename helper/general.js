@@ -1,6 +1,49 @@
 const excelJS = require("exceljs");
 const bcrypt = require("bcryptjs");
 
+const getDataImportMhs = async (url) => {
+  const workbook = new excelJS.Workbook();
+  const sheetName = "Users Data";
+  const BATCH_SIZE = 100;
+
+  let data = [];
+  await workbook.xlsx.readFile(url).then(() => {
+    let sheet = workbook.getWorksheet(sheetName);
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) {
+        data.push({
+          nik: row.getCell(1).value.trim(),
+          password: row.getCell(2).value,
+          npm: row.getCell(3).value,
+          email: row.getCell(4).value,
+          nama: row.getCell(5).value,
+          nama_ibu: row.getCell(6).value,
+          tgl_lahir: row.getCell(7).value,
+          phone: row.getCell(8).value,
+          mhs_id: row.getCell(9).value,
+        });
+      }
+    });
+  });
+
+  const hashPasswordInBatch = async (batch) => {
+    for (let mhs of batch) {
+      const salt = await bcrypt.genSalt(8);
+      const hashedPassword = await bcrypt.hash(mhs.password, salt);
+      mhs.password = hashedPassword;
+    }
+  };
+
+  let start = 0;
+  while (start < data.length) {
+    const batch = data.slice(start, start + BATCH_SIZE);
+    await hashPasswordInBatch(batch);
+    start += BATCH_SIZE;
+  }
+
+  return data;
+};
+
 const getDataImportBk = async (url) => {
   const workbook = new excelJS.Workbook();
   const sheetName = "Sheet1";
@@ -108,8 +151,14 @@ const getDataImportUsersAgain = async (url) => {
   return data;
 };
 
+function getRandomSixDigit() {
+  return Math.floor(100000 + Math.random() * 900000);
+}
+
 module.exports = {
   getDataImportBk,
   getDataImportUsers,
   getDataImportUsersAgain,
+  getDataImportMhs,
+  getRandomSixDigit,
 };

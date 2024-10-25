@@ -29,5 +29,6 @@ router.get("/absensi/:id", protected, AbsensiController.detail);
 router.post("/absensi", protected, AbsensiController.create);
 router.put("/absensi/:id", protected, AbsensiController.update);
 router.delete("/absensi/:id", protected, AbsensiController.destroy);
+router.post("/absensi/scan-qr", AbsensiController.scanQr);
 
 module.exports = router;

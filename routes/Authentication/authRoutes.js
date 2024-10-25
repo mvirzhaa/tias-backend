@@ -23,6 +23,7 @@ const {
   verifyDosenExt,
   registerPegawai,
   eportalGoogle,
+  verifyByAdmin,
 } = require("../../controllers/Authentication/authController");
 const { protected, adminOnly } = require("../../middleware/authMiddleware");
 const passport = require("../../utils/passport");
@@ -104,5 +105,7 @@ router.get("/google/callback", (req, res, next) => {
     }
   })(req, res, next);
 });
+
+router.put("/verify-by-admin/:user_id", protected, verifyByAdmin);
 
 module.exports = router;

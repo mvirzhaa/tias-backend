@@ -420,7 +420,11 @@ exports.exportsRekapPertemuan = asyncHandler(async (req, res) => {
 exports.exportsPersentaseDosen = asyncHandler(async (req, res) => {
   const API_URL = `${process.env.API_LOCAL_ABSEN_AGAIN}/pembelajaran/list-dosen-pertemuan`;
 
-  const response = await axios.get(API_URL);
+  const response = await axios.get(API_URL, {
+    params: {
+      ...req.query,
+    },
+  });
 
   const data = response.data.data;
 

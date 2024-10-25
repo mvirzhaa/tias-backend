@@ -5,6 +5,7 @@ const { insertValidasiDokumen } = require("../../utils/validasiDigital");
 
 exports.addRekomendasi = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
+  const userNamaLengkap = req.user.nama_lengkap;
   const data = req.body;
 
   if (!data.body || !data.mahasiswa_id) {
@@ -79,11 +80,12 @@ exports.addRekomendasi = asyncHandler(async (req, res) => {
       );
 
       await insertValidasiDokumen({
-        dosen_id: userLoginId,
-        mhs_id: data.mahasiswa_id,
+        pelaksana: userNamaLengkap,
+        mhs_id: user.rows[0].nama_lengkap,
         nama_kegiatan: `Memberikan Rekomendasi Mahasiswa`,
         link_kegiatan: `${process.env.FRONTEND_URL}/dosen/rek-mhs/detail-mhs/${data.mahasiswa_id}`,
         link_validasi: `${process.env.FRONTEND_URL}`,
+        link_attachment: "",
       });
 
       res.status(200).json({

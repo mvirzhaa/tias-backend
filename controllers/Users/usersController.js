@@ -1230,3 +1230,88 @@ exports.getUsersAndGroup = asyncHandler(async (req, res) => {
     return response(res, false, error.message, error);
   }
 });
+
+exports.getListUsers = asyncHandler(async (req, res) => {
+  try {
+    let { limit, page, order, orderBy, search, filter, filterValue } =
+      req.query;
+    limit = parseInt(limit) > 0 ? parseInt(limit) : 10;
+    page = page ? parseInt(page) : 1;
+    order = order ? order : "created_at";
+    orderBy = orderBy ? orderBy : "DESC";
+    const pagelimit = getPagination(limit, page);
+
+    let whereCondition = {};
+
+    if (filter && filterValue) {
+      const filters = Array.isArray(filter) ? filter : [filter];
+      const filterValues = Array.isArray(filterValue)
+        ? filterValue
+        : [filterValue];
+
+      filters.forEach((f, index) => {
+        if (f && filterValues[index] !== undefined) {
+          whereCondition[f] = filterValues[index];
+        }
+      });
+    }
+
+    let condition = {
+      [Op.and]: whereCondition,
+    };
+
+    if (search) {
+      condition = {
+        ...condition,
+        [Op.or]: [
+          {
+            nidn: {
+              [Op.like]: `%${search}%`,
+            },
+          },
+          {
+            npm: {
+              [Op.like]: `%${search}%`,
+            },
+          },
+          {
+            email: {
+              [Op.like]: `%${search}%`,
+            },
+          },
+          {
+            "$personal_data.nama_lengkap$": {
+              [Op.like]: `%${search.toUpperCase()}%`,
+            },
+          },
+        ],
+      };
+    }
+
+    const data = await User.findAndCountAll({
+      distinct: true,
+      where: condition,
+      order: [[order, orderBy]],
+      limit: pagelimit.limit,
+      offset: pagelimit.offset,
+      include: [
+        {
+          model: DataPribadi,
+          as: "personal_data",
+          required: true,
+        },
+      ],
+      logging: console.log,
+    });
+
+    return response(res, true, "success", {
+      limit,
+      page,
+      total: data.count,
+      total_page: Math.ceil(parseInt(data.count) / limit),
+      rows: data.rows,
+    });
+  } catch (error) {
+    return response(res, false, error.message, error);
+  }
+});
