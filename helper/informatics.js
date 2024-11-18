@@ -141,7 +141,7 @@ async function getMatkulByNpm(npm, semester = "GASAL", tahun = "2024/2025") {
       AND d.curr_code=a.curr_code
       AND a.curr_code=b.curr_code 
       AND d.class=a.class 
-      AND d.student_code=?
+      AND d.student_code='${npm}'
     ORDER BY FIND_IN_SET(a.on_day, 'Senin,Selasa,Rabu,Kamis,Jumat,Sabtu'), a.from_time, a.until_time DESC
   `;
 

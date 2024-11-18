@@ -164,12 +164,7 @@ exports.getSkpiPerkuliahan = asyncHandler(async (req, res) => {
 
   const responseQuery = await getMatkulByNpm(npm, semester, tahun);
 
-  // console.log(responseQuery);
-
-  // const API_URL = `${process.env.API_URL_SKPI}/index.php?menu=jadwal-kuliah&academic_year=${tahun}&semester=${semester}&code=${npm}`;
   try {
-    // const response = await axios.get(API_URL);
-
     if (!responseQuery.Data && !responseQuery.Total && !responseQuery.SKS) {
       res.status(201).json({
         data: [],
@@ -177,9 +172,16 @@ exports.getSkpiPerkuliahan = asyncHandler(async (req, res) => {
         sks: "0",
       });
     } else {
+      const uniqueData = responseQuery.Data.filter(
+        (value, index, self) =>
+          index ===
+          self.findIndex(
+            (t) => t.name === value.name && t.class === value.class
+          )
+      );
       res.status(201).json({
-        data: responseQuery.Data,
-        totalData: responseQuery.Total,
+        data: uniqueData,
+        totalData: uniqueData.length,
         sks: responseQuery.SKS,
       });
     }
