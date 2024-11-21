@@ -21,10 +21,10 @@ const {
 } = require("../../helper/general");
 
 const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USERNAME,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_DATABASE,
+  host: process.env.SIAK_DB_HOST,
+  user: process.env.SIAK_DB_USERNAME,
+  password: process.env.SIAK_DB_PASSWORD,
+  database: process.env.SIAK_DB_DATABASE,
 });
 
 function executeQuery(query, params = []) {
