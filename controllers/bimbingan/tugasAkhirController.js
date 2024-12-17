@@ -119,6 +119,11 @@ exports.pengajuanSk = asyncHandler(async (req, res) => {
     [userLoginId, saveData.rows[0].id]
   );
 
+  await DB.query(
+    `INSERT INTO ta_progres(mhs_id, pengajuan_sk_id) VALUES ($1, $2)`,
+    [userLoginId, saveData.rows[0].id]
+  );
+
   if (saveData.rows) {
     res.status(200).json({
       message: "Successfull created data.",
@@ -762,6 +767,21 @@ exports.updatePengajuanSk = asyncHandler(async (req, res) => {
       lokasi_kegiatan,
       id,
     ]
+  );
+
+  res.status(201).json({
+    message: "Successfully update data.",
+    data: updateData.rows[0],
+  });
+});
+
+exports.updateKelulusan = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { status_kelulusan } = req.body;
+
+  const updateData = await DB.query(
+    `UPDATE ta_pengajuan_sk SET status_kelulusan = $1 WHERE id = $2`,
+    [status_kelulusan, id]
   );
 
   res.status(201).json({

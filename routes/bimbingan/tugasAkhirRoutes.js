@@ -37,6 +37,7 @@ const {
   updatePenilaianSidang,
   exportsRekapPenilainKolokium,
   exportRekapPenilaianSidang,
+  updateKelulusan,
 } = require("../../controllers/bimbingan/tugasAkhirController");
 const {
   makalahKolokiumUpload,
@@ -58,6 +59,7 @@ router.get("/get-for-admin", protected, getForAdmin);
 router.get("/get-for-dosen", protected, getForDosen);
 router.put("/approve/:id", protected, approvedStatus);
 router.patch("/update-sk/:id", protected, updatePengajuanSk);
+router.put("/update-kelulusan/:id", protected, updateKelulusan);
 
 // KOLOKIUM
 router.get("/detail-pengajuan-kolo/:id", protected, getPengajuanKolokiumById);
