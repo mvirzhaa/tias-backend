@@ -1266,22 +1266,22 @@ exports.getListUsers = asyncHandler(async (req, res) => {
         [Op.or]: [
           {
             nidn: {
-              [Op.like]: `%${search}%`,
+              [Op.iLike]: `%${search}%`,
             },
           },
           {
             npm: {
-              [Op.like]: `%${search}%`,
+              [Op.iLike]: `%${search}%`,
             },
           },
           {
             email: {
-              [Op.like]: `%${search}%`,
+              [Op.iLike]: `%${search}%`,
             },
           },
           {
             "$personal_data.nama_lengkap$": {
-              [Op.like]: `%${search.toUpperCase()}%`,
+              [Op.iLike]: `%${search.toUpperCase()}%`,
             },
           },
         ],
@@ -1301,7 +1301,6 @@ exports.getListUsers = asyncHandler(async (req, res) => {
           required: true,
         },
       ],
-      logging: console.log,
     });
 
     return response(res, true, "success", {

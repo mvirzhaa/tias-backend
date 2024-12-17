@@ -609,8 +609,71 @@ WHERE
 
 exports.detailPengajuanSk = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const userLoginId = req.user.user_id;
 
-  let query = `SELECT ta_pengajuan_sk.*, tb_data_pribadi.nama_lengkap, tb_data_pribadi.no_hp, tb_users.email, tb_users.npm FROM ta_pengajuan_sk JOIN tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id WHERE ta_pengajuan_sk.id = ${id}`;
+  let query = `SELECT
+  ta_pengajuan_sk.*,
+  ta_pendaftaran_kolokium.kolo_pembimbing_1,
+  ta_pendaftaran_kolokium.id AS kolo_id,
+  ta_pendaftaran_kolokium.kolo_pembimbing_2,
+  ta_pendaftaran_kolokium.kolo_pembimbing_3,
+  ta_pendaftaran_kolokium.pengajuan_sk_id,
+  ta_pendaftaran_kolokium.evaluator_1,
+  ta_pendaftaran_kolokium.evaluator_2,
+  ta_pendaftaran_sidang.sidang_pembimbing_1,
+  ta_pendaftaran_sidang.id AS sidang_id,
+  ta_pendaftaran_sidang.sidang_pembimbing_2,
+  ta_pendaftaran_sidang.sidang_pembimbing_3,
+  ta_pendaftaran_sidang.pengajuan_sk_id AS sidang_sk_id,
+  ta_pendaftaran_sidang.penguji_1,
+  ta_pendaftaran_sidang.penguji_2,
+  tb_data_pribadi.nama_lengkap,
+  tb_users.npm,
+  CONCAT(
+      CASE WHEN ta_pengajuan_sk.sk_pembimbing_1 = '${userLoginId}' THEN 'SK Pembimbing 1 | ' ELSE '' END,
+      CASE WHEN ta_pengajuan_sk.sk_pembimbing_2 = '${userLoginId}' THEN 'SK Pembimbing 2 | ' ELSE '' END,
+      CASE WHEN ta_pengajuan_sk.sk_pembimbing_3 = '${userLoginId}' THEN 'SK Pembimbing 3 | ' ELSE '' END,
+      CASE WHEN ta_pengajuan_sk.kepala_lab = '${userLoginId}' THEN 'Kepala Lab | ' ELSE '' END,
+      CASE WHEN ta_pendaftaran_kolokium.evaluator_1 = '${userLoginId}' THEN 'Evaluator 1 | ' ELSE '' END,
+      CASE WHEN ta_pendaftaran_kolokium.evaluator_2 = '${userLoginId}' THEN 'Evaluator 2 | ' ELSE '' END,
+      CASE WHEN ta_pendaftaran_sidang.penguji_1 = '${userLoginId}' THEN 'Penguji 1 | ' ELSE '' END,
+      CASE WHEN ta_pendaftaran_sidang.penguji_2 = '${userLoginId}' THEN 'Penguji 2 | ' ELSE '' END,
+      CASE WHEN ta_pendaftaran_kolokium.kolo_pembimbing_1 = '${userLoginId}' THEN 'Pembimbing Kolokium 1 | ' ELSE '' END,
+      CASE WHEN ta_pendaftaran_kolokium.kolo_pembimbing_2 = '${userLoginId}' THEN 'Pembimbing Kolokium 2 | ' ELSE '' END,
+      CASE WHEN ta_pendaftaran_kolokium.kolo_pembimbing_3 = '${userLoginId}' THEN 'Pembimbing Kolokium 3 | ' ELSE '' END,
+      CASE WHEN ta_pendaftaran_kolokium.kolo_kepala_lab = '${userLoginId}' THEN 'Kepala Lab | ' ELSE '' END,
+      CASE WHEN ta_pendaftaran_sidang.sidang_pembimbing_1 = '${userLoginId}' THEN 'Pembimbing Sidang 1 | ' ELSE '' END,
+      CASE WHEN ta_pendaftaran_sidang.sidang_pembimbing_2 = '${userLoginId}' THEN 'Pembimbing Sidang 2 | ' ELSE '' END,
+      CASE WHEN ta_pendaftaran_sidang.sidang_pembimbing_3 = '${userLoginId}' THEN 'Pembimbing Sidang 3 | ' ELSE '' END,
+      CASE WHEN ta_pendaftaran_sidang.sidang_kepala_lab = '${userLoginId}' THEN 'Kepala Lab | ' ELSE '' END
+  ) AS peran
+FROM
+  ta_pengajuan_sk
+JOIN
+  tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id
+JOIN
+  tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id
+JOIN
+  ta_pendaftaran_kolokium ON ta_pengajuan_sk.id = ta_pendaftaran_kolokium.pengajuan_sk_id
+JOIN
+  ta_pendaftaran_sidang ON ta_pengajuan_sk.id = ta_pendaftaran_sidang.pengajuan_sk_id
+WHERE
+ ( ta_pengajuan_sk.sk_pembimbing_1 = '${userLoginId}' OR
+  ta_pengajuan_sk.sk_pembimbing_2 = '${userLoginId}' OR
+  ta_pengajuan_sk.sk_pembimbing_3 = '${userLoginId}' OR
+  ta_pengajuan_sk.kepala_lab = '${userLoginId}' OR
+  ta_pendaftaran_kolokium.kolo_pembimbing_1 = '${userLoginId}' OR
+  ta_pendaftaran_kolokium.kolo_pembimbing_2 = '${userLoginId}' OR
+  ta_pendaftaran_kolokium.kolo_pembimbing_3 = '${userLoginId}' OR
+  ta_pendaftaran_kolokium.kolo_kepala_lab = '${userLoginId}' OR
+  ta_pendaftaran_kolokium.evaluator_1 = '${userLoginId}' OR
+  ta_pendaftaran_kolokium.evaluator_2 = '${userLoginId}' OR
+  ta_pendaftaran_sidang.sidang_pembimbing_1 = '${userLoginId}' OR
+  ta_pendaftaran_sidang.sidang_pembimbing_2 = '${userLoginId}' OR
+  ta_pendaftaran_sidang.sidang_pembimbing_3 = '${userLoginId}' OR
+  ta_pendaftaran_sidang.sidang_kepala_lab = '${userLoginId}' OR
+  ta_pendaftaran_sidang.penguji_1 = '${userLoginId}' OR
+  ta_pendaftaran_sidang.penguji_2 = '${userLoginId}') AND ta_pengajuan_sk.deleted_at IS NULL AND ta_pengajuan_sk.id = ${id}`;
 
   const findData = await DB.query(query);
 
