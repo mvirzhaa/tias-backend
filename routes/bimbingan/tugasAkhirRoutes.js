@@ -53,6 +53,7 @@ const router = express.Router();
 
 router.post("/", protected, pengajuanSk);
 router.get("/detail/:id", protected, detailPengajuanSk);
+router.get("/detail-for-bimbingan/:id", protected, detailPengajuanSk);
 router.get("/detail-for-dosen/:id", protected, detailPengajuanSkForDosen);
 router.get("/get-by-mhs", protected, getByUserLogin);
 router.get("/get-for-admin", protected, getForAdmin);
