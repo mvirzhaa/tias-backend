@@ -609,6 +609,23 @@ WHERE
 
 exports.detailPengajuanSk = asyncHandler(async (req, res) => {
   const { id } = req.params;
+
+  let query = `SELECT ta_pengajuan_sk.*, tb_data_pribadi.nama_lengkap, tb_data_pribadi.no_hp, tb_users.email, tb_users.npm FROM ta_pengajuan_sk JOIN tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id WHERE ta_pengajuan_sk.id = ${id}`;
+
+  const findData = await DB.query(query);
+
+  if (!findData.rows.length) {
+    res.status(404);
+    throw new Error("Data not found.");
+  }
+
+  res.status(201).json({
+    data: findData.rows[0],
+  });
+});
+
+exports.detailPengajuanSkForProgres = asyncHandler(async (req, res) => {
+  const { id } = req.params;
   const userLoginId = req.user.user_id;
 
   let query = `SELECT
