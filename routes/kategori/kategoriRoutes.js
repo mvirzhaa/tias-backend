@@ -129,7 +129,7 @@ router.post("/kegiatan", protected, KategoriKegiatanController.create);
 router.put("/kegiatan/:id", protected, KategoriKegiatanController.update);
 router.delete("/kegiatan/:id", protected, KategoriKegiatanController.destroy);
 
-router.get("/unit", protected, UnitController.index);
+router.get("/unit", UnitController.index);
 router.get("/unit/all", UnitController.all);
 router.get("/unit/:id", protected, UnitController.detail);
 router.post("/unit", protected, UnitController.create);
