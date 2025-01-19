@@ -89,7 +89,7 @@ class JabatanStrukturalController {
     }
   };
 
-  static getSpesificData = async (req, res) => {
+  static getDosenJabatan = async (req, res) => {
     try {
       let { limit, page, order, orderBy, search, isFakultas, unit } = req.query;
       limit = parseInt(limit) > 0 ? parseInt(limit) : 10;
@@ -167,51 +167,51 @@ class JabatanStrukturalController {
     }
   };
 
-  // static getSpesificData = async (req, res) => {
-  //   try {
-  //     const { isFakultas, unit } = req.query;
+  static getAllDosenJabatan = async (req, res) => {
+    try {
+      const { isFakultas, unit } = req.query;
 
-  //     const condition = {};
-  //     if (isFakultas && unit) {
-  //       condition["$unit.code$"] = {
-  //         [Op.like]: `${unit}%`,
-  //       };
-  //     } else if (unit) {
-  //       condition["$unit.code$"] = unit;
-  //     }
+      const condition = {};
+      if (isFakultas && unit) {
+        condition["$unit.code$"] = {
+          [Op.like]: `${unit}%`,
+        };
+      } else if (unit) {
+        condition["$unit.code$"] = unit;
+      }
 
-  //     const data = await TrxUserJabatanUnit.findAll({
-  //       where: condition,
-  //       include: [
-  //         {
-  //           model: User,
-  //           as: "user",
-  //           required: true,
-  //           attributes: ["department_code", "nidn"],
-  //           include: {
-  //             model: DataPribadi,
-  //             as: "personal_data",
-  //             attributes: ["nama_lengkap", "nip"],
-  //           },
-  //         },
-  //         {
-  //           model: Jabatan,
-  //           as: "jabatan",
-  //           required: true,
-  //         },
-  //         {
-  //           model: Unit,
-  //           required: true,
-  //           as: "unit",
-  //         },
-  //       ],
-  //     });
+      const data = await TrxUserJabatanUnit.findAll({
+        where: condition,
+        include: [
+          {
+            model: User,
+            as: "user",
+            required: true,
+            attributes: ["department_code", "nidn"],
+            include: {
+              model: DataPribadi,
+              as: "personal_data",
+              attributes: ["nama_lengkap", "nip"],
+            },
+          },
+          {
+            model: Jabatan,
+            as: "jabatan",
+            required: true,
+          },
+          {
+            model: Unit,
+            required: true,
+            as: "unit",
+          },
+        ],
+      });
 
-  //     return response(res, true, "success", data);
-  //   } catch (error) {
-  //     return response(res, false, error.message, error);
-  //   }
-  // };
+      return response(res, true, "success", data);
+    } catch (error) {
+      return response(res, false, error.message, error);
+    }
+  };
 
   static getByUserLogin = async (req, res) => {
     try {

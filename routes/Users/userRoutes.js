@@ -56,7 +56,11 @@ router.get(
   JabatanStrukturalController.index
 );
 
-router.get("/for-web-faculty", JabatanStrukturalController.getSpesificData);
+router.get("/dosen-faculty", JabatanStrukturalController.getDosenJabatan);
+router.get(
+  "/add-dosen-faculty",
+  JabatanStrukturalController.getAllDosenJabatan
+);
 
 router.get(
   "/user-jabatan",
