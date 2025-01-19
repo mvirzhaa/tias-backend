@@ -55,6 +55,9 @@ router.get(
   adminOnly,
   JabatanStrukturalController.index
 );
+
+router.get("/for-web-faculty", JabatanStrukturalController.getSpesificData);
+
 router.get(
   "/user-jabatan",
   protected,
