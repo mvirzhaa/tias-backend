@@ -137,11 +137,11 @@ class JabatanStrukturalController {
             model: User,
             as: "user",
             required: true,
-            attributes: ["department_code", "nidn", "image", "email"],
+            attributes: ["department_code", "nidn", "email"],
             include: {
               model: DataPribadi,
               as: "personal_data",
-              attributes: ["nama_lengkap", "nip"],
+              attributes: ["nama_lengkap", "nip", "image"],
             },
           },
           {
@@ -155,12 +155,28 @@ class JabatanStrukturalController {
         ],
       });
 
+      const sanitizedRows = data.rows.map((row) => {
+        const json = row.toJSON();
+        return {
+          ...json,
+          user: {
+            ...json.user,
+            personal_data: {
+              ...json.user.personal_data,
+              image: json.user.personal_data.image
+                ? `${process.env.API_URL}/foto-profile/${json.user.personal_data.image}`
+                : `${process.env.API_URL}/foto-profile/user.png`,
+            },
+          },
+        };
+      });
+
       return response(res, true, "success", {
         limit,
         page,
         total: data.count,
         total_page: Math.ceil(parseInt(data.count) / limit),
-        rows: data.rows,
+        rows: sanitizedRows,
       });
     } catch (error) {
       return response(res, false, error.message, error);
@@ -187,11 +203,11 @@ class JabatanStrukturalController {
             model: User,
             as: "user",
             required: true,
-            attributes: ["department_code", "nidn"],
+            attributes: ["department_code", "nidn", "email"],
             include: {
               model: DataPribadi,
               as: "personal_data",
-              attributes: ["nama_lengkap", "nip", "image", "email"],
+              attributes: ["nama_lengkap", "nip", "image"],
             },
           },
           {
@@ -207,7 +223,15 @@ class JabatanStrukturalController {
         ],
       });
 
-      return response(res, true, "success", data);
+      const sanitizedRows = data.map((iterate) => {
+        const json = iterate.toJSON();
+        return {
+          ...json,
+          image: `${process.env.API_URL}/foto-profile/${json.user.personal_data.image}`,
+        };
+      });
+
+      return response(res, true, "success", sanitizedRows);
     } catch (error) {
       return response(res, false, error.message, error);
     }
