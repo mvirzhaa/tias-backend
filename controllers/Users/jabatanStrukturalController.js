@@ -95,7 +95,7 @@ class JabatanStrukturalController {
       limit = parseInt(limit) > 0 ? parseInt(limit) : 10;
       page = page ? parseInt(page) : 1;
       order = order ? order : "id";
-      orderBy = orderBy ? orderBy : "DESC";
+      orderBy = orderBy ? orderBy : "ASC";
       const pagelimit = getPagination(limit, page);
 
       let whereCondition = {};
@@ -198,6 +198,7 @@ class JabatanStrukturalController {
 
       const data = await TrxUserJabatanUnit.findAll({
         where: condition,
+        order: [["id", "ASC"]],
         include: [
           {
             model: User,

@@ -58,7 +58,7 @@ router.get(
 
 router.get("/dosen-faculty", JabatanStrukturalController.getDosenJabatan);
 router.get(
-  "/add-dosen-faculty",
+  "/all-dosen-faculty",
   JabatanStrukturalController.getAllDosenJabatan
 );
 
