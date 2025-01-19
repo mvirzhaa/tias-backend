@@ -137,7 +137,7 @@ class JabatanStrukturalController {
             model: User,
             as: "user",
             required: true,
-            attributes: ["department_code", "nidn"],
+            attributes: ["department_code", "nidn", "image", "email"],
             include: {
               model: DataPribadi,
               as: "personal_data",
@@ -191,7 +191,7 @@ class JabatanStrukturalController {
             include: {
               model: DataPribadi,
               as: "personal_data",
-              attributes: ["nama_lengkap", "nip"],
+              attributes: ["nama_lengkap", "nip", "image", "email"],
             },
           },
           {
