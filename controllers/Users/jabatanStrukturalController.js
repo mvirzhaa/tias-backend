@@ -91,19 +91,47 @@ class JabatanStrukturalController {
 
   static getSpesificData = async (req, res) => {
     try {
-      const { isFakultas, unit } = req.query;
+      let { limit, page, order, orderBy, search, isFakultas, unit } = req.query;
+      limit = parseInt(limit) > 0 ? parseInt(limit) : 10;
+      page = page ? parseInt(page) : 1;
+      order = order ? order : "id";
+      orderBy = orderBy ? orderBy : "DESC";
+      const pagelimit = getPagination(limit, page);
 
-      const condition = {};
+      let whereCondition = {};
+
       if (isFakultas && unit) {
-        condition["$unit.code$"] = {
+        whereCondition["$unit.code$"] = {
           [Op.like]: `${unit}%`,
         };
       } else if (unit) {
-        condition["$unit.code$"] = unit;
+        whereCondition["$unit.code$"] = unit;
       }
 
-      const data = await TrxUserJabatanUnit.findAll({
+      let condition = {
+        [Op.and]: whereCondition,
+      };
+
+      if (search) {
+        condition = {
+          ...condition,
+          [Op.or]: [
+            {
+              "$user.personal_data.nama_lengkap$": {
+                [Op.iLike]: `%${search}%`,
+              },
+            },
+            { "$jabatan.nama_jabatan$": { [Op.iLike]: `%${search}%` } },
+          ],
+        };
+      }
+
+      const data = await TrxUserJabatanUnit.findAndCountAll({
+        distinct: true,
         where: condition,
+        order: [[order, orderBy]],
+        limit: pagelimit.limit,
+        offset: pagelimit.offset,
         include: [
           {
             model: User,
@@ -119,21 +147,71 @@ class JabatanStrukturalController {
           {
             model: Jabatan,
             as: "jabatan",
-            required: true,
           },
           {
             model: Unit,
-            required: true,
             as: "unit",
           },
         ],
       });
 
-      return response(res, true, "success", data);
+      return response(res, true, "success", {
+        limit,
+        page,
+        total: data.count,
+        total_page: Math.ceil(parseInt(data.count) / limit),
+        rows: data.rows,
+      });
     } catch (error) {
       return response(res, false, error.message, error);
     }
   };
+
+  // static getSpesificData = async (req, res) => {
+  //   try {
+  //     const { isFakultas, unit } = req.query;
+
+  //     const condition = {};
+  //     if (isFakultas && unit) {
+  //       condition["$unit.code$"] = {
+  //         [Op.like]: `${unit}%`,
+  //       };
+  //     } else if (unit) {
+  //       condition["$unit.code$"] = unit;
+  //     }
+
+  //     const data = await TrxUserJabatanUnit.findAll({
+  //       where: condition,
+  //       include: [
+  //         {
+  //           model: User,
+  //           as: "user",
+  //           required: true,
+  //           attributes: ["department_code", "nidn"],
+  //           include: {
+  //             model: DataPribadi,
+  //             as: "personal_data",
+  //             attributes: ["nama_lengkap", "nip"],
+  //           },
+  //         },
+  //         {
+  //           model: Jabatan,
+  //           as: "jabatan",
+  //           required: true,
+  //         },
+  //         {
+  //           model: Unit,
+  //           required: true,
+  //           as: "unit",
+  //         },
+  //       ],
+  //     });
+
+  //     return response(res, true, "success", data);
+  //   } catch (error) {
+  //     return response(res, false, error.message, error);
+  //   }
+  // };
 
   static getByUserLogin = async (req, res) => {
     try {
