@@ -98,7 +98,11 @@ class JabatanStrukturalController {
       orderBy = orderBy ? orderBy : "ASC";
       const pagelimit = getPagination(limit, page);
 
-      let whereCondition = {};
+      let whereCondition = {
+        "$user.role$": {
+          [Op.in]: ["Dosen"],
+        },
+      };
 
       if (isFakultas && unit) {
         whereCondition["$unit.code$"] = {
@@ -137,7 +141,7 @@ class JabatanStrukturalController {
             model: User,
             as: "user",
             required: true,
-            attributes: ["department_code", "nidn", "email"],
+            attributes: ["department_code", "nidn", "email", "role"],
             include: {
               model: DataPribadi,
               as: "personal_data",
@@ -187,7 +191,168 @@ class JabatanStrukturalController {
     try {
       const { isFakultas, unit } = req.query;
 
-      const condition = {};
+      const condition = {
+        "$user.role$": {
+          [Op.in]: ["Dosen"],
+        },
+      };
+      if (isFakultas && unit) {
+        condition["$unit.code$"] = {
+          [Op.like]: `${unit}%`,
+        };
+      } else if (unit) {
+        condition["$unit.code$"] = unit;
+      }
+
+      const data = await TrxUserJabatanUnit.findAll({
+        where: condition,
+        order: [["id", "ASC"]],
+        include: [
+          {
+            model: User,
+            as: "user",
+            required: true,
+            attributes: ["department_code", "nidn", "email"],
+            include: {
+              model: DataPribadi,
+              as: "personal_data",
+              attributes: ["nama_lengkap", "nip", "image"],
+            },
+          },
+          {
+            model: Jabatan,
+            as: "jabatan",
+            required: true,
+          },
+          {
+            model: Unit,
+            required: true,
+            as: "unit",
+          },
+        ],
+      });
+
+      const sanitizedRows = data.map((iterate) => {
+        const json = iterate.toJSON();
+        return {
+          ...json,
+          image: `${process.env.API_URL}/foto-profile/${json.user.personal_data.image}`,
+        };
+      });
+
+      return response(res, true, "success", sanitizedRows);
+    } catch (error) {
+      return response(res, false, error.message, error);
+    }
+  };
+
+  static getPegawaiJabatan = async (req, res) => {
+    try {
+      let { limit, page, order, orderBy, search, isFakultas, unit } = req.query;
+      limit = parseInt(limit) > 0 ? parseInt(limit) : 10;
+      page = page ? parseInt(page) : 1;
+      order = order ? order : "id";
+      orderBy = orderBy ? orderBy : "ASC";
+      const pagelimit = getPagination(limit, page);
+
+      let whereCondition = {
+        "$user.role$": {
+          [Op.in]: ["Pegawai"],
+        },
+      };
+
+      if (isFakultas && unit) {
+        whereCondition["$unit.code$"] = {
+          [Op.like]: `${unit}%`,
+        };
+      } else if (unit) {
+        whereCondition["$unit.code$"] = unit;
+      }
+
+      let condition = {
+        [Op.and]: whereCondition,
+      };
+
+      if (search) {
+        condition = {
+          ...condition,
+          [Op.or]: [
+            {
+              "$user.personal_data.nama_lengkap$": {
+                [Op.iLike]: `%${search}%`,
+              },
+            },
+            { "$jabatan.nama_jabatan$": { [Op.iLike]: `%${search}%` } },
+          ],
+        };
+      }
+
+      const data = await TrxUserJabatanUnit.findAndCountAll({
+        distinct: true,
+        where: condition,
+        order: [[order, orderBy]],
+        limit: pagelimit.limit,
+        offset: pagelimit.offset,
+        include: [
+          {
+            model: User,
+            as: "user",
+            required: true,
+            attributes: ["department_code", "nidn", "email", "role"],
+            include: {
+              model: DataPribadi,
+              as: "personal_data",
+              attributes: ["nama_lengkap", "nip", "image"],
+            },
+          },
+          {
+            model: Jabatan,
+            as: "jabatan",
+          },
+          {
+            model: Unit,
+            as: "unit",
+          },
+        ],
+      });
+
+      const sanitizedRows = data.rows.map((row) => {
+        const json = row.toJSON();
+        return {
+          ...json,
+          user: {
+            ...json.user,
+            personal_data: {
+              ...json.user.personal_data,
+              image: json.user.personal_data.image
+                ? `${process.env.API_URL}/foto-profile/${json.user.personal_data.image}`
+                : `${process.env.API_URL}/foto-profile/user.png`,
+            },
+          },
+        };
+      });
+
+      return response(res, true, "success", {
+        limit,
+        page,
+        total: data.count,
+        total_page: Math.ceil(parseInt(data.count) / limit),
+        rows: sanitizedRows,
+      });
+    } catch (error) {
+      return response(res, false, error.message, error);
+    }
+  };
+
+  static getAllPegawaiJabatan = async (req, res) => {
+    try {
+      const { isFakultas, unit } = req.query;
+
+      const condition = {
+        "$user.role$": {
+          [Op.in]: ["Pegawai"],
+        },
+      };
       if (isFakultas && unit) {
         condition["$unit.code$"] = {
           [Op.like]: `${unit}%`,
