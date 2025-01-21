@@ -62,6 +62,12 @@ router.get(
   JabatanStrukturalController.getAllDosenJabatan
 );
 
+router.get("/staff-faculty", JabatanStrukturalController.getPegawaiJabatan);
+router.get(
+  "/all-staff-faculty",
+  JabatanStrukturalController.getAllPegawaiJabatan
+);
+
 router.get(
   "/user-jabatan",
   protected,
