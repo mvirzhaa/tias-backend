@@ -1097,7 +1097,7 @@ exports.getUsers = asyncHandler(async (req, res) => {
 
 exports.listDosen = asyncHandler(async (req, res) => {
   const findDosen = await DB.query(
-    "SELECT tb_users.user_id, tb_users.nidn, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.image, tb_data_pribadi.ttd FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE (tb_users.role = 'Dosen' OR tb_users.role = 'Dosen_Ext')  AND tb_users.isverified = true "
+    "SELECT tb_users.user_id, tb_users.nidn, tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.image, tb_data_pribadi.ttd FROM tb_users JOIN tb_data_pribadi ON tb_users.user_id = tb_data_pribadi.user_id WHERE (tb_users.role = 'Dosen' OR tb_users.role = 'Dosen_Ext' OR tb_users.role = 'Pegawai')  AND tb_users.isverified = true "
   );
 
   const resultsDosen = findDosen.rows;
