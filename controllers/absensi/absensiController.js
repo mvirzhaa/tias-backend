@@ -200,8 +200,8 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
       const responseGasal = await axios.get(API_URL_GASAL, {
         params: {
           dataTable: true,
-          filter: ["semester", "curr_code"],
-          filterValue: ["gasal", "TIF2021"],
+          filter: ["semester"],
+          filterValue: ["gasal"],
           code: dosen.nip,
         },
       });
@@ -215,8 +215,8 @@ exports.getDosenForAbsensi = asyncHandler(async (req, res) => {
       const responseGenap = await axios.get(API_URL_GENAP, {
         params: {
           dataTable: true,
-          filter: ["semester", "curr_code"],
-          filterValue: ["genap", "TIF2021"],
+          filter: ["semester"],
+          filterValue: ["genap"],
           code: dosen.nip,
         },
       });

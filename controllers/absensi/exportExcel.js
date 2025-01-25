@@ -512,8 +512,8 @@ exports.exportListPertemuan = asyncHandler(async (req, res) => {
     const response = await axios.get(API_URL, {
       params: {
         dataTable: true,
-        filter: ["semester", "curr_code"],
-        filterValue: [semester, "TIF2021"],
+        filter: ["semester"],
+        filterValue: [semester],
         code: nip,
       },
     });
