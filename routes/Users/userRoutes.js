@@ -46,7 +46,7 @@ router.get("/all-mhs-beasiswa", protected, getMhsBeasiswa);
 
 router.get("/all-mhs-skripsi", protected, getUsersForNotaDinas);
 router.post("/import-dosen", protected, formidable, importDataDosen);
-router.post("/import-pegawai", protected, formidable, importDataPegawai);
+router.post("/import-pegawai", formidable, importDataPegawai);
 router.post("/import-dosen-again", protected, formidable, importDataDosenAgain);
 
 router.get(

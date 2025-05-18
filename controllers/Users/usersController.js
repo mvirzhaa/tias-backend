@@ -18,6 +18,7 @@ const DataPribadi = require("../../models/DataPribadi");
 const {
   getDataImportUsers,
   getDataImportUsersAgain,
+  getDataImporPegawai,
 } = require("../../helper/general");
 
 const pool = mysql.createPool({
@@ -293,111 +294,85 @@ exports.importDataDosenAgain = asyncHandler(async (req, res) => {
 });
 
 exports.importDataPegawai = asyncHandler(async (req, res) => {
-  let { file } = req.body;
-  const dataExcel = await getDataImportUsers(file[0].filepath);
+  try {
+    const { file } = req.body;
 
-  const filteredData = dataExcel.filter(
-    (data) => data.nip && data.nip.startsWith("41")
-  );
+    const dataExcel = await getDataImporPegawai(file[0].filepath);
 
-  const resultsPegawai = await getPegawai();
+    let dummyCounter = 1;
 
-  const existingUsers = await User.findAll({
-    where: {
-      email: filteredData.map((data) => data.email),
-    },
-    include: {
-      model: DataPribadi,
-      as: "personal_data",
-      where: {
-        nip: filteredData.map((data) => data.nip),
-      },
-      attributes: ["nip"],
-    },
-    attributes: ["email"],
-  });
-
-  const existingEmails = new Set(existingUsers.map((user) => user.email));
-  const existingNips = new Set(
-    existingUsers.map((user) => user.personal_data.nip)
-  );
-
-  // Map filtered data to usersData, adding the NIP for mapping later
-  const usersData = filteredData
-    .map((data) => {
-      const pegawaiWithNip = resultsPegawai.find(
-        (pegawai) => pegawai.nip === data.nip
-      );
-
+    dataExcel.forEach((data, index) => {
       if (
-        pegawaiWithNip &&
-        !existingEmails.has(data.email) &&
-        !existingNips.has(data.nip)
+        !data.email ||
+        typeof data.email !== "string" ||
+        data.email.trim() === ""
       ) {
-        return {
-          email: data.email,
-          password: data.hashedPassword, // Already hashed
-          role: process.env.ROLE_ID_PEGAWAI,
-          curr_code: "",
-          created_at: new Date(),
-          department_code: pegawaiWithNip.branch,
-          isverified: true,
-          // Add NIP to map later to DataPribadi
-          nip: data.nip,
-        };
+        data.email = `example${dummyCounter}@gmail.com`;
+        dummyCounter++;
       }
-    })
-    .filter(Boolean); // Remove undefined values
+    });
 
-  // Check if there's any data to insert
-  if (usersData.length === 0) {
+    const allEmails = dataExcel.map((data) => data.email);
+
+    const existingUsers = await User.findAll({
+      where: {
+        email: { [Op.in]: allEmails },
+      },
+      attributes: ["email"],
+    });
+
+    const existingEmails = new Set(existingUsers.map((user) => user.email));
+
+    const filteredData = dataExcel.filter(
+      (data) => data.email && !existingEmails.has(data.email)
+    );
+
+    const usersData = filteredData.map((data) => ({
+      email: data.email,
+      password: data.hashedPassword,
+      role: process.env.ROLE_ID_PEGAWAI,
+      curr_code: "",
+      created_at: new Date(),
+      department_code: data.unit,
+      isverified: true,
+      nip: data.nip,
+    }));
+
+    if (usersData.length === 0) {
+      return res.status(200).json({
+        message: "Semua data sudah ada di database.",
+      });
+    }
+
+    const createdUsers = await User.bulkCreate(usersData, { returning: true });
+
+    console.log("Jumlah user berhasil dibuat:", createdUsers.length);
+
+    const personalData = createdUsers.map((user) => {
+      const originalData = filteredData.find((d) => d.email === user.email);
+      return {
+        user_id: user.user_id,
+        nama_lengkap: originalData?.nama_lengkap || "",
+        tempat_lahir: originalData?.tempat_lahir || "",
+        email: user.email,
+        nip: originalData?.nip,
+        instansi_ext: "0",
+      };
+    });
+
+    await DataPribadi.bulkCreate(personalData);
+
     return res.status(200).json({
-      message:
-        "No valid data to insert (either all data already exists or invalid).",
+      message: "Data berhasil dimasukkan.",
+      users: createdUsers,
+    });
+  } catch (error) {
+    console.error("Error in importDataPegawai:", error);
+    return res.status(500).json({
+      message: "Gagal memproses data.",
+      error: error.message,
     });
   }
-
-  // Insert users in bulk
-  const createdUsers = await User.bulkCreate(usersData, { returning: true });
-
-  // Map the created users to personalData using the stored NIP
-  const personalData = createdUsers.map((user, index) => {
-    const pegawaiWithNip = resultsPegawai.find(
-      (pegawai) => pegawai.nip === usersData[index].nip // Use nip from usersData
-    );
-    const jenkelSiak = pegawaiWithNip.jenis_kelamin === "LAKI-LAKI" ? "L" : "P";
-    const statusKawin = pegawaiWithNip.status_sipil === "MENIKAH" ? 1 : 0;
-
-    return {
-      user_id: user.user_id, // Using created user_id from bulkCreate
-      nama_lengkap: `${pegawaiWithNip.gelar_depan} ${pegawaiWithNip.nama} ${pegawaiWithNip.gelar_belakang}`,
-      jenkel: jenkelSiak,
-      tanggal_lahir: pegawaiWithNip.tanggal_lahir,
-      tempat_lahir: pegawaiWithNip.tempat_lahir,
-      ibu_kandung: pegawaiWithNip.nama_ibu_kandung,
-      agama: pegawaiWithNip.agama,
-      email: user.email,
-      alamat: pegawaiWithNip.alamat,
-      kota_kabupaten: pegawaiWithNip.kota,
-      no_hp: pegawaiWithNip.no_handphone,
-      provinsi: pegawaiWithNip.propinsi,
-      kode_pos: pegawaiWithNip.kodepos,
-      status_kawin: statusKawin,
-      nik: pegawaiWithNip.no_ktp,
-      created_at: new Date(),
-      kode_mhs: pegawaiWithNip.klasi_pegawai,
-      nip: pegawaiWithNip.nip, // Store NIP in DataPribadi
-      instansi_ext: "0",
-    };
-  });
-
-  // Insert personal data in bulk
-  await DataPribadi.bulkCreate(personalData);
-
-  res.status(200).json({
-    message: "Data successfully processed and inserted.",
-    users: createdUsers,
-  });
 });
 
 exports.getUserMhs = asyncHandler(async (req, res) => {

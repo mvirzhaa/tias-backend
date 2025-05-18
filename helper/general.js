@@ -103,6 +103,47 @@ const getDataImportUsers = async (url) => {
   return data;
 };
 
+const getDataImporPegawai = async (url) => {
+  try {
+    console.log("Mulai proses Excel");
+    const workbook = new excelJS.Workbook();
+    const sheetName = "data";
+
+    const salt = await bcrypt.genSalt(10);
+    await workbook.xlsx.readFile(url);
+
+    const sheet = workbook.getWorksheet(sheetName);
+    if (!sheet) throw new Error("Sheet tidak ditemukan");
+
+    const data = [];
+    sheet.eachRow((row, rowNumber) => {
+      data.push({
+        nama_lengkap: row.getCell(1).value?.toString().trim() ?? "",
+        nip: row.getCell(2).value?.toString().trim() ?? "",
+        unit: row.getCell(4).value?.toString().trim() ?? "",
+        tempat_lahir: row.getCell(7).value?.toString().trim() ?? "",
+        email: row.getCell(10).value?.toString().trim() ?? "",
+        password: "Uika123*",
+      });
+    });
+
+    await Promise.all(
+      data.map(async (item) => {
+        if (item.password) {
+          item.hashedPassword = await bcrypt.hash(item.password, salt);
+          delete item.password;
+        }
+      })
+    );
+
+    console.log("Data berhasil diproses:", data.length);
+    return data;
+  } catch (err) {
+    console.error("Error dalam getDataImportUsers:", err);
+    throw err; // agar diketahui di route handler
+  }
+};
+
 const getDataImportUsersAgain = async (url) => {
   const workbook = new excelJS.Workbook();
   const sheetName = "Sheet1";
@@ -161,4 +202,5 @@ module.exports = {
   getDataImportUsersAgain,
   getDataImportMhs,
   getRandomSixDigit,
+  getDataImporPegawai,
 };
