@@ -28,6 +28,7 @@ const JabatanStrukturalController = require("../../controllers/Users/jabatanStru
 
 const router = express.Router();
 
+router.post("/import-pegawai-again", formidable, importDataPegawai);
 router.get("/getMhs", protected, getUserMhs);
 router.get("/getDosen", protected, getUserDosen);
 router.get("/get-dosen-ext", protected, getUserDosenExt);
@@ -46,7 +47,6 @@ router.get("/all-mhs-beasiswa", protected, getMhsBeasiswa);
 
 router.get("/all-mhs-skripsi", protected, getUsersForNotaDinas);
 router.post("/import-dosen", protected, formidable, importDataDosen);
-router.post("/import-pegawai", formidable, importDataPegawai);
 router.post("/import-dosen-again", protected, formidable, importDataDosenAgain);
 
 router.get(
