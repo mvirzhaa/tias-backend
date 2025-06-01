@@ -28,7 +28,7 @@ const JabatanStrukturalController = require("../../controllers/Users/jabatanStru
 
 const router = express.Router();
 
-router.post("/import-pegawai-again", formidable, importDataPegawai);
+router.post("/import-pegawai", formidable, importDataPegawai);
 router.get("/getMhs", protected, getUserMhs);
 router.get("/getDosen", protected, getUserDosen);
 router.get("/get-dosen-ext", protected, getUserDosenExt);
