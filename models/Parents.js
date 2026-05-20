@@ -1,7 +1,7 @@
 const { DataTypes, Model, Sequelize } = require("sequelize");
 const db = require("../config");
 
-class Parents extends Model {}
+class Parents extends Model { }
 Parents.init(
   {
     id: {
@@ -12,10 +12,13 @@ Parents.init(
     role: {
       type: DataTypes.STRING,
     },
-    nik: {
+    email: {
       type: DataTypes.STRING,
     },
     nama_lengkap: {
+      type: DataTypes.STRING,
+    },
+    npm: {
       type: DataTypes.STRING,
     },
     no_hp: {
@@ -31,7 +34,7 @@ Parents.init(
       type: DataTypes.STRING,
     },
     verif_token: {
-      type: DataTypes.NUMBER,
+      type: DataTypes.STRING,
     },
     reset_token: {
       type: DataTypes.STRING,

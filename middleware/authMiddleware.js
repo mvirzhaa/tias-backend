@@ -2,7 +2,7 @@ const asyncHandler = require("express-async-handler");
 const DB = require("../database");
 const jwt = require("jsonwebtoken");
 const { GamifyPoints } = require("../utils/gamify");
-// const Parents = require("../models/Parents");
+const Parents = require("../models/Parents");
 const User = require("../models/User");
 const TrxUserJabatanUnit = require("../models/TrxUserJabatanUnit");
 const DataPribadi = require("../models/DataPribadi");
@@ -76,35 +76,35 @@ exports.protected = asyncHandler(async (req, res, next) => {
   }
 });
 
-// exports.protectedParents = asyncHandler(async (req, res, next) => {
-//   try {
-//     const { token } = req.headers;
+exports.protectedParents = asyncHandler(async (req, res, next) => {
+  try {
+    const { token } = req.headers;
 
-//     if (!token) {
-//       res.status(401);
-//       throw new Error("Not Authorized, Pleas login.");
-//     }
+    if (!token) {
+      res.status(401);
+      throw new Error("Not Authorized, Pleas login.");
+    }
 
-//     const verified = jwt.verify(token, process.env.JWT_SECRET);
+    const verified = jwt.verify(token, process.env.JWT_SECRET);
 
-//     const user = await Parents.findOne({
-//       where: {
-//         id: verified.id,
-//       },
-//     });
+    const user = await Parents.findOne({
+      where: {
+        id: verified.id,
+      },
+    });
 
-//     if (!user) {
-//       res.status(404);
-//       throw new Error("User not found.");
-//     }
+    if (!user) {
+      res.status(404);
+      throw new Error("User not found.");
+    }
 
-//     req.user = user;
-//     next();
-//   } catch (error) {
-//     res.status(401);
-//     throw new Error("Not Authorized");
-//   }
-// });
+    req.user = user;
+    next();
+  } catch (error) {
+    res.status(401);
+    throw new Error("Not Authorized");
+  }
+});
 
 exports.adminOnly = asyncHandler(async (req, res, next) => {
   if (req.user && req.user.role === "Admin") {
