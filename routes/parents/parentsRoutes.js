@@ -26,8 +26,9 @@ router.get("/absensi-matkul/:npm/:kode", protectedParents, ParentsController.get
 router.get("/all-dosen", protectedParents, ParentsController.getAllDosen);
 
 // --- ADMIN MANAGEMENT ROUTES ---
-router.get("/admin/list", ParentsController.getAllParents);
-router.put("/admin/update/:id", ParentsController.updateParentByAdmin);
-router.delete("/admin/delete/:id", ParentsController.deleteParentByAdmin);
+router.get("/admin/list", protected, adminOnly, ParentsController.getAllParents);
+router.get("/admin/detail/:id", protected, adminOnly, ParentsController.getDetailParentByAdmin);
+router.put("/admin/update/:id", protected, adminOnly, ParentsController.updateParentByAdmin);
+router.delete("/admin/delete/:id", protected, adminOnly, ParentsController.deleteParentByAdmin);
 
 module.exports = router;

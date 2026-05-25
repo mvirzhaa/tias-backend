@@ -474,7 +474,7 @@ class ParentsController {
 
       // Import fungsi helper untuk mengambil KKN dari database Siak
       const { getMatkulKknByNpm } = require("../../helper/informatics");
-      
+
       const dataKkn = await getMatkulKknByNpm(npm);
 
       // Kita mapping response agar sesuai format yang diinginkan frontend (tb_pengabdian)
@@ -687,6 +687,18 @@ class ParentsController {
         order: [['created_at', 'DESC']]
       });
       return response(res, true, "Success fetch all parents", parents);
+    } catch (error) {
+      return response(res, false, error.message, null, 500);
+    }
+  };
+
+  // 4. Get Detail Parent (Admin Only)
+  static getDetailParentByAdmin = async (req, res) => {
+    const { id } = req.params;
+    try {
+      const parent = await Parents.findByPk(id);
+      if (!parent) return response(res, false, "Parent not found", null, 404);
+      return response(res, true, "Success fetch detail parent", parent);
     } catch (error) {
       return response(res, false, error.message, null, 500);
     }

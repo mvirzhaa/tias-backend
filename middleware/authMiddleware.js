@@ -21,9 +21,9 @@ exports.protected = asyncHandler(async (req, res, next) => {
     const verified = jwt.verify(token, process.env.JWT_SECRET);
 
     const user = await DB.query(
-      `SELECT tb_users.*, tb_data_pribadi.* 
+      `SELECT tb_data_pribadi.*, tb_users.* 
        FROM tb_users 
-       JOIN tb_data_pribadi ON tb_data_pribadi.user_id = tb_users.user_id 
+       LEFT JOIN tb_data_pribadi ON tb_data_pribadi.user_id = tb_users.user_id 
        WHERE tb_users.user_id = $1`,
       [verified.id]
     );
@@ -42,22 +42,27 @@ exports.protected = asyncHandler(async (req, res, next) => {
       }
     }
 
-    const jabatanStruktural = await TrxUserJabatanUnit.findAll({
-      where: {
-        user_id: user.rows[0].user_id,
-      },
-      attributes: ["user_id", "jabatan_id", "unit_id"],
-      include: [
-        {
-          model: Jabatan,
-          as: "jabatan",
+    let jabatanStruktural = [];
+    try {
+      jabatanStruktural = await TrxUserJabatanUnit.findAll({
+        where: {
+          user_id: user.rows[0].user_id,
         },
-        {
-          model: Unit,
-          as: "unit",
-        },
-      ],
-    });
+        attributes: ["user_id", "jabatan_id", "unit_id"],
+        include: [
+          {
+            model: Jabatan,
+            as: "jabatan",
+          },
+          {
+            model: Unit,
+            as: "unit",
+          },
+        ],
+      });
+    } catch (e) {
+      console.warn("Could not fetch jabatanStruktural, table might be missing:", e.message);
+    }
 
     const cleanJabatanStruktural = jabatanStruktural.map((jabatan) =>
       jabatan.get({ plain: true })
@@ -71,8 +76,9 @@ exports.protected = asyncHandler(async (req, res, next) => {
 
     next();
   } catch (error) {
+    console.error("AuthMiddleware Error:", error);
     res.status(401);
-    throw new Error("Not Authorized");
+    throw new Error(`Not Authorized: ${error.message}`);
   }
 });
 

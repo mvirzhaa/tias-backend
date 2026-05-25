@@ -1,9 +1,17 @@
+// create_kompetensi (diperbanyak - 5 data per user)
 'use strict';
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    const dummyUserId = '20260515-0000-0000-0000-000000000001';
+    // Ambil semua user_id mahasiswa dan dosen
+    const [users] = await queryInterface.sequelize.query(
+      "SELECT user_id, role FROM tb_users WHERE role IN ('Mahasiswa', 'Dosen')"
+    );
+
+    const mahasiswaIds = users.filter(u => u.role === 'Mahasiswa').map(u => u.user_id);
+    const dosenIds = users.filter(u => u.role === 'Dosen').map(u => u.user_id);
+    const allUserIds = [...mahasiswaIds, ...dosenIds];
 
     await queryInterface.dropTable('tb_tes', { cascade: true }).catch(() => { });
     await queryInterface.dropTable('tb_sertifikasi', { cascade: true }).catch(() => { });
@@ -26,10 +34,44 @@ module.exports = {
       deleted_at: { type: Sequelize.DATE, allowNull: true }
     });
 
-    await queryInterface.bulkInsert('tb_sertifikasi', [
-      { user_id: dummyUserId, jenis_serti: 'Kompetensi', kategori_id: 1, nama_serti: 'Oracle Certified Professional', bidang_studi: 'IT', tgl_serti: '2025-01-10', penyelenggara: 'Oracle', status: 1, created_at: new Date(), updated_at: new Date() },
-      { user_id: dummyUserId, jenis_serti: 'Pelatihan', kategori_id: 3, nama_serti: 'Fullstack Web Development', bidang_studi: 'IT', tgl_serti: '2024-12-20', penyelenggara: 'Dicoding', status: 1, created_at: new Date(), updated_at: new Date() }
-    ]);
+    // Generate 5 sertifikasi per user
+    const sertifikasiData = [];
+    const sertifikasiTemplates = [
+      { jenis_serti: 'Kompetensi', kategori_id: 1, nama_serti: 'Oracle Certified Professional', bidang_studi: 'Database', penyelenggara: 'Oracle' },
+      { jenis_serti: 'Kompetensi', kategori_id: 1, nama_serti: 'AWS Certified Solutions Architect', bidang_studi: 'Cloud Computing', penyelenggara: 'Amazon Web Services' },
+      { jenis_serti: 'Pelatihan', kategori_id: 3, nama_serti: 'Fullstack Web Development', bidang_studi: 'Web Development', penyelenggara: 'Dicoding' },
+      { jenis_serti: 'Kompetensi', kategori_id: 2, nama_serti: 'Cisco Certified Network Associate', bidang_studi: 'Networking', penyelenggara: 'Cisco' },
+      { jenis_serti: 'Pelatihan', kategori_id: 3, nama_serti: 'Data Science and Machine Learning', bidang_studi: 'Data Science', penyelenggara: 'IBM' },
+      { jenis_serti: 'Kompetensi', kategori_id: 1, nama_serti: 'Microsoft Certified: Azure Administrator', bidang_studi: 'Cloud', penyelenggara: 'Microsoft' },
+      { jenis_serti: 'Pelatihan', kategori_id: 3, nama_serti: 'UI/UX Design Masterclass', bidang_studi: 'Design', penyelenggara: 'Google' },
+      { jenis_serti: 'Kompetensi', kategori_id: 2, nama_serti: 'Certified Ethical Hacker', bidang_studi: 'Cyber Security', penyelenggara: 'EC-Council' },
+      { jenis_serti: 'Pelatihan', kategori_id: 3, nama_serti: 'Project Management Professional', bidang_studi: 'Management', penyelenggara: 'PMI' },
+      { jenis_serti: 'Kompetensi', kategori_id: 1, nama_serti: 'Red Hat Certified Engineer', bidang_studi: 'Linux', penyelenggara: 'Red Hat' }
+    ];
+
+    let sertifikatId = 1;
+    for (const userId of allUserIds) {
+      for (let i = 0; i < 5; i++) {
+        const template = sertifikasiTemplates[i % sertifikasiTemplates.length];
+        const tglSerti = new Date();
+        tglSerti.setFullYear(2024, i % 12, (i % 28) + 1);
+
+        sertifikasiData.push({
+          sertifikat_id: sertifikatId++,
+          user_id: userId,
+          jenis_serti: template.jenis_serti,
+          kategori_id: template.kategori_id,
+          nama_serti: `${template.nama_serti} ${i + 1}`,
+          bidang_studi: template.bidang_studi,
+          tgl_serti: tglSerti,
+          penyelenggara: template.penyelenggara,
+          status: 1,
+          created_at: new Date(),
+          updated_at: new Date()
+        });
+      }
+    }
+    await queryInterface.bulkInsert('tb_sertifikasi', sertifikasiData);
 
     // tb_tes
     await queryInterface.createTable('tb_tes', {
@@ -49,10 +91,42 @@ module.exports = {
       deleted_at: { type: Sequelize.DATE, allowNull: true }
     });
 
-    await queryInterface.bulkInsert('tb_tes', [
-      { user_id: dummyUserId, nama_tes: 'TOEFL ITP', jenis_tes: 'English Proficiency', penyelenggara: 'ETS', tgl_tes: '2025-02-15', kategori_id: 1, skor_tes: '550', status: 1, created_at: new Date(), updated_at: new Date() },
-      { user_id: dummyUserId, nama_tes: 'JLPT N4', jenis_tes: 'Japanese Proficiency', penyelenggara: 'Japan Foundation', tgl_tes: '2024-11-05', kategori_id: 2, skor_tes: 'Pass', status: 1, created_at: new Date(), updated_at: new Date() }
-    ]);
+    const tesTemplates = [
+      { nama_tes: 'TOEFL ITP', jenis_tes: 'English Proficiency', penyelenggara: 'ETS', kategori_id: 1, skor: ['550', '600', '520', '580', '610'] },
+      { nama_tes: 'IELTS Academic', jenis_tes: 'English Proficiency', penyelenggara: 'British Council', kategori_id: 2, skor: ['6.5', '7.0', '6.0', '7.5', '8.0'] },
+      { nama_tes: 'JLPT', jenis_tes: 'Japanese Proficiency', penyelenggara: 'Japan Foundation', kategori_id: 2, skor: ['N4', 'N3', 'N5', 'N4', 'N3'] },
+      { nama_tes: 'TOEIC', jenis_tes: 'English Proficiency', penyelenggara: 'ETS', kategori_id: 1, skor: ['800', '850', '750', '900', '820'] },
+      { nama_tes: 'GRE', jenis_tes: 'Academic Aptitude', penyelenggara: 'ETS', kategori_id: 2, skor: ['310', '320', '305', '325', '315'] },
+      { nama_tes: 'GMAT', jenis_tes: 'Business Aptitude', penyelenggara: 'GMAC', kategori_id: 2, skor: ['650', '700', '620', '720', '680'] },
+      { nama_tes: 'HSK', jenis_tes: 'Chinese Proficiency', penyelenggara: 'Hanban', kategori_id: 2, skor: ['4', '5', '3', '5', '4'] },
+      { nama_tes: 'DELF', jenis_tes: 'French Proficiency', penyelenggara: 'France Éducation International', kategori_id: 2, skor: ['B1', 'B2', 'A2', 'B2', 'C1'] }
+    ];
+
+    const tesData = [];
+    let tesId = 1;
+    for (const userId of allUserIds) {
+      for (let i = 0; i < 5; i++) {
+        const template = tesTemplates[i % tesTemplates.length];
+        const tglTes = new Date();
+        tglTes.setFullYear(2024, i % 12, (i % 28) + 1);
+        const skor = template.skor[i % template.skor.length];
+
+        tesData.push({
+          tes_id: tesId++,
+          user_id: userId,
+          nama_tes: template.nama_tes,
+          jenis_tes: template.jenis_tes,
+          penyelenggara: template.penyelenggara,
+          tgl_tes: tglTes,
+          kategori_id: template.kategori_id,
+          skor_tes: skor,
+          status: 1,
+          created_at: new Date(),
+          updated_at: new Date()
+        });
+      }
+    }
+    await queryInterface.bulkInsert('tb_tes', tesData);
   },
 
   async down(queryInterface, Sequelize) {
