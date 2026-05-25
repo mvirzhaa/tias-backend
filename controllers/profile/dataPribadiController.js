@@ -160,6 +160,48 @@ exports.getDataPribadi = asyncHandler(async (req, res) => {
     total_point: dataPribadi.rows[0]["total_point"].toString(),
   });
 });
+exports.getDataPribadiByNpm = asyncHandler(async (req, res) => {
+  const { npm } = req.params;
+
+  const query = `SELECT tb_data_pribadi.*, tb_users.npm, tb_users.nidn, tb_users.role FROM tb_data_pribadi JOIN tb_users ON tb_data_pribadi.user_id = tb_users.user_id WHERE tb_users.npm = $1`;
+
+  const dataPribadi = await DB.query(query, [npm]);
+
+  if (!dataPribadi.rows.length) {
+    res.status(404);
+    throw new Error("Student data not found.");
+  }
+
+  const queryLencana = await DB.query(
+    `SELECT * FROM achievements WHERE gamify = $1`,
+    [dataPribadi.rows[0].rank]
+  );
+
+  let lencana;
+  if (queryLencana.rows.length) {
+    lencana = `${process.env.API_URL}/gamify/lencana/${queryLencana.rows[0].lencana}`;
+  } else {
+    lencana = null;
+  }
+  
+  const iterate = dataPribadi.rows[0];
+  const data = {
+    ...iterate,
+    image: `${process.env.API_URL}/foto-profile/${iterate.image}`,
+    ttd: `${process.env.API_URL}/ttd/${iterate.ttd}`,
+    foto_narsum: `${process.env.API_URL}/foto-narsum/${iterate.foto_narsum}`,
+    status_ttd: iterate.ttd ? true : false,
+    status_foto_narsum: iterate.foto_narsum ? true : false,
+    lencana: lencana,
+    embed_wajah: iterate.embed_wajah ? JSON.parse(iterate.embed_wajah) : null,
+  };
+  
+  res.status(200).json({
+    data: data,
+    p_pendidikan: dataPribadi.rows[0]["point_pendidikan"] ? dataPribadi.rows[0]["point_pendidikan"].toString() : "0",
+    total_point: dataPribadi.rows[0]["total_point"] ? dataPribadi.rows[0]["total_point"].toString() : "0",
+  });
+});
 
 exports.editDataPribadi = asyncHandler(async (req, res) => {
   const userLogin = req.user;

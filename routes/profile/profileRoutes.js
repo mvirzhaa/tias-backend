@@ -10,6 +10,7 @@ const {
   updateFotoNarsum,
   uploadFotoNarsum,
   getFotoNarsum,
+  getDataPribadiByNpm,
 } = require("../../controllers/profile/dataPribadiController");
 const {
   createDokumenPribadi,
@@ -59,6 +60,7 @@ router.patch("/updateImage", protected, profileImageUpload, updateProfileImage);
 router.patch("/update-ttd", protected, profileUploadTtd, uploadTtd);
 router.patch("/update-foto-narsum", protected, fotoNarsumUpload, uploadFotoNarsum);
 router.get("/get-narsum", getFotoNarsum)
+router.get("/getDataPribadiByNpm/:npm", getDataPribadiByNpm);
 // ============= END DATA PRIBADI =============
 
 // ============= DOKUMEN PRIBADI ==============

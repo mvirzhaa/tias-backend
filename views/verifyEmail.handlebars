@@ -1,45 +1,141 @@
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
-    <style>
-      body { background-color: #0a1930; padding: 30px; font-family: Arial,
-      Helvetica, sans-serif; } .container { background-color: #eee; padding:
-      10px; border-radius: 3px; } .color-primary { color: #007bff; }
-      .color-danger { color: orangered; } .color-success { color: #28a745; }
-      .color-white { color: #fff; } .color-blue { color: #0a1930; } a {
-      font-size: 1.4rem; text-decoration: none; } .btn { font-size: 1.4rem;
-      font-weight: 400; padding: 6px 8px; margin: 0 5px 0 0; border: 1px solid
-      transparent; border-radius: 3px; cursor: pointer; } .btn-primary { color:
-      #fff; background: #007bff; } .btn-secondary { color: #fff; border: 1px
-      solid #fff; background: transparent; } .btn-danger { color: #fff;
-      background: orangered; } .btn-success { color: #fff; background: #28a745;
-      } .flex-center { display: flex; justify-content: center; align-items:
-      center; } .logo { padding: 5px; background-color: #8851ee; } .my { margin:
-      2rem 0; }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <div class="logo flex-center">
-        <h2 class="color-white">Teknik Informatika Akademik System</h2>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verify Your Account</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f4f7fb;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #333333;
+    }
+
+    .email-wrapper {
+      width: 100%;
+      padding: 40px 20px;
+      background-color: #f4f7fb;
+      box-sizing: border-box;
+    }
+
+    .email-card {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+
+    .email-header {
+      background: linear-gradient(135deg, #15613F 0%, #0F462D 100%);
+      padding: 40px 30px;
+      text-align: center;
+      color: #ffffff;
+    }
+
+    .email-header h2 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .email-body {
+      padding: 40px 30px;
+      text-align: center;
+    }
+
+    .greeting {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #1F2937;
+    }
+
+    .message {
+      font-size: 16px;
+      line-height: 1.6;
+      color: #4B5563;
+      margin-bottom: 32px;
+    }
+
+    .btn-verify {
+      display: inline-block;
+      padding: 14px 36px;
+      background-color: #15613F;
+      color: #ffffff !important;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 600;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(21, 97, 63, 0.2);
+      transition: all 0.3s ease;
+    }
+
+    .btn-verify:hover {
+      background-color: #0F462D;
+      transform: translateY(-1px);
+    }
+
+    .fallback-link {
+      margin-top: 32px;
+      font-size: 14px;
+      color: #6B7280;
+      word-break: break-all;
+    }
+
+    .fallback-link a {
+      color: #15613F;
+      text-decoration: underline;
+    }
+
+    .email-footer {
+      padding: 24px 30px;
+      background-color: #F9FAFB;
+      border-top: 1px solid #E5E7EB;
+      text-align: center;
+      font-size: 14px;
+      color: #6B7280;
+    }
+
+    .email-footer strong {
+      color: #15613F;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="email-wrapper">
+    <div class="email-card">
+      <div class="email-header">
+        <h2>UIKA LIFE CAMPUS</h2>
       </div>
-      <h2>Hello <span class="color-blue">{{name}}</span></h2>
-      <p>Please use the url below to verify your account</p>
-      <p>This link is valid for 1 hrs</p>
+      <div class="email-body">
+        <div class="greeting">Halo, {{name}}!</div>
+        <div class="message">
+          Terima kasih telah mendaftar di sistem kami. Untuk menyelesaikan proses pendaftaran dan mengaktifkan akun
+          Anda, silakan verifikasi alamat email Anda dengan mengklik tombol di bawah ini.
+          <br><br>
+          <span style="font-size: 14px; color: #EF4444;">Tautan ini berlaku selama 1 jam.</span>
+        </div>
 
-      <a href={{link}} class="btn btn-success">Verify Account</a>
+        <a href="{{link}}" class="btn-verify">Verifikasi Akun Saya</a>
 
-      <p style="margin-top: 10px;">OR COPY THIS LINK:</p>
-      
-      <span>{{link}}</span>
-
-      <div class="my">
-        <p>Regards...</p>
-        <p><b class="color-blue">TEKNIK INFORMATIKA</b> Univ Ibn Khaldun</p>
+        <div class="fallback-link">
+          <p>Atau salin tautan berikut ke browser Anda:</p>
+          <a href="{{link}}">{{link}}</a>
+        </div>
+      </div>
+      <div class="email-footer">
+        Salam hangat,<br>
+        Universitas Ibn Khaldun
       </div>
     </div>
-  </body>
+  </div>
+</body>
+
 </html>
