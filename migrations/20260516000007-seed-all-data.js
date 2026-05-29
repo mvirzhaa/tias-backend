@@ -478,9 +478,9 @@ module.exports = {
 
     // ==================== 7. MATA KULIAH (TIDAK DIUBAH) ====================
     const matakuliahData = [
-      { id: 1, kode_matakuliah: 'TIF191', nama_matakuliah: 'Kalkulus I', sks: 3 },
-      { id: 2, kode_matakuliah: 'TIF193', nama_matakuliah: 'Teknik Digital dan Rangkaian Logika + Praktik', sks: 3 },
-      { id: 3, kode_matakuliah: 'TIF104', nama_matakuliah: 'Aljabar Linear', sks: 3 },
+      { id: 1, kode_matakuliah: 'PBI106X', nama_matakuliah: 'Bahasa Indonesia', sks: 2 },
+      { id: 2, kode_matakuliah: 'TIF401', nama_matakuliah: 'Etika Profesi', sks: 2 },
+      { id: 3, kode_matakuliah: 'TIF105', nama_matakuliah: 'Kecakapan Interpersonal', sks: 2 },
       { id: 4, kode_matakuliah: 'TIF106', nama_matakuliah: 'Struktur Data dan Algoritma + Praktikum', sks: 3 },
       { id: 5, kode_matakuliah: 'TIF112', nama_matakuliah: 'Organisasi Komputer dan Sistem Operasi + Prak', sks: 2 }
     ];
