@@ -13,25 +13,27 @@ let sequelize;
 if (config.use_env_variable) {
   sequelize = new Sequelize(process.env[config.use_env_variable], config);
 } else {
-  sequelize = new Sequelize(
-    config.database,
-    config.username,
-    config.password,
-    config
-  );
+  sequelize = new Sequelize(config.database, config.username, config.password, config);
 }
 
 fs.readdirSync(__dirname)
   .filter((file) => {
-    return (
-      file.indexOf(".") !== 0 &&
-      file !== basename &&
-      file.slice(-3) === ".js" &&
-      file.indexOf(".test.js") === -1
-    );
+    return file.indexOf(".") !== 0 && file !== basename && file.slice(-3) === ".js" && file.indexOf(".test.js") === -1;
   })
   .forEach((file) => {
-    const model = require(path.join(__dirname, file));
+
+    const modelModule = require(path.join(__dirname, file));
+    let model;
+
+    if (typeof modelModule === "function" && modelModule.prototype instanceof Sequelize.Model) {
+      model = modelModule;
+    } else if (typeof modelModule === "function") {
+      model = modelModule(sequelize, Sequelize.DataTypes);
+    } else {
+      model = modelModule;
+    }
+
+
     if (model && model.name) {
       db[model.name] = model;
     }
@@ -47,3 +49,4 @@ db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 
 module.exports = db;
+
