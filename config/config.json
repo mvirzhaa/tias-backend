@@ -1,8 +1,8 @@
 {
   "development": {
     "username": "postgres",
-    "password": "admin",
-    "database": "m_tias_database",
+    "password": "12345678",
+    "database": "m_ucl_database",
     "host": "127.0.0.1",
     "port": 5432,
     "dialect": "postgres"

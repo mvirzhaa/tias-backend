@@ -43,6 +43,7 @@ router.post("/loginWithCode/:email", loginWithCode);
 
 router.post("/sendVerificationEmail", protected, sendVerificationEmail);
 router.patch("/verifyUser/:verificationToken", verifyUser);
+router.get("/verifyUser/:verificationToken", verifyUser);
 router.patch("/verify-dosen-ext/:userId", verifyDosenExt);
 router.get("/loginStatus", getLoginStatus);
 router.get("/logout", logout);

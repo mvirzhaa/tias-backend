@@ -34,7 +34,7 @@ const ruanganRoutes = require("./ruangan/ruanganRoutes");
 const ujianRoutes = require("./ujian/ujianRoutes");
 const cbtRoutes = require("./Authentication/cbtRoutes");
 const siakRoutes = require("./siak/siakRoute");
-// const parentsRoutes = require("./parents/parentsRoutes");
+const parentsRoutes = require("./parents/parentsRoutes");
 const absensiExternalRoutes = require("./absensi-external/indexRouter");
 const suratRoutes = require("./persuratan/surat");
 const router = exporess.Router();
@@ -73,7 +73,7 @@ router.use("/laporan", laporanRoutes);
 router.use("/ruangan", ruanganRoutes);
 router.use("/ujian", ujianRoutes);
 router.use("/siak", siakRoutes);
-// router.use("/parents", parentsRoutes);
+router.use("/parents", parentsRoutes);
 router.use("/absensi-external", absensiExternalRoutes);
 router.use("/surat", suratRoutes);
 

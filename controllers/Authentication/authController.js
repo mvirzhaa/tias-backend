@@ -75,7 +75,14 @@ exports.register = asyncHandler(async (req, res) => {
         studentWithNpm.department_code,
       ]);
 
-      const jenkelSiak = studentWithNpm.sex === "LAKI-LAKI" ? "L" : studentWithNpm.sex === "PEREMPUAN" ? "P" : null;
+
+      const jenkelSiak =
+        studentWithNpm.sex === "LAKI-LAKI"
+          ? "L"
+          : studentWithNpm.sex === "PEREMPUAN"
+            ? "P"
+            : null;
+
 
       const savePersonalData = await DB.query(
         `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, jenkel, tanggal_lahir, tempat_lahir, ibu_kandung, agama, email, alamat, kota_kabupaten, no_hp, nik, created_at, kode_mhs) 
@@ -133,7 +140,7 @@ exports.register = asyncHandler(async (req, res) => {
         await DB.query("INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [user_id, hashedToken, createdAt, expiresAt]);
 
         // Construct Verification Token
-        const verificationUrl = `${process.env.FRONTEND_URL}/verification/${verificationToken}`;
+        const verificationUrl = `${process.env.API_URL}/auth/verifyUser/${verificationToken}`;
 
         // Send verification email
         const subject = "Verify Your Account";
@@ -175,7 +182,13 @@ exports.register = asyncHandler(async (req, res) => {
         dosenWithNidn.lookup_id,
       ]);
 
-      const jenkelSiak = dosenWithNidn.jenis_kelamin === "LAKI-LAKI" ? "L" : dosenWithNidn.jenis_kelamin === "PEREMPUAN" ? "P" : null;
+      const jenkelSiak =
+        dosenWithNidn.jenis_kelamin === "LAKI-LAKI"
+          ? "L"
+          : dosenWithNidn.jenis_kelamin === "PEREMPUAN"
+            ? "P"
+            : null;
+
       const statusKawin = dosenWithNidn.status_sipil !== "MENIKAH" ? 0 : 1;
 
       const savePersonalData = await DB.query(
@@ -220,7 +233,7 @@ exports.register = asyncHandler(async (req, res) => {
         await DB.query("INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [user_id, hashedToken, createdAt, expiresAt]);
 
         // Construct Verification Token
-        const verificationUrl = `${process.env.FRONTEND_URL}/verification/${verificationToken}`;
+        const verificationUrl = `${process.env.API_URL}/auth/verifyUser/${verificationToken}`;
 
         // Send verification email
         const subject = "Verify Your Account";
@@ -296,7 +309,14 @@ exports.registerMhsPmm = asyncHandler(async (req, res) => {
     // Save user to DB
     const saveUser = await DB.query(`INSERT INTO tb_users(npm, email, password, role, user_agent, created_at) VALUES ($1, $2, $3, $4, $5, $6) returning *`, [npm, email, hashedPassword, role, userAgent, convert]);
 
-    const jenkelSiak = dataMhsPmm.sex === "LAKI-LAKI" ? "L" : dataMhsPmm.sex === "PEREMPUAN" ? "P" : null;
+
+    const jenkelSiak =
+      dataMhsPmm.sex === "LAKI-LAKI"
+        ? "L"
+        : dataMhsPmm.sex === "PEREMPUAN"
+          ? "P"
+          : null;
+
 
     const savePersonalData = await DB.query(
       `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, jenkel, tanggal_lahir, tempat_lahir, agama, email,  no_hp, nik, created_at, kode_mhs) 
@@ -321,7 +341,7 @@ exports.registerMhsPmm = asyncHandler(async (req, res) => {
       await DB.query("INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [user_id, hashedToken, createdAt, expiresAt]);
 
       // Construct Verification Token
-      const verificationUrl = `${process.env.FRONTEND_URL}/verification/${verificationToken}`;
+      const verificationUrl = `${process.env.API_URL}/auth/verifyUser/${verificationToken}`;
 
       // Send verification email
       const subject = "Verify Your Account";
@@ -452,7 +472,14 @@ exports.registerPegawai = asyncHandler(async (req, res) => {
       pegawaiWithNip.branch,
     ]);
 
-    const jenkelSiak = pegawaiWithNip.jenis_kelamin === "LAKI-LAKI" ? "L" : pegawaiWithNip.jenis_kelamin === "PEREMPUAN" ? "P" : null;
+
+    const jenkelSiak =
+      pegawaiWithNip.jenis_kelamin === "LAKI-LAKI"
+        ? "L"
+        : pegawaiWithNip.jenis_kelamin === "PEREMPUAN"
+          ? "P"
+          : null;
+
     const statusKawin = pegawaiWithNip.status_sipil !== "MENIKAH" ? 0 : 1;
 
     const savePersonalData = await DB.query(
@@ -497,7 +524,7 @@ exports.registerPegawai = asyncHandler(async (req, res) => {
       await DB.query("INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [user_id, hashedToken, createdAt, expiresAt]);
 
       // Construct Verification Token
-      const verificationUrl = `${process.env.FRONTEND_URL}/verification/${verificationToken}`;
+      const verificationUrl = `${process.env.API_URL}/auth/verifyUser/${verificationToken}`;
 
       // Send verification email
       const subject = "Verify Your Account";
@@ -568,7 +595,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
       await DB.query("INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [user.rows[0].user_id, hashedToken, createdAt, expiresAt]);
 
       // Construct Verification Token
-      const verificationUrl = `${process.env.FRONTEND_URL}/verification/${verificationToken}`;
+      const verificationUrl = `${process.env.API_URL}/auth/verifyUser/${verificationToken}`;
 
       // Send verification email
       const subject = "Verify Your Account";
@@ -591,7 +618,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
   const ua = parser(req.headers["user-agent"]);
   const thisUserAgent = ua.ua;
 
-  const allowedAgent = user.rows[0].user_agent.includes(thisUserAgent);
+  const allowedAgent = user.rows[0].user_agent?.includes(thisUserAgent) || false;
 
   if (!allowedAgent) {
     await DB.query("UPDATE tb_users SET user_agent = array_append(user_agent, $1) WHERE user_id = $2", [thisUserAgent, user.rows[0].user_id]);
@@ -874,7 +901,7 @@ exports.sendVerificationEmail = asyncHandler(async (req, res) => {
   await DB.query("INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [user.rows[0].user_id, hashedToken, createdAt, expiresAt]);
 
   // Construct Verification Token
-  const verificationUrl = `${process.env.FRONTEND_URL}/verify/${verificationToken}`;
+  const verificationUrl = `${process.env.API_URL}/auth/verifyUser/${verificationToken}`;
 
   // Send verification email
   const subject = "Verify Your Account";
@@ -903,8 +930,77 @@ exports.verifyUser = asyncHandler(async (req, res) => {
     throw new Error("Invalid or expired token.");
   }
 
-  // Find User
-  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [userToken.rows[0].user_id]);
+  // Check if it's a valid UUID
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userToken.rows[0].user_id);
+
+  let user = { rows: [] };
+  if (isUUID) {
+    // Find User
+    user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
+      userToken.rows[0].user_id,
+    ]);
+  }
+
+  if (!user.rows.length) {
+    // Check if it's a parent user
+    const parent = await DB.query("SELECT * FROM tb_parents WHERE id = $1", [
+      userToken.rows[0].user_id,
+    ]);
+
+    if (!parent.rows.length) {
+      res.status(404);
+      throw new Error("User not found.");
+    }
+
+    if (parent.rows[0].is_verified) {
+      res.status(400);
+      throw new Error("User is already verified.");
+    }
+
+    // verify parent
+    const verifyParent = await DB.query(
+      "UPDATE tb_parents SET is_verified = $1 WHERE id = $2 returning *",
+      [true, parent.rows[0].id]
+    );
+
+    if (verifyParent.rows[0].is_verified === true) {
+      if (req.method === 'GET') {
+        const successHtml = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Verifikasi Berhasil</title>
+            <style>
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7fb; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+                .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); text-align: center; max-width: 400px; width: 90%; }
+                .icon { color: #15613F; font-size: 64px; margin-bottom: 20px; }
+                h1 { color: #1F2937; margin-top: 0; font-size: 24px; }
+                p { color: #4B5563; line-height: 1.5; margin-bottom: 30px; }
+                .btn { background-color: #15613F; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; transition: background 0.3s; }
+                .btn:hover { background-color: #0F462D; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <div class="icon">✓</div>
+                <h1>Verifikasi Berhasil!</h1>
+                <p>Akun Orang Tua Anda telah berhasil diverifikasi. Anda sekarang dapat masuk ke aplikasi UCL menggunakan akun Anda.</p>
+            </div>
+        </body>
+        </html>
+        `;
+        return res.status(200).send(successHtml);
+      }
+
+      return res.status(200).json({
+        message: "Account verification successfully",
+        data: verifyParent.rows[0],
+      });
+    }
+  }
+  
 
   if (user.rows[0].isverified) {
     res.status(400);
@@ -915,10 +1011,40 @@ exports.verifyUser = asyncHandler(async (req, res) => {
   const verifyUser = await DB.query("UPDATE tb_users SET isverified = $1 WHERE user_id = $2 returning *", [true, user.rows[0].user_id]);
 
   const { user_id, npm, nidn, username, email, role, isverified, created_at } = verifyUser.rows[0];
-  // Send HTTP-only Cookie
 
   if (verifyUser.rows[0].isverified === true) {
-    res.status(200).json({
+    if (req.method === 'GET') {
+      const successHtml = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Verifikasi Berhasil</title>
+          <style>
+              body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7fb; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+              .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); text-align: center; max-width: 400px; width: 90%; }
+              .icon { color: #15613F; font-size: 64px; margin-bottom: 20px; }
+              h1 { color: #1F2937; margin-top: 0; font-size: 24px; }
+              p { color: #4B5563; line-height: 1.5; margin-bottom: 30px; }
+              .btn { background-color: #15613F; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; transition: background 0.3s; }
+              .btn:hover { background-color: #0F462D; }
+          </style>
+      </head>
+      <body>
+          <div class="card">
+              <div class="icon">✓</div>
+              <h1>Verifikasi Berhasil!</h1>
+              <p>Akun Anda telah berhasil diverifikasi. Anda sekarang dapat masuk ke aplikasi TIAS menggunakan akun Anda.</p>
+              <a href="${process.env.FRONTEND_URL}/login" class="btn">Kembali ke Login</a>
+          </div>
+      </body>
+      </html>
+      `;
+      return res.status(200).send(successHtml);
+    }
+
+    return res.status(200).json({
       message: "Account verification successfully",
       data: {
         user_id,

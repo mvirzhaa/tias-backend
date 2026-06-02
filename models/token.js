@@ -10,16 +10,16 @@ Token.init(
       primaryKey: true,
     },
     user_id: {
-      type: DataTypes.STRING,
+      type: DataTypes.TEXT,
     },
     verif_token: {
-      type: DataTypes.STRING,
+      type: DataTypes.TEXT,
     },
     reset_token: {
-      type: DataTypes.STRING,
+      type: DataTypes.TEXT,
     },
     login_token: {
-      type: DataTypes.DATE,
+      type: DataTypes.TEXT,
     },
     created_at: {
       type: DataTypes.DATE,
