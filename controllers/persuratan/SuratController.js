@@ -1,7 +1,7 @@
 const { Op } = require("sequelize");
 const { getPagination } = require("../../lib/pagination-parser");
 const { response } = require("../../lib/response");
-const { Surat, User, DataPribadi, RiwayatSurat, DokumenLampiran, sequelize } = require("../../models/persuratan");
+const { Surat, User, DataPribadi, RiwayatSurat, DokumenLampiran, sequelize } = require("../../models/Persuratan");
 
 const safeJsonParse = (data) => {
   if (!data) return {};
