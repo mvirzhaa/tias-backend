@@ -1,34 +1,16 @@
 const asyncHandler = require("express-async-handler");
 const DB = require("../../database");
-const {
-  formRegisterValidation,
-  resetPasswordValidation,
-  changePasswordValidation,
-  formRegisterPmmValidation,
-  formRegisterDosenExt,
-  formRegisterKaryawanValidation,
-} = require("../../validation/formValidation");
+const { formRegisterValidation, resetPasswordValidation, changePasswordValidation, formRegisterPmmValidation, formRegisterDosenExt, formRegisterKaryawanValidation } = require("../../validation/formValidation");
 const bcrypt = require("bcryptjs");
 const parser = require("ua-parser-js");
-const {
-  generateToken,
-  hashToken,
-  unixTimestamp,
-  convertDate,
-  expires_at,
-} = require("../../utils");
+const { generateToken, hashToken, unixTimestamp, convertDate, expires_at } = require("../../utils");
 const sendMail = require("../../utils/sendMail");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 // Triger 2FA
 const Cryptr = require("cryptr");
 const sendEmail = require("../../utils/sendMail");
-const {
-  getInformaticsStudent,
-  getDosen,
-  getPmmStudent,
-  getPegawai,
-} = require("../../helper/informatics");
+const { getInformaticsStudent, getDosen, getPmmStudent, getPegawai } = require("../../helper/informatics");
 const { getIp, deleteIp } = require("../../helper/ipk");
 const { updateGamifyKompetensi } = require("../../utils/gamifyKompetensi");
 const cryptr = new Cryptr(process.env.CRYPTR_KEY);
@@ -47,10 +29,7 @@ exports.register = asyncHandler(async (req, res) => {
   const { npm_nidn, email, password } = req.body;
 
   const checkIfExists = async (column, value, errorMessage) => {
-    const result = await DB.query(
-      `SELECT * FROM tb_users WHERE ${column} = $1`,
-      [value]
-    );
+    const result = await DB.query(`SELECT * FROM tb_users WHERE ${column} = $1`, [value]);
 
     if (result.rows.length) {
       res.status(400);
@@ -85,19 +64,17 @@ exports.register = asyncHandler(async (req, res) => {
 
     if (studentWithNpm) {
       // Save user to DB
-      const saveUser = await DB.query(
-        `INSERT INTO tb_users(npm, email, password, role, user_agent, created_at, curr_code, department_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) returning *`,
-        [
-          npm_nidn,
-          email,
-          hashedPassword,
-          role,
-          userAgent,
-          convert,
-          studentWithNpm.curr_code,
-          studentWithNpm.department_code,
-        ]
-      );
+      const saveUser = await DB.query(`INSERT INTO tb_users(npm, email, password, role, user_agent, created_at, curr_code, department_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) returning *`, [
+        npm_nidn,
+        email,
+        hashedPassword,
+        role,
+        userAgent,
+        convert,
+        studentWithNpm.curr_code,
+        studentWithNpm.department_code,
+      ]);
+
 
       const jenkelSiak =
         studentWithNpm.sex === "LAKI-LAKI"
@@ -105,6 +82,7 @@ exports.register = asyncHandler(async (req, res) => {
           : studentWithNpm.sex === "PEREMPUAN"
             ? "P"
             : null;
+
 
       const savePersonalData = await DB.query(
         `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, jenkel, tanggal_lahir, tempat_lahir, ibu_kandung, agama, email, alamat, kota_kabupaten, no_hp, nik, created_at, kode_mhs) 
@@ -125,7 +103,7 @@ exports.register = asyncHandler(async (req, res) => {
           studentWithNpm.national_id_number,
           convert,
           studentWithNpm.status,
-        ]
+        ],
       );
 
       const reqInsertedIp = await getIp(saveUser.rows[0].user_id, npm_nidn);
@@ -140,27 +118,17 @@ exports.register = asyncHandler(async (req, res) => {
 
       const userAchievementsInserts = [];
       for (const achievementId of achievementsDefault) {
-        const userAchievementInsert = await DB.query(
-          "INSERT INTO user_achievements(user_id, achievement_id, status) VALUES ($1, $2, $3) RETURNING *",
-          [saveUser.rows[0].user_id, achievementId, 0]
-        );
+        const userAchievementInsert = await DB.query("INSERT INTO user_achievements(user_id, achievement_id, status) VALUES ($1, $2, $3) RETURNING *", [saveUser.rows[0].user_id, achievementId, 0]);
         userAchievementsInserts.push(userAchievementInsert);
       }
 
-      const allUserAchievementsInserted = userAchievementsInserts.every(
-        (result) => result.rows.length > 0
-      );
+      const allUserAchievementsInserted = userAchievementsInserts.every((result) => result.rows.length > 0);
 
-      if (
-        saveUser.rows.length &&
-        savePersonalData.rows.length &&
-        allUserAchievementsInserted
-      ) {
+      if (saveUser.rows.length && savePersonalData.rows.length && allUserAchievementsInserted) {
         const { user_id, npm, email } = saveUser.rows[0];
 
         // Create verification token
-        const verificationToken =
-          crypto.randomBytes(32).toString("hex") + user_id;
+        const verificationToken = crypto.randomBytes(32).toString("hex") + user_id;
         // console.log("verif token :", verificationToken);
         const hashedToken = hashToken(verificationToken);
 
@@ -169,10 +137,7 @@ exports.register = asyncHandler(async (req, res) => {
         const unixExpires = expires_at;
         const expiresAt = await convertDate(unixExpires);
 
-        await DB.query(
-          "INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
-          [user_id, hashedToken, createdAt, expiresAt]
-        );
+        await DB.query("INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [user_id, hashedToken, createdAt, expiresAt]);
 
         // Construct Verification Token
         const verificationUrl = `${process.env.API_URL}/auth/verifyUser/${verificationToken}`;
@@ -198,33 +163,24 @@ exports.register = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error("INVALID NPM. NPM NOT FOUND!!");
     }
-  } else if (
-    npm_nidn.length === 10 ||
-    npm_nidn.length === 9 ||
-    npm_nidn.length === 8
-  ) {
+  } else if (npm_nidn.length === 10 || npm_nidn.length === 9 || npm_nidn.length === 8) {
     const role = process.env.ROLE_ID_DOSEN;
     const convert = convertDate(unixTimestamp);
 
     const resultsDosen = await getDosen();
-    const dosenWithNidn = resultsDosen.find(
-      (dosen) => dosen.nidn === npm_nidn || dosen.nip === npm_nidn
-    );
+    const dosenWithNidn = resultsDosen.find((dosen) => dosen.nidn === npm_nidn || dosen.nip === npm_nidn);
 
     if (dosenWithNidn) {
       // Save user to DB
-      const saveUser = await DB.query(
-        `INSERT INTO tb_users(nidn, email, password, role, user_agent, created_at, department_code) VALUES ($1, $2, $3, $4, $5, $6, $7) returning *`,
-        [
-          npm_nidn,
-          email,
-          hashedPassword,
-          role,
-          userAgent,
-          convert,
-          dosenWithNidn.lookup_id,
-        ]
-      );
+      const saveUser = await DB.query(`INSERT INTO tb_users(nidn, email, password, role, user_agent, created_at, department_code) VALUES ($1, $2, $3, $4, $5, $6, $7) returning *`, [
+        npm_nidn,
+        email,
+        hashedPassword,
+        role,
+        userAgent,
+        convert,
+        dosenWithNidn.lookup_id,
+      ]);
 
       const jenkelSiak =
         dosenWithNidn.jenis_kelamin === "LAKI-LAKI"
@@ -232,6 +188,7 @@ exports.register = asyncHandler(async (req, res) => {
           : dosenWithNidn.jenis_kelamin === "PEREMPUAN"
             ? "P"
             : null;
+
       const statusKawin = dosenWithNidn.status_sipil !== "MENIKAH" ? 0 : 1;
 
       const savePersonalData = await DB.query(
@@ -257,15 +214,14 @@ exports.register = asyncHandler(async (req, res) => {
           convert,
           dosenWithNidn.klasi_pegawai,
           dosenWithNidn.nip,
-        ]
+        ],
       );
 
       if (saveUser.rows.length && savePersonalData.rows.length) {
         const { user_id, nidn, email } = saveUser.rows[0];
 
         // Create verification token
-        const verificationToken =
-          crypto.randomBytes(32).toString("hex") + user_id;
+        const verificationToken = crypto.randomBytes(32).toString("hex") + user_id;
         // console.log(verificationToken);
         const hashedToken = hashToken(verificationToken);
 
@@ -274,10 +230,7 @@ exports.register = asyncHandler(async (req, res) => {
         const unixExpires = expires_at;
         const expiresAt = convertDate(unixExpires);
 
-        await DB.query(
-          "INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
-          [user_id, hashedToken, createdAt, expiresAt]
-        );
+        await DB.query("INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [user_id, hashedToken, createdAt, expiresAt]);
 
         // Construct Verification Token
         const verificationUrl = `${process.env.API_URL}/auth/verifyUser/${verificationToken}`;
@@ -321,10 +274,7 @@ exports.registerMhsPmm = asyncHandler(async (req, res) => {
   const { npm, email, password } = req.body;
 
   const checkIfExists = async (column, value, errorMessage) => {
-    const result = await DB.query(
-      `SELECT * FROM tb_users WHERE ${column} = $1`,
-      [value]
-    );
+    const result = await DB.query(`SELECT * FROM tb_users WHERE ${column} = $1`, [value]);
 
     if (result.rows.length) {
       res.status(400);
@@ -357,10 +307,8 @@ exports.registerMhsPmm = asyncHandler(async (req, res) => {
 
   if (result.length) {
     // Save user to DB
-    const saveUser = await DB.query(
-      `INSERT INTO tb_users(npm, email, password, role, user_agent, created_at) VALUES ($1, $2, $3, $4, $5, $6) returning *`,
-      [npm, email, hashedPassword, role, userAgent, convert]
-    );
+    const saveUser = await DB.query(`INSERT INTO tb_users(npm, email, password, role, user_agent, created_at) VALUES ($1, $2, $3, $4, $5, $6) returning *`, [npm, email, hashedPassword, role, userAgent, convert]);
+
 
     const jenkelSiak =
       dataMhsPmm.sex === "LAKI-LAKI"
@@ -369,31 +317,19 @@ exports.registerMhsPmm = asyncHandler(async (req, res) => {
           ? "P"
           : null;
 
+
     const savePersonalData = await DB.query(
       `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, jenkel, tanggal_lahir, tempat_lahir, agama, email,  no_hp, nik, created_at, kode_mhs) 
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
         RETURNING *`,
-      [
-        saveUser.rows[0].user_id,
-        dataMhsPmm.name,
-        jenkelSiak,
-        dataMhsPmm.birthdate,
-        dataMhsPmm.birthplace,
-        dataMhsPmm.religion,
-        email,
-        dataMhsPmm.phone,
-        dataMhsPmm.national_id_number,
-        convert,
-        "PMM",
-      ]
+      [saveUser.rows[0].user_id, dataMhsPmm.name, jenkelSiak, dataMhsPmm.birthdate, dataMhsPmm.birthplace, dataMhsPmm.religion, email, dataMhsPmm.phone, dataMhsPmm.national_id_number, convert, "PMM"],
     );
 
     if (saveUser.rows.length && savePersonalData.rows.length) {
       const { user_id, npm, email } = saveUser.rows[0];
 
       // Create verification token
-      const verificationToken =
-        crypto.randomBytes(32).toString("hex") + user_id;
+      const verificationToken = crypto.randomBytes(32).toString("hex") + user_id;
       // console.log("verif token :", verificationToken);
       const hashedToken = hashToken(verificationToken);
 
@@ -402,10 +338,7 @@ exports.registerMhsPmm = asyncHandler(async (req, res) => {
       const unixExpires = expires_at;
       const expiresAt = await convertDate(unixExpires);
 
-      await DB.query(
-        "INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
-        [user_id, hashedToken, createdAt, expiresAt]
-      );
+      await DB.query("INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [user_id, hashedToken, createdAt, expiresAt]);
 
       // Construct Verification Token
       const verificationUrl = `${process.env.API_URL}/auth/verifyUser/${verificationToken}`;
@@ -438,36 +371,20 @@ exports.registerDosenExt = asyncHandler(async (req, res) => {
     return res.status(400).send({ message: error.details[0].message });
   }
 
-  const {
-    nip,
-    email,
-    password,
-    tanggal_lahir,
-    tempat_lahir,
-    nama_lengkap,
-    jenkel,
-    agama,
-    no_hp,
-    instansi,
-  } = req.body;
+  const { nip, email, password, tanggal_lahir, tempat_lahir, nama_lengkap, jenkel, agama, no_hp, instansi } = req.body;
 
   if (!nip || !email || !password) {
     res.status(400);
     throw new Error("Pleas fill in all the required fields.");
   }
 
-  const findEmail = await DB.query(`SELECT * FROM tb_users WHERE email = $1`, [
-    email,
-  ]);
+  const findEmail = await DB.query(`SELECT * FROM tb_users WHERE email = $1`, [email]);
   if (findEmail.rows.length) {
     res.status(400);
     throw new Error("Email already exixts");
   }
 
-  const findNip = await DB.query(
-    "SELECT * FROM tb_data_pribadi WHERE nip = $1",
-    [nip]
-  );
+  const findNip = await DB.query("SELECT * FROM tb_data_pribadi WHERE nip = $1", [nip]);
   if (findNip.rows.length) {
     res.status(400);
     throw new Error("NIP/NIK already exixts");
@@ -486,28 +403,13 @@ exports.registerDosenExt = asyncHandler(async (req, res) => {
   const convert = convertDate(created_at);
 
   // Save user to DB
-  const saveUser = await DB.query(
-    `INSERT INTO tb_users(email, password, role, user_agent, created_at) VALUES ($1, $2, $3, $4, $5) returning *`,
-    [email, hashedPassword, role, userAgent, convert]
-  );
+  const saveUser = await DB.query(`INSERT INTO tb_users(email, password, role, user_agent, created_at) VALUES ($1, $2, $3, $4, $5) returning *`, [email, hashedPassword, role, userAgent, convert]);
 
   const savePersonalData = await DB.query(
     `INSERT INTO tb_data_pribadi(user_id, nama_lengkap, jenkel, tanggal_lahir, tempat_lahir, agama, email,  no_hp, nip, created_at, instansi_ext) 
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
         RETURNING *`,
-    [
-      saveUser.rows[0].user_id,
-      nama_lengkap,
-      jenkel,
-      tanggal_lahir,
-      tempat_lahir,
-      agama,
-      email,
-      no_hp,
-      nip,
-      convert,
-      instansi,
-    ]
+    [saveUser.rows[0].user_id, nama_lengkap, jenkel, tanggal_lahir, tempat_lahir, agama, email, no_hp, nip, convert, instansi],
   );
 
   if (saveUser.rows.length && savePersonalData.rows.length) {
@@ -528,18 +430,13 @@ exports.registerPegawai = asyncHandler(async (req, res) => {
 
   const { nip, email, password } = req.body;
 
-  const checkEmail = await DB.query(`SELECT * FROM tb_users WHERE email = $1`, [
-    email,
-  ]);
+  const checkEmail = await DB.query(`SELECT * FROM tb_users WHERE email = $1`, [email]);
   if (checkEmail.rows.length) {
     res.status(400);
     throw new Error("Email already exists.");
   }
 
-  const checkNip = await DB.query(
-    `SELECT * FROM tb_data_pribadi WHERE nip = $1`,
-    [nip]
-  );
+  const checkNip = await DB.query(`SELECT * FROM tb_data_pribadi WHERE nip = $1`, [nip]);
   if (checkNip.rows.length) {
     res.status(400);
     throw new Error("NIP already exists.");
@@ -566,10 +463,15 @@ exports.registerPegawai = asyncHandler(async (req, res) => {
 
   if (pegawaiWithNip) {
     // Save user to DB
-    const saveUser = await DB.query(
-      `INSERT INTO tb_users(email, password, role, user_agent, created_at, department_code) VALUES ($1, $2, $3, $4, $5, $6) returning *`,
-      [email, hashedPassword, role, userAgent, convert, pegawaiWithNip.branch]
-    );
+    const saveUser = await DB.query(`INSERT INTO tb_users(email, password, role, user_agent, created_at, department_code) VALUES ($1, $2, $3, $4, $5, $6) returning *`, [
+      email,
+      hashedPassword,
+      role,
+      userAgent,
+      convert,
+      pegawaiWithNip.branch,
+    ]);
+
 
     const jenkelSiak =
       pegawaiWithNip.jenis_kelamin === "LAKI-LAKI"
@@ -577,6 +479,7 @@ exports.registerPegawai = asyncHandler(async (req, res) => {
         : pegawaiWithNip.jenis_kelamin === "PEREMPUAN"
           ? "P"
           : null;
+
     const statusKawin = pegawaiWithNip.status_sipil !== "MENIKAH" ? 0 : 1;
 
     const savePersonalData = await DB.query(
@@ -602,15 +505,14 @@ exports.registerPegawai = asyncHandler(async (req, res) => {
         convert,
         pegawaiWithNip.klasi_pegawai,
         pegawaiWithNip.nip,
-      ]
+      ],
     );
 
     if (saveUser.rows.length && savePersonalData.rows.length) {
       const { user_id, nidn, email } = saveUser.rows[0];
 
       // Create verification token
-      const verificationToken =
-        crypto.randomBytes(32).toString("hex") + user_id;
+      const verificationToken = crypto.randomBytes(32).toString("hex") + user_id;
       // console.log(verificationToken);
       const hashedToken = hashToken(verificationToken);
 
@@ -619,10 +521,7 @@ exports.registerPegawai = asyncHandler(async (req, res) => {
       const unixExpires = expires_at;
       const expiresAt = convertDate(unixExpires);
 
-      await DB.query(
-        "INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
-        [user_id, hashedToken, createdAt, expiresAt]
-      );
+      await DB.query("INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [user_id, hashedToken, createdAt, expiresAt]);
 
       // Construct Verification Token
       const verificationUrl = `${process.env.API_URL}/auth/verifyUser/${verificationToken}`;
@@ -661,19 +560,14 @@ exports.loginUser = asyncHandler(async (req, res) => {
     throw new Error("Pleas add email and password.");
   }
 
-  const user = await DB.query("SELECT * FROM tb_users WHERE email = $1", [
-    email,
-  ]);
+  const user = await DB.query("SELECT * FROM tb_users WHERE email = $1", [email]);
 
   if (!user.rows.length) {
     res.status(404);
     throw new Error("Invalid Email Or Password.");
   }
 
-  const passwordIsCorrect = await bcrypt.compare(
-    password,
-    user.rows[0].password
-  );
+  const passwordIsCorrect = await bcrypt.compare(password, user.rows[0].password);
 
   if (!passwordIsCorrect) {
     res.status(400);
@@ -683,18 +577,13 @@ exports.loginUser = asyncHandler(async (req, res) => {
   if (!user.rows[0].isverified) {
     if (user.rows[0].role == "Mahasiswa" || user.rows[0].role == "Dosen") {
       // Delete token if it exists in DB
-      const token = await DB.query("SELECT * FROM token WHERE user_id = $1", [
-        user.rows[0].user_id,
-      ]);
+      const token = await DB.query("SELECT * FROM token WHERE user_id = $1", [user.rows[0].user_id]);
 
       if (token.rows.length) {
-        await DB.query("DELETE FROM token WHERE user_id = $1", [
-          user.rows[0].user_id,
-        ]);
+        await DB.query("DELETE FROM token WHERE user_id = $1", [user.rows[0].user_id]);
       }
       // Create verification token
-      const verificationToken =
-        crypto.randomBytes(32).toString("hex") + user.rows[0].user_id;
+      const verificationToken = crypto.randomBytes(32).toString("hex") + user.rows[0].user_id;
       // console.log(verificationToken);
       const hashedToken = hashToken(verificationToken);
 
@@ -703,10 +592,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
       const unixExpires = expires_at;
       const expiresAt = await convertDate(unixExpires);
 
-      await DB.query(
-        "INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
-        [user.rows[0].user_id, hashedToken, createdAt, expiresAt]
-      );
+      await DB.query("INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [user.rows[0].user_id, hashedToken, createdAt, expiresAt]);
 
       // Construct Verification Token
       const verificationUrl = `${process.env.API_URL}/auth/verifyUser/${verificationToken}`;
@@ -721,9 +607,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
       await sendMail(subject, send_to, send_from, template, link);
 
       res.status(399);
-      throw new Error(
-        "Account not verified. Check your email for verification."
-      );
+      throw new Error("Account not verified. Check your email for verification.");
     } else if (user.rows[0].role == "Dosen_Ext") {
       res.status(399);
       throw new Error("Account not verified. verification is being processed");
@@ -737,10 +621,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
   const allowedAgent = user.rows[0].user_agent?.includes(thisUserAgent) || false;
 
   if (!allowedAgent) {
-    await DB.query(
-      "UPDATE tb_users SET user_agent = array_append(user_agent, $1) WHERE user_id = $2",
-      [thisUserAgent, user.rows[0].user_id]
-    );
+    await DB.query("UPDATE tb_users SET user_agent = array_append(user_agent, $1) WHERE user_id = $2", [thisUserAgent, user.rows[0].user_id]);
 
     const convert = convertDate(unixTimestamp);
     const text = `Your account has been logged in to the device/browser ${thisUserAgent} at ${convert.toUTCString()}`;
@@ -754,8 +635,8 @@ exports.loginUser = asyncHandler(async (req, res) => {
     try {
       await sendMail(subject, send_to, send_from, template, link);
     } catch (error) {
-      res.status(500);
-      throw new Error("Email not send, Please try again.");
+      // Email notice gagal tidak memblokir login
+      console.warn("[LOGIN] Gagal kirim email notifikasi perangkat baru:", error.message);
     }
   }
   // END
@@ -765,36 +646,18 @@ exports.loginUser = asyncHandler(async (req, res) => {
   const token = generateToken(id);
 
   if (user.rows.length && passwordIsCorrect) {
-    const {
-      user_id,
-      npm,
-      nidn,
-      username,
-      email,
-      role,
-      isverified,
-      created_at,
-    } = user.rows[0];
+    const { user_id, npm, nidn, username, email, role, isverified, created_at } = user.rows[0];
 
     const unix = unixTimestamp;
     const createdAt = await convertDate(unix);
     const unixExpires = expires_at;
     const expiresAt = await convertDate(unixExpires);
 
-    await DB.query(
-      "INSERT INTO token(user_id, login_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
-      [id, token, createdAt, expiresAt]
-    );
+    await DB.query("INSERT INTO token(user_id, login_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [id, token, createdAt, expiresAt]);
 
-    const getPersonalData = await DB.query(
-      "SELECT * FROM tb_data_pribadi WHERE user_id = $1",
-      [user_id]
-    );
+    const getPersonalData = await DB.query("SELECT * FROM tb_data_pribadi WHERE user_id = $1", [user_id]);
 
-    const queryLencana = await DB.query(
-      `SELECT * FROM achievements WHERE gamify = $1`,
-      [getPersonalData.rows[0].rank]
-    );
+    const queryLencana = await DB.query(`SELECT * FROM achievements WHERE gamify = $1`, [getPersonalData.rows[0].rank]);
 
     const jabatanStruktural = await TrxUserJabatanUnit.findAll({
       where: {
@@ -859,10 +722,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
 exports.cekDataPribadi = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const findData = await DB.query(
-    "SELECT * FROM tb_data_pribadi WHERE user_id = $1",
-    [id]
-  );
+  const findData = await DB.query("SELECT * FROM tb_data_pribadi WHERE user_id = $1", [id]);
 
   if (!findData.rows.length) {
     return res.json(false);
@@ -893,18 +753,14 @@ exports.getLoginStatus = asyncHandler(async (req, res) => {
 exports.sendLoginCode = asyncHandler(async (req, res) => {
   const { email } = req.params;
 
-  const findUser = await DB.query("SELECT * FROM tb_users WHERE email = $1", [
-    email,
-  ]);
+  const findUser = await DB.query("SELECT * FROM tb_users WHERE email = $1", [email]);
 
   if (!findUser.rows.length) {
     res.status(404);
     throw new Error("User not found.");
   }
 
-  let userToken = await DB.query("SELECT * FROM token WHERE user_id = $1", [
-    findUser.rows[0].user_id,
-  ]);
+  let userToken = await DB.query("SELECT * FROM token WHERE user_id = $1", [findUser.rows[0].user_id]);
 
   if (!userToken.rows.length) {
     res.status(400);
@@ -936,9 +792,7 @@ exports.loginWithCode = asyncHandler(async (req, res) => {
   const { loginCode } = req.body;
 
   // find user
-  const findUser = await DB.query("SELECT * FROM tb_users WHERE email = $1", [
-    email,
-  ]);
+  const findUser = await DB.query("SELECT * FROM tb_users WHERE email = $1", [email]);
 
   if (!findUser.rows.length) {
     res.status(404);
@@ -946,9 +800,7 @@ exports.loginWithCode = asyncHandler(async (req, res) => {
   }
 
   // Find user login token
-  const userToken = await DB.query("SELECT * FROM token WHERE user_id = $1", [
-    findUser.rows[0].user_id,
-  ]);
+  const userToken = await DB.query("SELECT * FROM token WHERE user_id = $1", [findUser.rows[0].user_id]);
 
   if (!userToken.rows.length) {
     res.status(400);
@@ -967,10 +819,7 @@ exports.loginWithCode = asyncHandler(async (req, res) => {
     const ua = parser(req.headers["user-agent"]);
     const thisuserAgent = ua.ua;
 
-    await DB.query(
-      "UPDATE tb_users SET user_agent = array_append(user_agent, $1) WHERE user_id = $2",
-      [thisuserAgent, findUser.rows[0].user_id]
-    );
+    await DB.query("UPDATE tb_users SET user_agent = array_append(user_agent, $1) WHERE user_id = $2", [thisuserAgent, findUser.rows[0].user_id]);
 
     // Generate token
     const token = generateToken(findUser.rows[0].user_id);
@@ -984,35 +833,10 @@ exports.loginWithCode = asyncHandler(async (req, res) => {
       secure: true,
     });
 
-    const data = await DB.query(
-      "SELECT * FROM tb_data_pribadi JOIN tb_users USING(user_id) WHERE tb_data_pribadi.user_id = $1;",
-      [findUser.rows[0].user_id]
-    );
+    const data = await DB.query("SELECT * FROM tb_data_pribadi JOIN tb_users USING(user_id) WHERE tb_data_pribadi.user_id = $1;", [findUser.rows[0].user_id]);
 
-    const {
-      user_id,
-      username,
-      email,
-      role,
-      isverified,
-      nama_lengkap,
-      tanggal_lahir,
-      tempat_lahir,
-      jenkel,
-      image,
-      nik,
-      agama,
-      warga_negara,
-      alamat,
-      rt,
-      rw,
-      desa_kelurahan,
-      kota_kabupaten,
-      provinsi,
-      kode_pos,
-      no_hp,
-      created_at,
-    } = data.rows[0];
+    const { user_id, username, email, role, isverified, nama_lengkap, tanggal_lahir, tempat_lahir, jenkel, image, nik, agama, warga_negara, alamat, rt, rw, desa_kelurahan, kota_kabupaten, provinsi, kode_pos, no_hp, created_at } =
+      data.rows[0];
 
     res.status(200).json({
       message: "Login Success.",
@@ -1045,9 +869,7 @@ exports.loginWithCode = asyncHandler(async (req, res) => {
 });
 
 exports.sendVerificationEmail = asyncHandler(async (req, res) => {
-  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
-    req.user.user_id,
-  ]);
+  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [req.user.user_id]);
 
   if (!user.rows.length) {
     res.status(404);
@@ -1060,19 +882,14 @@ exports.sendVerificationEmail = asyncHandler(async (req, res) => {
   }
 
   // Delete token if it exists in DB
-  const token = await DB.query("SELECT * FROM token WHERE user_id = $1", [
-    user.rows[0].user_id,
-  ]);
+  const token = await DB.query("SELECT * FROM token WHERE user_id = $1", [user.rows[0].user_id]);
 
   if (token.rows.length) {
-    await DB.query("DELETE FROM token WHERE user_id = $1", [
-      user.rows[0].user_id,
-    ]);
+    await DB.query("DELETE FROM token WHERE user_id = $1", [user.rows[0].user_id]);
   }
 
   // Create verification token
-  const verificationToken =
-    crypto.randomBytes(32).toString("hex") + user.rows[0].user_id;
+  const verificationToken = crypto.randomBytes(32).toString("hex") + user.rows[0].user_id;
   // console.log(verificationToken);
   const hashedToken = hashToken(verificationToken);
 
@@ -1081,10 +898,7 @@ exports.sendVerificationEmail = asyncHandler(async (req, res) => {
   const unixExpires = expires_at;
   const expiresAt = await convertDate(unixExpires);
 
-  await DB.query(
-    "INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
-    [user.rows[0].user_id, hashedToken, createdAt, expiresAt]
-  );
+  await DB.query("INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [user.rows[0].user_id, hashedToken, createdAt, expiresAt]);
 
   // Construct Verification Token
   const verificationUrl = `${process.env.API_URL}/auth/verifyUser/${verificationToken}`;
@@ -1109,10 +923,7 @@ exports.verifyUser = asyncHandler(async (req, res) => {
 
   const hashedToken = hashToken(verificationToken);
 
-  const userToken = await DB.query(
-    "SELECT * FROM token WHERE verif_token = $1",
-    [hashedToken]
-  );
+  const userToken = await DB.query("SELECT * FROM token WHERE verif_token = $1", [hashedToken]);
 
   if (!userToken.rows.length) {
     res.status(404);
@@ -1189,6 +1000,7 @@ exports.verifyUser = asyncHandler(async (req, res) => {
       });
     }
   }
+  
 
   if (user.rows[0].isverified) {
     res.status(400);
@@ -1196,10 +1008,7 @@ exports.verifyUser = asyncHandler(async (req, res) => {
   }
 
   // verify user
-  const verifyUser = await DB.query(
-    "UPDATE tb_users SET isverified = $1 WHERE user_id = $2 returning *",
-    [true, user.rows[0].user_id]
-  );
+  const verifyUser = await DB.query("UPDATE tb_users SET isverified = $1 WHERE user_id = $2 returning *", [true, user.rows[0].user_id]);
 
   const { user_id, npm, nidn, username, email, role, isverified, created_at } = verifyUser.rows[0];
 
@@ -1254,25 +1063,11 @@ exports.verifyUser = asyncHandler(async (req, res) => {
 exports.verifyDosenExt = asyncHandler(async (req, res) => {
   const { userId } = req.params;
 
-  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
-    userId,
-  ]);
+  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [userId]);
 
   if (user.rows[0].isverified) {
-    const verifyUser = await DB.query(
-      "UPDATE tb_users SET isverified = $1 WHERE user_id = $2 returning *",
-      [true, user.rows[0].user_id]
-    );
-    const {
-      user_id,
-      npm,
-      nidn,
-      username,
-      email,
-      role,
-      isverified,
-      created_at,
-    } = verifyUser.rows[0];
+    const verifyUser = await DB.query("UPDATE tb_users SET isverified = $1 WHERE user_id = $2 returning *", [true, user.rows[0].user_id]);
+    const { user_id, npm, nidn, username, email, role, isverified, created_at } = verifyUser.rows[0];
 
     res.status(200).json({
       message: "Account verification successfully",
@@ -1288,20 +1083,8 @@ exports.verifyDosenExt = asyncHandler(async (req, res) => {
       },
     });
   } else {
-    const verifyUser = await DB.query(
-      "UPDATE tb_users SET isverified = $1 WHERE user_id = $2 returning *",
-      [true, user.rows[0].user_id]
-    );
-    const {
-      user_id,
-      npm,
-      nidn,
-      username,
-      email,
-      role,
-      isverified,
-      created_at,
-    } = verifyUser.rows[0];
+    const verifyUser = await DB.query("UPDATE tb_users SET isverified = $1 WHERE user_id = $2 returning *", [true, user.rows[0].user_id]);
+    const { user_id, npm, nidn, username, email, role, isverified, created_at } = verifyUser.rows[0];
 
     res.status(200).json({
       message: "Account not verification successfully",
@@ -1346,9 +1129,7 @@ exports.getAllUsers = asyncHandler(async (req, res) => {
 exports.getUserLogin = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
 
-  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
-    userLoginId,
-  ]);
+  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [userLoginId]);
 
   if (user.rows.length) {
     res.status(200).json({
@@ -1363,9 +1144,7 @@ exports.getUserLogin = asyncHandler(async (req, res) => {
 
 exports.updateUserLogin = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
-  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
-    userLoginId,
-  ]);
+  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [userLoginId]);
 
   const { npm, nidn, email } = req.body;
 
@@ -1375,10 +1154,7 @@ exports.updateUserLogin = asyncHandler(async (req, res) => {
       oldData.npm = npm || oldData.npm;
       oldData.email = email || oldData.email;
 
-      const updateUser = await DB.query(
-        `UPDATE tb_users SET npm = $1, email = $2 WHERE user_id = $3 returning *`,
-        [oldData.npm, oldData.email, oldData.user_id]
-      );
+      const updateUser = await DB.query(`UPDATE tb_users SET npm = $1, email = $2 WHERE user_id = $3 returning *`, [oldData.npm, oldData.email, oldData.user_id]);
 
       res.status(200).json({
         message: "Success Update Data",
@@ -1393,10 +1169,7 @@ exports.updateUserLogin = asyncHandler(async (req, res) => {
       oldData.nidn = nidn || oldData.nidn;
       oldData.email = email || oldData.email;
 
-      const updateUser = await DB.query(
-        `UPDATE tb_users SET nidn = $1, email = $2 WHERE user_id = $3 returning *`,
-        [oldData.nidn, oldData.email, oldData.user_id]
-      );
+      const updateUser = await DB.query(`UPDATE tb_users SET nidn = $1, email = $2 WHERE user_id = $3 returning *`, [oldData.nidn, oldData.email, oldData.user_id]);
 
       res.status(200).json({
         message: "Success Update Data",
@@ -1411,10 +1184,7 @@ exports.updateUserLogin = asyncHandler(async (req, res) => {
     oldData.nidn = nidn || oldData.nidn;
     oldData.email = email || oldData.email;
 
-    const updateUser = await DB.query(
-      `UPDATE tb_users SET npm $1, nidn = $2, email = $3 WHERE user_id = $4 returning *`,
-      [oldData.npm, oldData.nidn, oldData.email, oldData.user_id]
-    );
+    const updateUser = await DB.query(`UPDATE tb_users SET npm $1, nidn = $2, email = $3 WHERE user_id = $4 returning *`, [oldData.npm, oldData.nidn, oldData.email, oldData.user_id]);
 
     res.status(200).json({
       message: "Success Update Data",
@@ -1429,9 +1199,7 @@ exports.updateUserLogin = asyncHandler(async (req, res) => {
 exports.deleteUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const findUser = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
-    id,
-  ]);
+  const findUser = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [id]);
 
   if (!findUser.rows.length) {
     res.status(400);
@@ -1451,9 +1219,7 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
     throw new Error("Pleas enter your email.");
   }
 
-  const user = await DB.query("SELECT * FROM tb_users WHERE email = $1", [
-    email,
-  ]);
+  const user = await DB.query("SELECT * FROM tb_users WHERE email = $1", [email]);
 
   if (!user.rows.length) {
     res.status(404);
@@ -1461,19 +1227,14 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
   }
 
   // DELETE TOKEN IF IT exists in DB
-  const token = await DB.query("SELECT * FROM token WHERE user_id = $1", [
-    user.rows[0].user_id,
-  ]);
+  const token = await DB.query("SELECT * FROM token WHERE user_id = $1", [user.rows[0].user_id]);
 
   if (token.rows.length) {
-    await DB.query("DELETE FROM token WHERE user_id = $1", [
-      user.rows[0].user_id,
-    ]);
+    await DB.query("DELETE FROM token WHERE user_id = $1", [user.rows[0].user_id]);
   }
 
   // Created reset token and save
-  const resetToken =
-    crypto.randomBytes(32).toString("hex") + user.rows[0].user_id;
+  const resetToken = crypto.randomBytes(32).toString("hex") + user.rows[0].user_id;
 
   // Hashtoken
   const hashedToken = hashToken(resetToken);
@@ -1482,10 +1243,7 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
   const later = new Date();
   later.setTime(now.getTime() + 60 * 60 * 100); // 60 mins
 
-  await DB.query(
-    "INSERT INTO token(user_id, reset_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
-    [user.rows[0].user_id, hashedToken, now, later]
-  );
+  await DB.query("INSERT INTO token(user_id, reset_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [user.rows[0].user_id, hashedToken, now, later]);
 
   // construct reset password url
   const resetPassUrl = `${process.env.FRONTEND_URL}/resetPassword/${resetToken}`;
@@ -1518,10 +1276,7 @@ exports.resetPassword = asyncHandler(async (req, res) => {
 
   const hashedToken = hashToken(resetToken);
 
-  const userToken = await DB.query(
-    "SELECT * FROM token WHERE reset_token = $1",
-    [hashedToken]
-  );
+  const userToken = await DB.query("SELECT * FROM token WHERE reset_token = $1", [hashedToken]);
 
   if (!userToken.rows.length) {
     res.status(404);
@@ -1529,9 +1284,7 @@ exports.resetPassword = asyncHandler(async (req, res) => {
   }
 
   // find user
-  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
-    userToken.rows[0].user_id,
-  ]);
+  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [userToken.rows[0].user_id]);
 
   if (!user.rows.length) {
     res.status(404);
@@ -1543,14 +1296,9 @@ exports.resetPassword = asyncHandler(async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, salt);
 
   // Now reset password
-  await DB.query("UPDATE tb_users SET password = $1 WHERE user_id = $2", [
-    hashedPassword,
-    user.rows[0].user_id,
-  ]);
+  await DB.query("UPDATE tb_users SET password = $1 WHERE user_id = $2", [hashedPassword, user.rows[0].user_id]);
 
-  res
-    .status(200)
-    .json({ message: "Password reset successfull, please login." });
+  res.status(200).json({ message: "Password reset successfull, please login." });
 });
 
 exports.changePassword = asyncHandler(async (req, res) => {
@@ -1561,9 +1309,7 @@ exports.changePassword = asyncHandler(async (req, res) => {
 
   const { oldPassword, password } = req.body;
 
-  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
-    req.user.user_id,
-  ]);
+  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [req.user.user_id]);
 
   if (!user.rows.length) {
     res.status(404);
@@ -1575,10 +1321,7 @@ exports.changePassword = asyncHandler(async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, salt);
 
   // Check if old password is correct
-  const passwordIsCorrect = await bcrypt.compare(
-    oldPassword,
-    user.rows[0].password
-  );
+  const passwordIsCorrect = await bcrypt.compare(oldPassword, user.rows[0].password);
 
   if (passwordIsCorrect === false) {
     res.status(400);
@@ -1587,10 +1330,7 @@ exports.changePassword = asyncHandler(async (req, res) => {
 
   if (user.rows.length && passwordIsCorrect) {
     // Now change password
-    await DB.query("UPDATE tb_users SET password = $1 WHERE user_id = $2", [
-      hashedPassword,
-      user.rows[0].user_id,
-    ]);
+    await DB.query("UPDATE tb_users SET password = $1 WHERE user_id = $2", [hashedPassword, user.rows[0].user_id]);
 
     res.clearCookie("token", "", {
       path: "/",
@@ -1599,9 +1339,7 @@ exports.changePassword = asyncHandler(async (req, res) => {
       sameSite: "none",
       secure: true,
     });
-    return res
-      .status(200)
-      .json({ message: "Password change successfull, please re-login" });
+    return res.status(200).json({ message: "Password change successfull, please re-login" });
 
     // res
     //   .status(200)
@@ -1618,9 +1356,7 @@ exports.sendAutomatedEmail = asyncHandler(async (req, res) => {
   }
 
   // Get user
-  const user = await DB.query("SELECT * FROM tb_users WHERE email = $1", [
-    send_to,
-  ]);
+  const user = await DB.query("SELECT * FROM tb_users WHERE email = $1", [send_to]);
 
   if (!user.rows.length) {
     res.status(404);
@@ -1666,9 +1402,7 @@ exports.eportalGoogle = asyncHandler(async (req, res) => {
   // });
 
   if (responseG) {
-    const user = await DB.query("SELECT * FROM tb_users WHERE email = $1", [
-      email,
-    ]);
+    const user = await DB.query("SELECT * FROM tb_users WHERE email = $1", [email]);
 
     if (!user.rows.length) {
       res.status(404);
@@ -1683,36 +1417,18 @@ exports.eportalGoogle = asyncHandler(async (req, res) => {
     // // Generate Token
     const token = generateToken(id);
     if (user.rows.length && user.rows[0].isverified) {
-      const {
-        user_id,
-        npm,
-        nidn,
-        username,
-        email,
-        role,
-        isverified,
-        created_at,
-      } = user.rows[0];
+      const { user_id, npm, nidn, username, email, role, isverified, created_at } = user.rows[0];
 
       const unix = unixTimestamp;
       const createdAt = await convertDate(unix);
       const unixExpires = expires_at;
       const expiresAt = await convertDate(unixExpires);
 
-      await DB.query(
-        "INSERT INTO token(user_id, login_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
-        [id, token, createdAt, expiresAt]
-      );
+      await DB.query("INSERT INTO token(user_id, login_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [id, token, createdAt, expiresAt]);
 
-      const getPersonalData = await DB.query(
-        "SELECT * FROM tb_data_pribadi WHERE user_id = $1",
-        [user_id]
-      );
+      const getPersonalData = await DB.query("SELECT * FROM tb_data_pribadi WHERE user_id = $1", [user_id]);
 
-      const queryLencana = await DB.query(
-        `SELECT * FROM achievements WHERE gamify = $1`,
-        [getPersonalData.rows[0].rank]
-      );
+      const queryLencana = await DB.query(`SELECT * FROM achievements WHERE gamify = $1`, [getPersonalData.rows[0].rank]);
 
       const oneMonth = 30 * 24 * 60 * 60 * 1000;
 
@@ -1764,14 +1480,9 @@ exports.verifyByAdmin = asyncHandler(async (req, res) => {
   const { user_id } = req.params;
   const { verified } = req.body;
 
-  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [
-    user_id,
-  ]);
+  const user = await DB.query("SELECT * FROM tb_users WHERE user_id = $1", [user_id]);
 
-  await DB.query(
-    "UPDATE tb_users SET isverified = $1 WHERE user_id = $2 returning *",
-    [verified, user.rows[0].user_id]
-  );
+  await DB.query("UPDATE tb_users SET isverified = $1 WHERE user_id = $2 returning *", [verified, user.rows[0].user_id]);
 
   res.status(200).json({
     message: "success",
