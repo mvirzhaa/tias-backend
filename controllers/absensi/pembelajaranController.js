@@ -1,5 +1,5 @@
 const asyncHandler = require("express-async-handler");
-const  axios  = require("axios");
+const axios = require("axios");
 const FormData = require('form-data');
 
 
@@ -9,22 +9,28 @@ exports.getPembelajaran = asyncHandler(async (req, res) => {
   const {dataTable, orderField, orderValue, filter, filterValue} = req.query;
 
   try {
-    const response = await axios.get(API_URL, {
-      params: {
-        dataTable: dataTable,
-        orderField: orderField,
-        orderValue: orderValue,
-        filter: filter,
-        filterValue: filterValue
-      }
-    })
+    // PHP Laravel mengharapkan format bracket: ?filter[]=token&filterValue[]=373210
+    // Bangun query string manual dengan bracket notation
+    const params = new URLSearchParams();
+    if (dataTable)    params.append('dataTable',      dataTable);
+    if (orderField)   params.append('orderField',     orderField);
+    if (orderValue)   params.append('orderValue',     orderValue);
+    if (filter)       params.append('filter[]',       filter);
+    if (filterValue)  params.append('filterValue[]',  filterValue);
 
-    res.status(201).json(response.data)
+    const response = await axios.get(`${API_URL}?${params.toString()}`);
+
+    res.status(201).json(response.data);
   } catch (error) {
-    console.error("Error retrieving pembelajaran Absensi:", error);
+    console.error("Error retrieving pembelajaran Absensi:", error.message);
+    // Teruskan error response dari PHP jika ada
+    if (error.response) {
+      return res.status(error.response.status).json(error.response.data);
+    }
     res.status(500).send("Internal Server Error");
   }
 });
+
 
 exports.storePembelajaran = asyncHandler(async (req, res) => {
   const API_URL = `${process.env.API_LOCAL_ABSEN}/pembelajaran/store`;
