@@ -37,6 +37,7 @@ const siakRoutes = require("./siak/siakRoute");
 const parentsRoutes = require("./parents/parentsRoutes");
 const absensiExternalRoutes = require("./absensi-external/indexRouter");
 const suratRoutes = require("./persuratan/surat");
+const lmsRoutes = require("./lms/lmsRoutes");
 const router = exporess.Router();
 
 router.use("/auth", authRoutes);
@@ -76,6 +77,7 @@ router.use("/siak", siakRoutes);
 router.use("/parents", parentsRoutes);
 router.use("/absensi-external", absensiExternalRoutes);
 router.use("/surat", suratRoutes);
+router.use("/lms", lmsRoutes);
 
 router.use("/help", helpRoutes);
 router.get("/", (req, res) => {

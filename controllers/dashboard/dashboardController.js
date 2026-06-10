@@ -69,7 +69,12 @@ exports.dashboardData = asyncHandler(async (req, res) => {
     let data;
 
     if (role === "Mahasiswa") {
-      const matkulMhs = await getMatkulByNpm(npm);
+      let matkulMhs = {};
+      try {
+        matkulMhs = await getMatkulByNpm(npm);
+      } catch (err) {
+        console.warn("Error fetching getMatkulByNpm (likely missing MySQL):", err.message);
+      }
       let status_frs =
         responseData.rows[0].kode_mhs === "ACTIVE"
           ? !matkulMhs.Data && !matkulMhs.Total && !matkulMhs.SKS

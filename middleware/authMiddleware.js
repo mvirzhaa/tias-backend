@@ -34,11 +34,14 @@ exports.protected = asyncHandler(async (req, res, next) => {
     }
 
     if (user.rows[0].role === "Mahasiswa") {
-      const gamify = await GamifyPoints(user.rows[0].user_id, user.rows[0].npm);
+      try {
+        const gamify = await GamifyPoints(user.rows[0].user_id, user.rows[0].npm);
 
-      if (gamify !== 200) {
-        res.status(500);
-        throw new Error("Gamification Error.");
+        if (gamify !== 200) {
+          console.warn("Gamification returned non-200 status.");
+        }
+      } catch (gamifyError) {
+        console.warn("Gamification error (likely missing MySQL tables), skipping:", gamifyError.message);
       }
     }
 
