@@ -26,6 +26,6 @@ module.exports = {
     database: process.env.SIAK_DB_DATABASE,
     host: process.env.SIAK_DB_HOST,
     port: process.env.SIAK_DB_PORT,
-    dialect: "mysql",
+    dialect: process.env.SIAK_DB_CONNECTION || "mysql",
   },
 };

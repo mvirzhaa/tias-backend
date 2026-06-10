@@ -1,7 +1,11 @@
+// Muat .env agar sequelize-cli memakai kredensial yang SAMA dengan aplikasi.
+// config dialihkan dari config.json (hardcoded, basi → m_ucl_database) ke config.js
+// (env-based, sumber tunggal dari .env) supaya tidak terjadi drift DB lagi.
+require("dotenv").config();
 const path = require("path");
 
 module.exports = {
-  config: path.resolve("./config", "config.json"),
+  config: path.resolve("./config", "config.js"),
   "models-path": path.resolve("./models"),
   "seeders-path": path.resolve("./seeders"),
   "migrations-path": path.resolve("./migrations"),

@@ -5,3 +5,4 @@ package-lock.json
 .env
 /.wwebjs_cache
 /.wwebjs_auth
+/storage
