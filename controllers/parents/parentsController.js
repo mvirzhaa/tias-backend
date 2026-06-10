@@ -305,10 +305,40 @@ class ParentsController {
 
       // Cek verifikasi akun
       if (!findParent.is_verified) {
+        // Hapus token lama jika ada
+        await DB.query("DELETE FROM token WHERE user_id = $1", [
+          findParent.id.toString(),
+        ]);
+
+        // Buat token verifikasi baru
+        const verificationToken =
+          crypto.randomBytes(32).toString("hex") + findParent.id;
+        const hashedTkn = hashToken(verificationToken);
+
+        const unix = unixTimestamp;
+        const createdAt = await convertDate(unix);
+        const unixExpires = expires_at;
+        const expiresAt = await convertDate(unixExpires);
+
+        await DB.query(
+          "INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)",
+          [findParent.id.toString(), hashedTkn, createdAt, expiresAt]
+        );
+
+        // Kirim email verifikasi baru
+        const verificationUrl = `${process.env.API_URL}/auth/verifyUser/${verificationToken}`;
+        await sendMail(
+          "Verify Your Account",
+          email,
+          process.env.EMAIL_USER,
+          "verifyEmail",
+          verificationUrl
+        );
+
         return response(
           res,
           false,
-          "Akun belum diverifikasi. Silakan cek email Anda.",
+          "Akun belum diverifikasi. Email verifikasi baru telah dikirim ke email Anda.",
           null,
           403
         );
