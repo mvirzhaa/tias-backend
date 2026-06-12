@@ -38,11 +38,13 @@ const parentsRoutes = require("./parents/parentsRoutes");
 const absensiExternalRoutes = require("./absensi-external/indexRouter");
 const suratRoutes = require("./persuratan/surat");
 const lmsRoutes = require("./lms/lmsRoutes");
+const ssoRoutes = require("./Authentication/ssoRoutes");
 const router = exporess.Router();
 
 router.use("/auth", authRoutes);
 router.use("/admin", adminRoutes);
 router.use("/cbt", cbtRoutes);
+router.use("/sso", ssoRoutes);
 router.use("/users", usersRoutes);
 router.use("/profile", profileRoutes);
 router.use("/kualifikasi", kualifikasiRoutes);
