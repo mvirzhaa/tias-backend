@@ -1,6 +1,6 @@
 require('dotenv').config();
-const User = require('./models/User');
-const Pembelajaran = require('./models/absensi-dosen/Pembelajaran');
+const User = require('../models/User');
+const Pembelajaran = require('../models/absensi-dosen/Pembelajaran');
 
 async function check() {
   try {
