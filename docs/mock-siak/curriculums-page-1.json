@@ -1,0 +1,27 @@
+{
+  "data": [
+    {
+      "kurikulumId": "KUR-TI-2024",
+      "prodiId": "TI",
+      "namaKurikulum": "Kurikulum TI 2024",
+      "tahun": 2024,
+      "isActive": true,
+      "updatedAt": "2026-06-14T08:00:00+07:00"
+    },
+    {
+      "kurikulumId": "KUR-SI-2024",
+      "prodiId": "SI",
+      "namaKurikulum": "Kurikulum SI 2024",
+      "tahun": 2024,
+      "isActive": true,
+      "updatedAt": "2026-06-14T08:00:00+07:00"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "perPage": 500,
+    "total": 2,
+    "lastPage": 1,
+    "hasNext": false
+  }
+}

@@ -36,6 +36,11 @@ LmsContentItem.init(
       type: DataTypes.STRING,
       allowNull: false,
     },
+    description: {
+      // Penjelasan singkat aktivitas (teks bebas, opsional) — diisi dosen di form item.
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
     position: {
       type: DataTypes.INTEGER,
       allowNull: false,

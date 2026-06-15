@@ -5,11 +5,12 @@ const LmsSection = require("../../models/lms/LmsSection");
 const LmsContentItem = require("../../models/lms/LmsContentItem");
 const SiakV2Class = require("../../models/lms/SiakV2Class");
 const SiakV2Participant = require("../../models/lms/SiakV2Participant");
+const { userCanViewClassByScope } = require("../../lib/lms/roleScopeService");
 
 /**
- * Otorisasi LMS — SPEC v8 §3 (FULL SYNC). SEMUA pengecekan membaca tabel LOKAL hasil
- * sinkronisasi (siak_v2_classes / siak_v2_participants). TIDAK ada panggilan SIAK live
- * (lihat v8 ⚠️ #1/#2). Default DENY (CLAUDE.md §6).
+ * Otorisasi LMS. SEMUA pengecekan membaca tabel LOKAL
+ * (siak_v2_classes / siak_v2_participants) yang diproyeksikan dari staging SIAK baru.
+ * TIDAK ada panggilan SIAK live. Default DENY.
  *
  * IDENTITAS:
  *   - id_lecture = req.user.user_id (UUID) → kepemilikan konten; dilampirkan ke req.lmsLecturerId.
@@ -81,9 +82,11 @@ const lecturerOwns = async (req, kelasKuliahId) => {
   return arr.some((n) => idEq(n, nip));
 };
 
-// Mahasiswa login terdaftar di kelas? (kelasKuliahId, npm) ada di siak_v2_participants
+// Mahasiswa login terdaftar di kelas? (kelasKuliahId, npm) ada di siak_v2_participants.
+// npm lokal (tb_users.npm) bertipe CHAR → ada padding spasi; trim agar cocok dgn data SIAK
+// (siak_v2_participants.npm = varchar, tersimpan tanpa padding).
 const studentIsEnrolled = async (req, kelasKuliahId) => {
-  const npm = req.user && req.user.npm;
+  const npm = req.user && req.user.npm ? String(req.user.npm).trim() : "";
   if (!npm) return false;
   const found = await SiakV2Participant.findOne({ where: { kelasKuliahId, npm } });
   return !!found;
@@ -124,6 +127,13 @@ const makeViewMiddleware = (resolver) =>
 
     if (req.user && req.user.role === "Admin") return next();
 
+    const scopedAdminAccess = await userCanViewClassByScope(req.user, kelasKuliahId);
+    if (scopedAdminAccess.allowed) {
+      req.lmsRoleScope = scopedAdminAccess.scope;
+      req.lmsClassScope = scopedAdminAccess.class_scope;
+      return next();
+    }
+
     if (req.user && (req.user.role === "Dosen" || req.user.role === "Dosen_Ext")) {
       if (await lecturerOwns(req, kelasKuliahId)) {
         req.lmsLecturerId = req.user.user_id;
@@ -145,6 +155,7 @@ exports.classViewContentAccess = makeViewMiddleware(resolveKelasFromContent);
 // pencocokan identitas dosen (nip) & mahasiswa (npm) ke tabel SIAK v2 lokal.
 exports.lecturerOwns = lecturerOwns;
 exports.studentIsEnrolled = studentIsEnrolled;
+exports.userCanViewClassByScope = userCanViewClassByScope;
 
 exports.studentEnrolled = asyncHandler(async (req, res, next) => {
   const kelasKuliahId = await resolveKelasFromSection(req, res);

@@ -4,6 +4,13 @@ const { response } = require("../../lib/response");
 const LmsContentItem = require("../../models/lms/LmsContentItem");
 const { validateContentPayload, FILE_TYPES } = require("../../lib/lms/payloadValidators");
 
+// Deskripsi item = teks polos opsional. Buang tag HTML & batasi panjang (defense-in-depth).
+const cleanDescription = (value) => {
+  if (value == null) return null;
+  const text = String(value).replace(/<[^>]*>/g, "").trim();
+  return text === "" ? null : text.slice(0, 2000);
+};
+
 /**
  * SPEC v8 §5 — Items CRUD + reorder. Tulis dilindungi `lecturerOwnsContentSection`
  * (req.lmsSection sudah diverifikasi & dimuat middleware).
@@ -34,7 +41,7 @@ exports.getItem = asyncHandler(async (req, res) => {
 
 // POST /lms/sections/:sectionId/items
 exports.createItem = asyncHandler(async (req, res) => {
-  const { type, title, position, is_published, payload } = req.body;
+  const { type, title, description, position, is_published, payload } = req.body;
 
   if (!type || !LmsContentItem.CONTENT_TYPES.includes(type)) {
     return response(
@@ -70,6 +77,7 @@ exports.createItem = asyncHandler(async (req, res) => {
     section_id: req.lmsSection.id, // dari middleware (terverifikasi)
     type,
     title,
+    description: cleanDescription(description),
     position: position != null ? parseInt(position, 10) : 0,
     is_published: is_published === true || is_published === "true",
     payload: validation.payload,
@@ -83,9 +91,10 @@ exports.createItem = asyncHandler(async (req, res) => {
 // PUT /lms/items/:id
 exports.updateItem = asyncHandler(async (req, res) => {
   const item = req.lmsContentItem;
-  const { type, title, position, is_published, payload } = req.body;
+  const { type, title, description, position, is_published, payload } = req.body;
 
   const updates = { updated_at: new Date() };
+  if (description !== undefined) updates.description = cleanDescription(description);
   if (type !== undefined) {
     if (!LmsContentItem.CONTENT_TYPES.includes(type)) {
       return response(res, false, "type tidak valid.", null, 400);

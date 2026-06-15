@@ -1,0 +1,20 @@
+{
+  "data": [
+    {
+      "kelasKuliahId": "22222222-2222-2222-2222-222222222222",
+      "npm": "0110210045",
+      "namaMahasiswa": "Mahasiswa Contoh 3",
+      "email": "0110210045@student.uika-bogor.ac.id",
+      "status": "aktif",
+      "isActive": true,
+      "updatedAt": "2026-06-14T08:00:00+07:00"
+    }
+  ],
+  "meta": {
+    "page": 2,
+    "perPage": 2,
+    "total": 3,
+    "lastPage": 2,
+    "hasNext": false
+  }
+}
