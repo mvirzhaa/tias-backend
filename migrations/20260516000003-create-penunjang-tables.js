@@ -5,8 +5,8 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     const dummyUserId = '20260515-0000-0000-0000-000000000001';
 
-    await queryInterface.dropTable('tb_anggota_prof', { cascade: true }).catch(() => {});
-    await queryInterface.dropTable('tb_penghargaan', { cascade: true }).catch(() => {});
+    await queryInterface.dropTable('tb_anggota_prof', { cascade: true }).catch(() => { });
+    await queryInterface.dropTable('tb_penghargaan', { cascade: true }).catch(() => { });
 
     // tb_penghargaan
     await queryInterface.createTable('tb_penghargaan', {
