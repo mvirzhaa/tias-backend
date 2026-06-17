@@ -31,6 +31,7 @@ class ParentsController {
         email,
         npm,
         no_hp,
+        nik,
         password,
         password2,
       } = req.body;
@@ -111,6 +112,7 @@ class ParentsController {
       const newParent = await Parents.create(
         {
           role: "Parent",
+          nik,
           email,
           nama_lengkap,
           npm,
@@ -240,11 +242,15 @@ class ParentsController {
       const dataMhs = await getDataImportMhs(file[0].filepath);
       let dataParents = dataMhs.map(iterator => ({
         role: "Parent",
-        nik: iterator.nik,
+        nik: iterator.nik || null,
+        email: iterator.email,
         nama_lengkap: iterator.nama_ibu,
-        no_hp: null,
-        password: iterator.password,
-        is_verified: false,
+        npm: iterator.npm,
+        no_hp: iterator.phone || null,
+        password: iterator.password, // sudah di-hash oleh getDataImportMhs
+        is_verified: true,           // import oleh admin → langsung terverifikasi
+        created_at: new Date(),
+        updated_at: new Date(),
       }));
       const insertedParents = await Parents.bulkCreate(dataParents, { returning: true, transaction });
       let dataTrx = dataMhs.map((mhs, i) => ({ parent_id: insertedParents[i].id, mhs_id: mhs.mhs_id }));
@@ -358,15 +364,13 @@ class ParentsController {
         secure: true,
       });
 
-      // Response sukses
+      // Response sukses — password hash tidak dikembalikan ke client
+      const { password: _pw, ...parentSafe } = findParent.dataValues;
       return response(
         res,
         true,
         "Login berhasil.",
-        {
-          ...findParent.dataValues,
-          token,
-        },
+        { ...parentSafe, token },
         200
       );
     } catch (error) {

@@ -54,6 +54,7 @@ exports.formRegisterParentValidation = (data) => {
     nama_lengkap: Joi.string().required().label("Nama Lengkap"),
     email: Joi.string().email().required().label("Email"),
     npm: Joi.string().required().label("NPM Mahasiswa"),
+    nik: Joi.string().length(16).required().label("NIK"),
     no_hp: Joi.string().required().label("No HP"),
     password: Joi.string().min(8).required().label("Password"),
     password2: Joi.string()

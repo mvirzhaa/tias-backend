@@ -12,6 +12,9 @@ Parents.init(
     role: {
       type: DataTypes.STRING,
     },
+    nik: {
+      type: DataTypes.STRING,
+    },
     email: {
       type: DataTypes.STRING,
     },
