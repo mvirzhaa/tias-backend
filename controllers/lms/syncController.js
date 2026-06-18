@@ -1,31 +1,24 @@
 const asyncHandler = require("express-async-handler");
 const { response } = require("../../lib/response");
-const {
-  syncLmsClassTablesFromStaging,
-} = require("../../lib/lms/siakStagingBridgeService");
+const { syncSiakV2 } = require("../../lib/lms/siakV2/syncService");
 
 /**
- * POST /lms/sync-siak
+ * POST /lms/sync-siak  (BRIEF v2 Task 3 — sumber: pull-direct, auth: API key)
  *
- * LMS tidak lagi menarik mock/direct SIAK sendiri. Sumber kelas dan peserta LMS
- * diproyeksikan dari staging SIAK baru (`siak_sync_*`) yang sudah melewati proses
- * sync, validasi, dan mapping awal.
+ * Menarik langsung dari SIAK v2 (/akademik/kelas-kuliah + peserta-kelas +
+ * periode-akademik), upsert ke siak_v2_* (kelas/dosen/peserta/prodi), lalu linking
+ * siak_user_mappings. Mengembalikan reconciliation report (unmatched/conflict dosen
+ * & mahasiswa) sebagai gate pra-cut-over.
  */
-async function syncSiakV2Data(options = {}) {
-  return syncLmsClassTablesFromStaging(options);
-}
-
 exports.syncSiak = asyncHandler(async (req, res) => {
   try {
     const body = req.body || {};
-    const result = await syncSiakV2Data({
-      semester: body.semester || req.query.semester,
+    const result = await syncSiakV2({
+      pageSize: body.pageSize || req.query.pageSize,
     });
 
-    return response(res, true, "Sinkronisasi kelas LMS dari staging SIAK berhasil.", result);
+    return response(res, true, "Sinkronisasi SIAK v2 (pull-direct) berhasil.", result);
   } catch (error) {
-    return response(res, false, `Sinkronisasi kelas LMS gagal: ${error.message}`, null, 502);
+    return response(res, false, `Sinkronisasi SIAK v2 gagal: ${error.message}`, null, 502);
   }
 });
-
-exports.syncSiakV2Data = syncSiakV2Data;
