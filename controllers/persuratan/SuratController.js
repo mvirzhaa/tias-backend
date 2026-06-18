@@ -3,6 +3,8 @@ const { getPagination } = require("../../lib/pagination-parser");
 const { response } = require("../../lib/response");
 const { Surat, User, DataPribadi, RiwayatSurat, DokumenLampiran, sequelize } = require("../../models/Persuratan");
 
+const { compileSuratPengunduranDiri } = require("../../utils/persuratanHelper");
+
 const safeJsonParse = (data) => {
   if (!data) return {};
   if (typeof data === "object") return data;
@@ -70,20 +72,39 @@ class SuratController {
   static create = async (req, res) => {
     const t = await sequelize.transaction();
     try {
-      const { penerima_id, jenis_surat, form_data, parent_id, nomor_surat, nama_aktor } = req.body;
+      let { penerima_id, jenis_surat, form_data, parent_id, nomor_surat, nama_aktor } = req.body;
       const userRole = req.user.role?.toLowerCase();
-
       const isReply = !!parent_id;
-      const allowedMhs = ["surat pengunduran diri", "surat pengajuan cuti"];
 
-      if (userRole === "mahasiswa" && !isReply && !allowedMhs.includes(jenis_surat?.toLowerCase())) {
-        await t.rollback();
-        return response(res, false, "Akses ditolak untuk jenis surat ini.");
+      const allowedSuratMhs = ["surat pengunduran diri", "surat pengajuan cuti"];
+
+      if (!isReply) {
+        if (userRole !== "mahasiswa") {
+          await t.rollback();
+          return response(res, false, "Akses ditolak. Modul pengajuan dokumen ini hanya dikhususkan untuk Mahasiswa.");
+        }
+
+        if (!allowedSuratMhs.includes(jenis_surat?.toLowerCase())) {
+          await t.rollback();
+          return response(res, false, "Jenis pengajuan tidak valid atau tidak didukung oleh modul mahasiswa.");
+        }
+
+        const adminUser = await User.findOne({
+          where: { role: "Admin" },
+          transaction: t,
+        });
+
+        if (!adminUser) {
+          await t.rollback();
+          return response(res, false, "Gagal mengirim: Akun Admin TU belum dikonfigurasi di sistem.");
+        }
+
+        penerima_id = adminUser.user_id;
       }
 
       const finalData = {
         user_id: req.user.user_id,
-        penerima_id,
+        penerima_id: penerima_id,
         parent_id: parent_id || null,
         jenis_surat,
         nomor_surat: nomor_surat || null,
@@ -104,7 +125,6 @@ class SuratController {
 
       if (parent_id) {
         const parentSurat = await Surat.findByPk(parent_id, { transaction: t });
-
         if (parentSurat && String(parentSurat.penerima_id) === String(req.user.user_id)) {
           await parentSurat.update({ status: "Replied" }, { transaction: t });
         }
@@ -114,7 +134,7 @@ class SuratController {
         {
           surat_id: save.id,
           status: "Sent",
-          catatan: isReply ? `Pesan balasan dikirimkan. Dilakukan oleh: ${nama_aktor || "Pengguna"}` : `Pengajuan dokumen berhasil dibuat. Dilakukan oleh: ${nama_aktor || "Pengguna"}`,
+          catatan: isReply ? `Pesan balasan dikirimkan. Dilakukan oleh: ${nama_aktor || "Pengguna"}` : `Pengajuan dokumen mahasiswa berhasil dibuat. Dilakukan oleh: ${nama_aktor || "Pengguna"}`,
         },
         { transaction: t },
       );
@@ -145,7 +165,15 @@ class SuratController {
         return response(res, false, "Data tidak ditemukan");
       }
 
-      await data.update({ status, catatan_pejabat: catatan }, { transaction: t });
+      let currentFormData = safeJsonParse(data.form_data);
+
+      await data.update(
+        {
+          status,
+          catatan_pejabat: catatan,
+        },
+        { transaction: t },
+      );
 
       await RiwayatSurat.create(
         {
@@ -157,9 +185,65 @@ class SuratController {
       );
 
       await t.commit();
-      return response(res, true, `Status berhasil diperbarui menjadi ${status}`);
+
+      if (status === "Selesai") {
+        const htmlPdf = require("html-pdf-node");
+        const path = require("path");
+        const fs = require("fs");
+
+        const { compileSuratPengunduranDiri, compileSuratCutiAkademik } = require("../../utils/persuratanHelper");
+
+        const formatTanggal = new Date().toLocaleDateString("id-ID", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+
+        let htmlDocumentString = "";
+
+        if (data.jenis_surat?.toLowerCase() === "surat pengunduran diri") {
+          htmlDocumentString = await compileSuratPengunduranDiri(data, formatTanggal);
+        } else if (data.jenis_surat?.toLowerCase() === "surat pengajuan cuti") {
+          htmlDocumentString = await compileSuratCutiAkademik(data, formatTanggal);
+        }
+
+        if (htmlDocumentString) {
+          const folderPath = path.join(__dirname, "../../public/generated-pdf");
+          if (!fs.existsSync(folderPath)) {
+            fs.mkdirSync(folderPath, { recursive: true });
+          }
+
+          const fileName = `Surat_${data.jenis_surat.replace(/\s+/g, "_")}_${data.id}.pdf`;
+          const fileOutputPath = path.join(folderPath, fileName);
+
+          const options = {
+            format: "A4",
+            margin: { top: "40px", right: "50px", bottom: "40px", left: "50px" },
+          };
+          const file = { content: htmlDocumentString };
+
+          const pdfBuffer = await new Promise((resolve, reject) => {
+            htmlPdf.generatePdf(file, options, (err, buffer) => {
+              if (err) return reject(err);
+              resolve(buffer);
+            });
+          });
+
+          fs.writeFileSync(fileOutputPath, pdfBuffer);
+
+          currentFormData.pdf_url = `/generated-pdf/${fileName}`;
+
+          await Surat.update({ form_data: currentFormData }, { where: { id: id } });
+        }
+      }
+
+      return response(res, true, `Status berhasil diperbarui menjadi ${status}`, {
+        pdf_url: currentFormData.pdf_url || null,
+      });
     } catch (error) {
-      await t.rollback();
+      if (!t.finished) {
+        await t.rollback();
+      }
       return response(res, false, error.message);
     }
   };
@@ -262,7 +346,7 @@ class SuratController {
       const oldSurat = await Surat.findOne({
         where: { id, deleted_at: null },
         include: [{ model: DokumenLampiran }],
-        transaction: t, // ✅ Konsistensi transaksi
+        transaction: t,
       });
 
       if (!oldSurat) {
