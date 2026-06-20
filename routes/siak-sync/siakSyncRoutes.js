@@ -14,4 +14,12 @@ router.delete("/course-mappings/:id", protected, adminOnly, SyncController.delet
 router.post("/sync", protected, adminOnly, SyncController.syncAll);
 router.post("/sync/:resource", protected, adminOnly, SyncController.syncOne);
 
+// ── Task 6: User Mapping — Admin-only ────────────────────────────────────────
+// PENTING: /user-mappings/unmatched harus SEBELUM /user-mappings/:id
+// agar 'unmatched' tidak ditangkap sebagai :id.
+router.get("/user-mappings", protected, adminOnly, SyncController.listUserMappings);
+router.get("/user-mappings/unmatched", protected, adminOnly, SyncController.listUnmatchedUsers);
+router.post("/user-mappings", protected, adminOnly, SyncController.createUserMapping);
+router.patch("/user-mappings/:id", protected, adminOnly, SyncController.updateUserMapping);
+
 module.exports = router;

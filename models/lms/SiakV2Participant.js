@@ -25,6 +25,10 @@ SiakV2Participant.init(
       type: DataTypes.STRING,
       allowNull: false,
     },
+    nama: {
+      // nama mahasiswa dari SIAK (peserta.nama) — identifikasi unmatched Task 6.
+      type: DataTypes.STRING,
+    },
     created_at: {
       type: DataTypes.DATE,
     },
