@@ -8,6 +8,7 @@ const TrxUserJabatanUnit = require("../models/TrxUserJabatanUnit");
 const DataPribadi = require("../models/DataPribadi");
 const Jabatan = require("../models/master/Jabatan");
 const Unit = require("../models/master/Unit");
+const SiakUserMapping = require("../models/lms/SiakUserMapping");
 
 exports.protected = asyncHandler(async (req, res, next) => {
   try {
@@ -75,6 +76,24 @@ exports.protected = asyncHandler(async (req, res, next) => {
       ...user.rows[0],
       jabatanStruktural: cleanJabatanStruktural,
     };
+
+    // BRIEF v2 Task 4 — resolve identitas SIAK (UUID) untuk otorisasi LMS.
+    // Dosen → siak_dosen_id, Mahasiswa → siak_mahasiswa_id. Hanya mapping aktif
+    // (status 'auto'|'verified'). Admin tetap jalan walau null (tidak terkunci 403).
+    dataUser.siakUserUuid = null;
+    try {
+      const mapping = await SiakUserMapping.findOne({
+        where: {
+          tias_user_id: dataUser.user_id,
+          status: ["auto", "verified"],
+        },
+        attributes: ["siak_user_uuid"],
+      });
+      if (mapping) dataUser.siakUserUuid = mapping.siak_user_uuid;
+    } catch (mappingError) {
+      console.warn("Could not resolve siak_user_mappings, skipping:", mappingError.message);
+    }
+
     req.user = dataUser;
 
     next();
