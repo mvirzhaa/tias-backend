@@ -26,6 +26,10 @@ SiakV2ClassLecturer.init(
     nidn: {
       type: DataTypes.STRING(64),
     },
+    nama: {
+      // nama dosen dari SIAK (jadwalKuliah[].dosen.nama) — dipakai saran match Task 6.
+      type: DataTypes.STRING,
+    },
     created_at: {
       type: DataTypes.DATE,
     },
