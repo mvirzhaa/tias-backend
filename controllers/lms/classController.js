@@ -8,7 +8,6 @@ exports.listClasses = asyncHandler(async (req, res) => {
       user: req.user,
       limit: req.query.limit,
       page: req.query.page,
-      semester: req.query.semester,
       search: req.query.search,
     });
 

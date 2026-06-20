@@ -1,21 +1,21 @@
 const asyncHandler = require("express-async-handler");
 const { response } = require("../../lib/response");
-const { idEq } = require("../../lib/lms/match");
 const LmsSection = require("../../models/lms/LmsSection");
 const LmsContentItem = require("../../models/lms/LmsContentItem");
-const SiakV2Class = require("../../models/lms/SiakV2Class");
+const SiakV2ClassLecturer = require("../../models/lms/SiakV2ClassLecturer");
 const SiakV2Participant = require("../../models/lms/SiakV2Participant");
 const { userCanViewClassByScope } = require("../../lib/lms/roleScopeService");
 
 /**
  * Otorisasi LMS. SEMUA pengecekan membaca tabel LOKAL
- * (siak_v2_classes / siak_v2_participants) yang diproyeksikan dari staging SIAK baru.
+ * (siak_v2_class_lecturers / siak_v2_participants) hasil sync SIAK v2.
  * TIDAK ada panggilan SIAK live. Default DENY.
  *
- * IDENTITAS:
+ * IDENTITAS (BRIEF v2 Task 4 & 5 — berbasis UUID, BUKAN nama/nip):
  *   - id_lecture = req.user.user_id (UUID) → kepemilikan konten; dilampirkan ke req.lmsLecturerId.
- *   - dosen dicocokkan via req.user.nip ∈ siak_v2_classes.dosen_pengampu_nip.
- *   - mahasiswa dicocokkan via (kelasKuliahId, req.user.npm) di siak_v2_participants.
+ *   - dosen dicocokkan via req.user.siakUserUuid == siak_v2_class_lecturers.siak_dosen_id.
+ *   - mahasiswa dicocokkan via req.user.siakUserUuid == siak_v2_participants.siak_mahasiswa_id.
+ * req.user.siakUserUuid di-resolve dari siak_user_mappings saat login (authMiddleware).
  */
 
 // ---- Resolver konteks kelasKuliahId (mengisi req.lmsSection / req.lmsContentItem) ----
@@ -71,24 +71,26 @@ const resolveKelasFromContent = async (req, res) => {
 
 // ---- Cek boolean murni (tanpa efek samping respons) ----
 
-// Dosen login mengampu kelas? (nip ∈ siak_v2_classes.dosen_pengampu_nip)
+// Dosen login mengampu kelas? (siakUserUuid == siak_v2_class_lecturers.siak_dosen_id)
+// Co-teaching otomatis didukung (banyak baris dosen per kelas).
 const lecturerOwns = async (req, kelasKuliahId) => {
-  const nip = req.user && req.user.nip;
-  if (!nip) return false;
-  const cls = await SiakV2Class.findByPk(kelasKuliahId);
-  if (!cls) return false;
-  const arr = cls.dosen_pengampu_nip;
-  if (!Array.isArray(arr)) return false;
-  return arr.some((n) => idEq(n, nip));
+  const siakUserUuid = req.user && req.user.siakUserUuid;
+  if (!siakUserUuid) return false;
+  const found = await SiakV2ClassLecturer.findOne({
+    where: { kelasKuliahId, siak_dosen_id: siakUserUuid },
+    attributes: ["id"],
+  });
+  return !!found;
 };
 
-// Mahasiswa login terdaftar di kelas? (kelasKuliahId, npm) ada di siak_v2_participants.
-// npm lokal (tb_users.npm) bertipe CHAR → ada padding spasi; trim agar cocok dgn data SIAK
-// (siak_v2_participants.npm = varchar, tersimpan tanpa padding).
+// Mahasiswa login terdaftar di kelas? (siakUserUuid == siak_v2_participants.siak_mahasiswa_id)
 const studentIsEnrolled = async (req, kelasKuliahId) => {
-  const npm = req.user && req.user.npm ? String(req.user.npm).trim() : "";
-  if (!npm) return false;
-  const found = await SiakV2Participant.findOne({ where: { kelasKuliahId, npm } });
+  const siakUserUuid = req.user && req.user.siakUserUuid;
+  if (!siakUserUuid) return false;
+  const found = await SiakV2Participant.findOne({
+    where: { kelasKuliahId, siak_mahasiswa_id: siakUserUuid },
+    attributes: ["id"],
+  });
   return !!found;
 };
 
@@ -152,7 +154,7 @@ exports.classViewContentAccess = makeViewMiddleware(resolveKelasFromContent);
 // ---- Middleware: studentEnrolled murni (mahasiswa terdaftar / admin) ----
 
 // Helper boolean dipakai ulang middleware lain (mis. forumAccess) — sumber tunggal
-// pencocokan identitas dosen (nip) & mahasiswa (npm) ke tabel SIAK v2 lokal.
+// pencocokan identitas dosen & mahasiswa (via siakUserUuid) ke tabel SIAK v2 lokal.
 exports.lecturerOwns = lecturerOwns;
 exports.studentIsEnrolled = studentIsEnrolled;
 exports.userCanViewClassByScope = userCanViewClassByScope;
