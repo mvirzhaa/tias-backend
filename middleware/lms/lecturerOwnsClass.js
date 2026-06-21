@@ -158,6 +158,9 @@ exports.classViewContentAccess = makeViewMiddleware(resolveKelasFromContent);
 exports.lecturerOwns = lecturerOwns;
 exports.studentIsEnrolled = studentIsEnrolled;
 exports.userCanViewClassByScope = userCanViewClassByScope;
+// Resolver konteks dipakai ulang modul lain (mis. submissionAccess) — sumber tunggal
+// penurunan kelasKuliahId server-side (item → section → kelas).
+exports.resolveKelasFromContent = resolveKelasFromContent;
 
 exports.studentEnrolled = asyncHandler(async (req, res, next) => {
   const kelasKuliahId = await resolveKelasFromSection(req, res);
