@@ -1,6 +1,10 @@
 const { DataTypes, Model } = require("sequelize");
 const db = require("../../config");
 
+// Daftar status yang valid — validasi di level aplikasi, bukan ENUM DB
+// Sehingga mudah tambah status baru tanpa perlu alter table
+const VALID_STATUS = ["Sent", "Read", "Replied", "Disposisi", "Disetujui", "Ditolak", "Selesai", "Archived"];
+
 class Surat extends Model {}
 
 Surat.init(
@@ -18,7 +22,16 @@ Surat.init(
       type: DataTypes.UUID,
       allowNull: false,
     },
+    // parent_id: menunjuk ke surat sebelumnya dalam satu rantai disposisi
+    // NULL = surat asal dari mahasiswa (tidak punya parent)
     parent_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+    },
+    // root_surat_id: selalu menunjuk ke surat pertama/asal dari mahasiswa
+    // NULL = surat ini ADALAH surat asal
+    // UUID = surat ini adalah hasil disposisi
+    root_surat_id: {
       type: DataTypes.UUID,
       allowNull: true,
     },
@@ -34,8 +47,14 @@ Surat.init(
       allowNull: true,
     },
     status: {
-      type: DataTypes.ENUM("Sent", "Read", "Replied", "Selesai", "Archived"),
+      type: DataTypes.STRING(50),
       defaultValue: "Sent",
+      validate: {
+        isIn: {
+          args: [VALID_STATUS],
+          msg: `Status tidak valid. Harus salah satu dari: ${VALID_STATUS.join(", ")}`,
+        },
+      },
     },
     catatan_pejabat: {
       type: DataTypes.TEXT,
@@ -55,3 +74,4 @@ Surat.init(
 );
 
 module.exports = Surat;
+module.exports.VALID_STATUS = VALID_STATUS;

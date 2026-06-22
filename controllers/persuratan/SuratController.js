@@ -206,34 +206,70 @@ class SuratController {
       const { id } = req.params;
       const { status, catatan } = req.body;
 
+      // Validasi status yang diizinkan lewat endpoint ini
+      const allowedStatusUpdate = ["Disetujui", "Ditolak", "Archived"];
+      if (!allowedStatusUpdate.includes(status)) {
+        await t.rollback();
+        return response(res, false, `Status tidak valid. Gunakan salah satu dari: ${allowedStatusUpdate.join(", ")}`);
+      }
+
       const data = await Surat.findByPk(id, { transaction: t });
       if (!data) {
         await t.rollback();
         return response(res, false, "Data tidak ditemukan");
       }
 
+      // Hanya penerima saat ini yang boleh update status
+      if (String(data.penerima_id) !== String(req.user.user_id)) {
+        await t.rollback();
+        return response(res, false, "Akses ditolak. Hanya penerima saat ini yang dapat mengubah status surat.");
+      }
+
       let currentFormData = safeJsonParse(data.form_data);
 
       await data.update(
-        {
-          status,
-          catatan_pejabat: catatan,
-        },
+        { status, catatan_pejabat: catatan },
         { transaction: t },
       );
 
       await RiwayatSurat.create(
         {
           surat_id: id,
-          status: status,
+          status,
           catatan: catatan || `Status dokumen diperbarui menjadi ${status}`,
         },
         { transaction: t },
       );
 
+      // ── Auto-update Root Surat Mahasiswa ─────────────────────────────────────
+      // Jika surat ini adalah hasil disposisi (punya root_surat_id),
+      // maka update status surat asal mahasiswa agar mahasiswa bisa tracking
+      if (data.root_surat_id && (status === "Disetujui" || status === "Ditolak")) {
+        const rootSurat = await Surat.findByPk(data.root_surat_id, { transaction: t });
+        if (rootSurat) {
+          await rootSurat.update(
+            {
+              status,
+              catatan_pejabat: catatan || `Keputusan akhir: ${status}`,
+            },
+            { transaction: t },
+          );
+
+          await RiwayatSurat.create(
+            {
+              surat_id: rootSurat.id,
+              status,
+              catatan: `Keputusan akhir diterima dari rantai disposisi: ${status}. ${catatan || ""}`.trim(),
+            },
+            { transaction: t },
+          );
+        }
+      }
+
       await t.commit();
 
-      if (status === "Selesai") {
+      // ── Generate PDF jika status Disetujui ───────────────────────────────────
+      if (status === "Disetujui") {
         const htmlPdf = require("html-pdf-node");
 
         const formatTanggal = new Date().toLocaleDateString("id-ID", {
@@ -245,18 +281,14 @@ class SuratController {
         let htmlDocumentString = "";
 
         if (data.jenis_surat?.toLowerCase() === "surat pengunduran diri") {
-          // ✅ TTD Mahasiswa (pengirim surat)
           const dataPribadiMhs = await DataPribadi.findOne({
             where: { user_id: data.user_id },
             attributes: ["ttd"],
           });
           const ttdMhsBase64 = getTtdBase64(dataPribadiMhs?.ttd);
-
           htmlDocumentString = await compileSuratPengunduranDiri(data, formatTanggal, ttdMhsBase64);
 
         } else if (data.jenis_surat?.toLowerCase() === "surat pengajuan cuti") {
-          // ✅ TTD Kaprodi — dicari dinamis dari jabatan struktural
-          // Query: cari user yang jabatannya "Ketua Program Studi" di unit FT_TI
           const kaprodiJabatan = await TrxUserJabatanUnit.findOne({
             include: [
               {
@@ -281,37 +313,37 @@ class SuratController {
 
           const ttdKaprodiBase64 = getTtdBase64(kaprodiJabatan?.personal_data?.ttd);
           const namaKaprodi = kaprodiJabatan?.personal_data?.nama_lengkap || "Ketua Program Studi";
-
           htmlDocumentString = await compileSuratCutiAkademik(data, formatTanggal, ttdKaprodiBase64, namaKaprodi);
         }
 
         if (htmlDocumentString) {
           const folderPath = path.join(__dirname, "../../public/generated-pdf");
-          if (!fs.existsSync(folderPath)) {
-            fs.mkdirSync(folderPath, { recursive: true });
-          }
+          if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
 
           const fileName = `Surat_${data.jenis_surat.replace(/\s+/g, "_")}_${data.id}.pdf`;
           const fileOutputPath = path.join(folderPath, fileName);
-
-          const options = {
-            format: "A4",
-            margin: { top: "40px", right: "50px", bottom: "40px", left: "50px" },
-          };
-          const file = { content: htmlDocumentString };
+          const options = { format: "A4", margin: { top: "40px", right: "50px", bottom: "40px", left: "50px" } };
 
           const pdfBuffer = await new Promise((resolve, reject) => {
-            htmlPdf.generatePdf(file, options, (err, buffer) => {
+            htmlPdf.generatePdf({ content: htmlDocumentString }, options, (err, buffer) => {
               if (err) return reject(err);
               resolve(buffer);
             });
           });
 
           fs.writeFileSync(fileOutputPath, pdfBuffer);
-
           currentFormData.pdf_url = `/generated-pdf/${fileName}`;
+          await Surat.update({ form_data: currentFormData }, { where: { id } });
 
-          await Surat.update({ form_data: currentFormData }, { where: { id: id } });
+          // Juga update pdf_url di root surat agar mahasiswa bisa download
+          if (data.root_surat_id) {
+            const rootSurat = await Surat.findByPk(data.root_surat_id);
+            if (rootSurat) {
+              const rootFormData = safeJsonParse(rootSurat.form_data);
+              rootFormData.pdf_url = currentFormData.pdf_url;
+              await Surat.update({ form_data: rootFormData }, { where: { id: data.root_surat_id } });
+            }
+          }
         }
       }
 
@@ -319,9 +351,7 @@ class SuratController {
         pdf_url: currentFormData.pdf_url || null,
       });
     } catch (error) {
-      if (!t.finished) {
-        await t.rollback();
-      }
+      if (!t.finished) await t.rollback();
       return response(res, false, error.message);
     }
   };
@@ -462,7 +492,7 @@ class SuratController {
         await t.rollback();
         return response(res, false, "Surat tidak ditemukan");
       }
-      if (oldSurat.penerima_id !== req.user.user_id) {
+      if (String(oldSurat.penerima_id) !== String(req.user.user_id)) {
         await t.rollback();
         return response(res, false, "Hanya penerima saat ini yang dapat mendisposisikan surat.");
       }
@@ -470,6 +500,21 @@ class SuratController {
         await t.rollback();
         return response(res, false, "Ditolak: Anda tidak dapat mendisposisikan surat kepada diri Anda sendiri.");
       }
+
+      // Validasi target user ada di sistem
+      const targetUser = await User.findByPk(target_penerima_id, {
+        include: [{ model: DataPribadi, as: "personal_data", attributes: ["nama_lengkap"] }],
+        transaction: t,
+      });
+      if (!targetUser) {
+        await t.rollback();
+        return response(res, false, "Target penerima disposisi tidak ditemukan.");
+      }
+
+      // ── Tentukan root_surat_id ────────────────────────────────────────────────
+      // Jika surat ini sudah hasil disposisi → pakai root_surat_id yang sama
+      // Jika surat ini adalah surat asal (dari mahasiswa) → root = id surat ini
+      const rootSuratId = oldSurat.root_surat_id || oldSurat.id;
 
       let disposisiFile = null;
       let newLampiransData = [];
@@ -483,25 +528,15 @@ class SuratController {
 
       if (req.files && req.files.length > 0) {
         const file = req.files[0];
-        disposisiFile = {
-          nama_file: file.originalname,
-          file_url: file.filename,
-        };
+        disposisiFile = { nama_file: file.originalname, file_url: file.filename };
         newLampiransData.push(disposisiFile);
       }
 
-      const currentHistory = oldSurat.form_data?.history_disposisi || [];
-
-      const [pelakuUser, targetUser] = await Promise.all([
-        User.findByPk(req.user.user_id, {
-          include: [{ model: DataPribadi, as: "personal_data", attributes: ["nama_lengkap"] }],
-          transaction: t,
-        }),
-        User.findByPk(target_penerima_id, {
-          include: [{ model: DataPribadi, as: "personal_data", attributes: ["nama_lengkap"] }],
-          transaction: t,
-        }),
-      ]);
+      // ── Identitas aktor & target ──────────────────────────────────────────────
+      const pelakuUser = await User.findByPk(req.user.user_id, {
+        include: [{ model: DataPribadi, as: "personal_data", attributes: ["nama_lengkap"] }],
+        transaction: t,
+      });
 
       const pelakuNama = pelakuUser?.personal_data?.nama_lengkap || pelakuUser?.username || "Sistem";
       const pelakuIdentitas = pelakuUser?.npm || req.user.user_id;
@@ -513,7 +548,10 @@ class SuratController {
       const targetRole = targetUser?.role ? targetUser.role.toUpperCase() : "USER";
       const identitasTargetLengkap = `${targetName} (${targetIdentitas} - ${targetRole})`;
 
+      // ── Update history_disposisi di form_data ─────────────────────────────────
+      const currentHistory = oldSurat.form_data?.history_disposisi || [];
       currentHistory.push({
+        surat_id: oldSurat.id,
         aktor: identitasAktorLengkap,
         target_penerima: identitasTargetLengkap,
         catatan: catatan_disposisi || "Tanpa catatan disposisi",
@@ -526,10 +564,11 @@ class SuratController {
         history_disposisi: currentHistory,
       };
 
+      // ── Update surat lama: status → Disposisi ────────────────────────────────
       await oldSurat.update(
         {
-          status: "Selesai",
-          catatan_pejabat: `Surat didisposisikan ke pihak lain.`,
+          status: "Disposisi",
+          catatan_pejabat: `Surat didisposisikan ke: ${identitasTargetLengkap}`,
           form_data: formDataBaru,
         },
         { transaction: t },
@@ -538,17 +577,39 @@ class SuratController {
       await RiwayatSurat.create(
         {
           surat_id: oldSurat.id,
-          status: "Selesai",
-          catatan: `Surat didisposisikan ke pihak berikutnya. Catatan: ${catatan_disposisi || "-"}. Dilakukan oleh: ${identitasAktorLengkap}`,
+          status: "Disposisi",
+          catatan: `Surat didisposisikan ke ${identitasTargetLengkap}. Catatan: ${catatan_disposisi || "-"}. Dilakukan oleh: ${identitasAktorLengkap}`,
         },
         { transaction: t },
       );
 
+      // ── Update status root surat mahasiswa → Disposisi ───────────────────────
+      // Agar mahasiswa bisa melihat bahwa suratnya sedang dalam proses disposisi
+      if (rootSuratId !== oldSurat.id) {
+        const rootSurat = await Surat.findByPk(rootSuratId, { transaction: t });
+        if (rootSurat) {
+          await rootSurat.update(
+            { status: "Disposisi", form_data: formDataBaru },
+            { transaction: t },
+          );
+          await RiwayatSurat.create(
+            {
+              surat_id: rootSuratId,
+              status: "Disposisi",
+              catatan: `Surat diteruskan melalui disposisi ke ${identitasTargetLengkap}.`,
+            },
+            { transaction: t },
+          );
+        }
+      }
+
+      // ── Buat surat baru untuk penerima berikutnya ────────────────────────────
       const newSurat = await Surat.create(
         {
           user_id: req.user.user_id,
           penerima_id: target_penerima_id,
-          parent_id: null,
+          parent_id: oldSurat.id,       // ← menunjuk ke surat yang mendisposisikan
+          root_surat_id: rootSuratId,   // ← selalu menunjuk ke surat asal mahasiswa
           jenis_surat: oldSurat.jenis_surat,
           nomor_surat: oldSurat.nomor_surat,
           status: "Sent",
@@ -558,24 +619,23 @@ class SuratController {
       );
 
       if (newLampiransData.length > 0) {
-        const lampiranInsert = newLampiransData.map((l) => ({
-          surat_id: newSurat.id,
-          ...l,
-        }));
-        await DokumenLampiran.bulkCreate(lampiranInsert, { transaction: t });
+        await DokumenLampiran.bulkCreate(
+          newLampiransData.map((l) => ({ surat_id: newSurat.id, ...l })),
+          { transaction: t },
+        );
       }
 
       await RiwayatSurat.create(
         {
           surat_id: newSurat.id,
           status: "Sent",
-          catatan: "Dokumen masuk melalui proses disposisi dari pihak sebelumnya.",
+          catatan: `Dokumen masuk melalui disposisi dari ${identitasAktorLengkap}.`,
         },
         { transaction: t },
       );
 
       await t.commit();
-      return response(res, true, "Surat berhasil didisposisikan");
+      return response(res, true, "Surat berhasil didisposisikan", { new_surat_id: newSurat.id });
     } catch (error) {
       await t.rollback();
       return response(res, false, error.message);
