@@ -277,11 +277,17 @@
       </tr>
       <tr>
         <td></td>
-        <td class="sign-role">Dekan Fakultas Teknik dan Sains</td>
+        <td class="sign-role">Ketua Program Studi Teknik Informatika</td>
       </tr>
       <tr>
         <td></td>
-        <td class="sign-gap"></td>
+        <td style="text-align: center; padding-top: 4px;">
+          {{#if ttdBase64}}
+          <img src="{{ttdBase64}}" alt="TTD Kaprodi" style="height: 65px; max-width: 150px; object-fit: contain;" />
+          {{else}}
+          <div class="sign-gap"></div>
+          {{/if}}
+        </td>
       </tr>
       <tr>
         <td></td>

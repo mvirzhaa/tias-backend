@@ -4,8 +4,9 @@ const handlebars = require("handlebars");
 const QRCode = require("qrcode-svg");
 
 const generateQrSvg = (suratId) => {
+  const baseUrl = process.env.FRONTEND_URL || "http://localhost:3000";
   return new QRCode({
-    content: `http://localhost:3000/tracking-surat/${suratId}`,
+    content: `${baseUrl}/tracking-surat/${suratId}`,
     padding: 0,
     width: 90,
     height: 90,
@@ -30,7 +31,7 @@ const getLogoBase64 = () => {
   }
 };
 
-const compileSuratPengunduranDiri = async (dataSurat, tanggalSelesai) => {
+const compileSuratPengunduranDiri = async (dataSurat, tanggalSelesai, ttdBase64 = null) => {
   try {
     const templateHtml = fs.readFileSync(path.join(__dirname, "../views/persuratan/pengunduranDiri.hbs"), "utf-8");
     const compiledTemplate = handlebars.compile(templateHtml);
@@ -40,6 +41,7 @@ const compileSuratPengunduranDiri = async (dataSurat, tanggalSelesai) => {
       logoUrl: getLogoBase64(),
       tanggal_selesai: tanggalSelesai,
       qrCodeSvg: generateQrSvg(dataSurat.id),
+      ttdBase64: ttdBase64 || null,
     });
   } catch (error) {
     console.error("[Compile Pengunduran Diri Error]:", error.message);
@@ -47,7 +49,7 @@ const compileSuratPengunduranDiri = async (dataSurat, tanggalSelesai) => {
   }
 };
 
-const compileSuratCutiAkademik = async (dataSurat, tanggalSelesai) => {
+const compileSuratCutiAkademik = async (dataSurat, tanggalSelesai, ttdBase64 = null, namaKaprodi = null) => {
   try {
     const templateHtml = fs.readFileSync(path.join(__dirname, "../views/persuratan/cutiAkademik.hbs"), "utf-8");
     const compiledTemplate = handlebars.compile(templateHtml);
@@ -64,13 +66,14 @@ const compileSuratCutiAkademik = async (dataSurat, tanggalSelesai) => {
       logoUrl: getLogoBase64(),
       fakultas: "Teknik dan Sains",
       program_studi: "Teknik Informatika",
-      nama_dekan: "Dr. Feril Hariati, ST., M.Eng.",
+      nama_dekan: namaKaprodi || "Dr. Feril Hariati, ST., M.Eng.",
 
       nomor_surat: dataSurat.nomor_surat || `......./FTS/UIKA/${new Date().getFullYear()}`,
       tanggal_permohonan: tglPermohonan,
       tanggal_surat: tanggalSelesai,
 
       qrCodeSvg: generateQrSvg(dataSurat.id),
+      ttdBase64: ttdBase64 || null,
     };
 
     return compiledTemplate(context);

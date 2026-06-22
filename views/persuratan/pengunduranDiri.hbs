@@ -108,6 +108,13 @@
       <tr>
         <td style="height: 85px; vertical-align: bottom;">{{nama_ortu_wali}}</td>
         <td style="vertical-align: middle; padding-top: 5px;">
+          {{#if ttdBase64}}
+          <div style="text-align: center; margin-bottom: 2px;">
+            <img src="{{ttdBase64}}" alt="Tanda Tangan" style="height: 65px; max-width: 150px; object-fit: contain;" />
+          </div>
+          {{else}}
+          <div style="height: 65px;"></div>
+          {{/if}}
           <div class="qr-container">
             {{{qrCodeSvg}}}
           </div>
