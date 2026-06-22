@@ -43,26 +43,34 @@ const safeJsonParse = (data) => {
 class SuratController {
   static index = async (req, res) => {
     try {
-      let { limit, page, mode } = req.query;
+      let { limit, page, mode, status } = req.query;
       limit = parseInt(limit) > 0 ? parseInt(limit) : 10;
       page = page ? parseInt(page) : 1;
       const pagelimit = getPagination(limit, page);
 
       const condition = {
         deleted_at: null,
-        parent_id: null,
+        // Hanya tampilkan surat asal (bukan surat hasil disposisi internal)
+        // Sehingga list tidak penuh dengan surat-surat rantai disposisi
+        root_surat_id: null,
       };
 
+      // ── Filter berdasarkan mode (inbox/outbox/semua) ──────────────────────────
       if (mode === "inbox") {
         condition.penerima_id = req.user.user_id;
       } else if (mode === "outbox") {
         condition.user_id = req.user.user_id;
       } else {
         condition[Op.and] = [
-          {
-            [Op.or]: [{ user_id: req.user.user_id }, { penerima_id: req.user.user_id }],
-          },
+          { [Op.or]: [{ user_id: req.user.user_id }, { penerima_id: req.user.user_id }] },
         ];
+      }
+
+      // ── Filter berdasarkan status (opsional) ──────────────────────────────────
+      // Digunakan oleh frontend filter "Kondisi Status"
+      // Contoh: ?mode=inbox&status=Disposisi
+      if (status) {
+        condition.status = status;
       }
 
       const data = await Surat.findAndCountAll({
@@ -371,7 +379,8 @@ class SuratController {
 
       if (!data) return response(res, false, "Data tidak ditemukan");
 
-      if (data.penerima_id === req.user.user_id && data.status === "Sent") {
+      // ── Auto mark as Read ─────────────────────────────────────────────────────
+      if (String(data.penerima_id) === String(req.user.user_id) && data.status === "Sent") {
         const t = await sequelize.transaction();
         try {
           await data.update({ status: "Read" }, { transaction: t });
@@ -396,14 +405,56 @@ class SuratController {
         }
       }
 
-      const replies = await Surat.findAll({
-        where: { parent_id: id, deleted_at: null },
+      // ── Bangun Disposisi Chain dari DB ────────────────────────────────────────
+      // Chain = urutan semua surat dalam satu rantai disposisi
+      // Dibangun dari query DB (root_surat_id), bukan dari form_data — lebih reliable
+      let disposisiChain = [];
+      const rootId = data.root_surat_id || data.id;
+
+      // Ambil semua surat yang punya root_surat_id yang sama (surat anak/disposisi)
+      const chainSurats = await Surat.findAll({
+        where: { root_surat_id: rootId, deleted_at: null },
+        attributes: ["id", "status", "created_at", "updated_at", "catatan_pejabat", "user_id", "penerima_id"],
         include: [
           {
             model: User,
             as: "Pengirim",
-            attributes: ["npm", "email"],
+            attributes: ["npm", "role"],
+            include: [{ model: DataPribadi, as: "personal_data", attributes: ["nama_lengkap"] }],
           },
+          {
+            model: User,
+            as: "Penerima",
+            attributes: ["npm", "role"],
+            include: [{ model: DataPribadi, as: "personal_data", attributes: ["nama_lengkap"] }],
+          },
+        ],
+        order: [["created_at", "ASC"]],
+      });
+
+      // Format chain: tampilkan dari → ke per langkah disposisi
+      disposisiChain = chainSurats.map((s) => ({
+        surat_id: s.id,
+        dari: {
+          nama: s.Pengirim?.personal_data?.nama_lengkap || "–",
+          npm: s.Pengirim?.npm || "–",
+          role: s.Pengirim?.role || "–",
+        },
+        ke: {
+          nama: s.Penerima?.personal_data?.nama_lengkap || "–",
+          npm: s.Penerima?.npm || "–",
+          role: s.Penerima?.role || "–",
+        },
+        status: s.status,
+        catatan: s.catatan_pejabat || null,
+        tanggal: s.created_at,
+      }));
+
+      // ── Surat balasan (reply thread) ──────────────────────────────────────────
+      const replies = await Surat.findAll({
+        where: { parent_id: id, deleted_at: null },
+        include: [
+          { model: User, as: "Pengirim", attributes: ["npm", "email"] },
           { model: DokumenLampiran },
         ],
         order: [["created_at", "ASC"]],
@@ -411,6 +462,7 @@ class SuratController {
 
       return response(res, true, "Success", {
         ...data.toJSON(),
+        disposisi_chain: disposisiChain,
         Replies: replies,
       });
     } catch (error) {
