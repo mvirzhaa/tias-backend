@@ -3,10 +3,10 @@ const { response } = require("../../lib/response");
 const { syncSiakV2 } = require("../../lib/lms/siakV2/syncService");
 
 /**
- * POST /lms/sync-siak  (BRIEF v2 Task 3 — sumber: pull-direct, auth: API key)
+ * POST /lms/sync-siak  (sumber: endpoint publik /api/public, tanpa auth)
  *
- * Menarik langsung dari SIAK v2 (/akademik/kelas-kuliah + peserta-kelas +
- * periode-akademik), upsert ke siak_v2_* (kelas/dosen/peserta/prodi), lalu linking
+ * Menarik langsung dari SIAK v2 /api/public (kelas + matkul + jadwal + dosen + peserta
+ * nested), upsert ke siak_v2_* (kelas/dosen/jadwal/peserta/prodi), lalu linking
  * siak_user_mappings. Mengembalikan reconciliation report (unmatched/conflict dosen
  * & mahasiswa) sebagai gate pra-cut-over.
  */
