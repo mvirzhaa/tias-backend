@@ -23,6 +23,9 @@ SiakV2ProgramStudi.init(
     nama_prodi: {
       type: DataTypes.STRING,
     },
+    nama_fakultas: {
+      type: DataTypes.STRING,
+    },
     jenjang: {
       type: DataTypes.STRING,
     },
