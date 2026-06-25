@@ -40,13 +40,10 @@ module.exports = {
     ];
     await queryInterface.bulkInsert('tb_data_pribadi', dataPribadiRecords, { ignoreDuplicates: true });
 
-    // 3. Seed Parents (5 parent untuk 5 mahasiswa)
+    // 3. Seed Parents (2 parent untuk 2 mahasiswa)
     const parentData = [
       { id: 1001, email: 'parent_syaifullah@example.com', nama: 'Ayah Syaifullah', npm: '20260515001', no_hp: '089123456701' },
-      { id: 1002, email: 'parent_fauzan@example.com', nama: 'Ayah Fauzan', npm: '20260515002', no_hp: '089123456702' },
-      { id: 1003, email: 'parent_aisyah@example.com', nama: 'Ayah Aisyah', npm: '20260515003', no_hp: '089123456703' },
-      { id: 1004, email: 'parent_budi@example.com', nama: 'Ayah Budi', npm: '20260515004', no_hp: '089123456704' },
-      { id: 1005, email: 'parent_dewi@example.com', nama: 'Ayah Dewi', npm: '20260515005', no_hp: '089123456705' }
+      { id: 1002, email: 'parent_fauzan@example.com', nama: 'Ayah Fauzan', npm: '20260515002', no_hp: '089123456702' }
     ];
 
     for (const parent of parentData) {
@@ -61,8 +58,8 @@ module.exports = {
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.bulkDelete('trx_parent_mhs', { parent_id: [1001, 1002, 1003, 1004, 1005] });
-    await queryInterface.bulkDelete('tb_parents', { id: [1001, 1002, 1003, 1004, 1005] });
+    await queryInterface.bulkDelete('trx_parent_mhs', { parent_id: [1001, 1002] });
+    await queryInterface.bulkDelete('tb_parents', { id: [1001, 1002] });
     await queryInterface.bulkDelete('tb_data_pribadi', {
       dp_id: [
         '20260515-1111-1111-1111-111111111111', '20260515-1111-1111-1111-111111111112', '20260515-1111-1111-1111-111111111113',

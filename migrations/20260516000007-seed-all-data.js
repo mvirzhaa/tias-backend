@@ -45,18 +45,10 @@ module.exports = {
       { id: dosenUUID[4], npm: 'DOSEN005', nama: 'Ir. Bambang Supriyadi, M.T', nik: '2234567890123460', no_hp: '082345678905', email: 'bambang@gmail.com', dpId: dataPribadiUUID[20], bidang: 'Sistem Operasi' }
     ];
 
-    // Data Orang Tua (10) - terhubung dengan mahasiswa via mhs_id
+    // Data Orang Tua (2) - terhubung dengan mahasiswa via mhs_id
     const parentData = [
       { id: 1001, email: 'muhammadihsanf270@gmail.com', nama: 'UCIH SUKAESIH', npm: '221106042843', no_hp: '089123456701', mhs_id: mahasiswaUUID[0] },
-      { id: 1002, email: 'muhamadvirzhaa@gmail.com', nama: 'HENI NOVIANTI', npm: '221106043023', no_hp: '089123456702', mhs_id: mahasiswaUUID[1] },
-      { id: 1003, email: 'satrioteguhhutomo@gmail.com', nama: 'Ortu Teguh', npm: '221106042963', no_hp: '089123456703', mhs_id: mahasiswaUUID[2] },
-      { id: 1004, email: 'muhammad.irgi.fajri@gmail.com', nama: 'Ratna sari', npm: '221106042881', no_hp: '089123456704', mhs_id: mahasiswaUUID[3] },
-      { id: 1005, email: 'azkanyan@gmail.com', nama: 'SITI KARIMAH', npm: '221106043019', no_hp: '089123456705', mhs_id: mahasiswaUUID[4] },
-      { id: 1006, email: 'maragindapanggabean35@gmail.com', nama: 'NISLAN', npm: '221106042851', no_hp: '089123456706', mhs_id: mahasiswaUUID[5] },
-      { id: 1007, email: 'rinduasst@gmail.com', nama: 'Ortu Rindu', npm: '221106042991', no_hp: '089123456707', mhs_id: mahasiswaUUID[6] },
-      { id: 1008, email: 'anastianisrina06@gmail.com', nama: 'ANA KUSMIYAN', npm: '221106042855', no_hp: '089123456708', mhs_id: mahasiswaUUID[7] },
-      { id: 1009, email: 'jonisa62@gmail.com', nama: 'NURHAFNI MATONDANG', npm: '221106042869', no_hp: '089123456709', mhs_id: mahasiswaUUID[8] },
-      { id: 1010, email: 'zands2076@gmail.com', nama: 'Ortu Fauzan', npm: '221106042895', no_hp: '089123456710', mhs_id: mahasiswaUUID[9] }
+      { id: 1002, email: 'muhamadvirzhaa@gmail.com', nama: 'HENI NOVIANTI', npm: '221106043023', no_hp: '089123456702', mhs_id: mahasiswaUUID[1] }
     ];
 
     // ==================== CEK APAKAH TABEL SUDAH ADA ====================
