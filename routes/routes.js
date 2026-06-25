@@ -34,6 +34,9 @@ const ruanganRoutes = require("./ruangan/ruanganRoutes");
 const ujianRoutes = require("./ujian/ujianRoutes");
 const cbtRoutes = require("./Authentication/cbtRoutes");
 const siakRoutes = require("./siak/siakRoute");
+// BRIEF v2 — /siak-sync = admin tools (mapping matakuliah, user mapping, validasi sync).
+// Berbeda dari /lms (LMS sections, content, forum, sync pull SIAK v2).
+const siakSyncRoutes = require("./siak-sync/siakSyncRoutes");
 const parentsRoutes = require("./parents/parentsRoutes");
 const absensiExternalRoutes = require("./absensi-external/indexRouter");
 const suratRoutes = require("./persuratan/surat");
@@ -74,6 +77,7 @@ router.use("/laporan", laporanRoutes);
 router.use("/ruangan", ruanganRoutes);
 router.use("/ujian", ujianRoutes);
 router.use("/siak", siakRoutes);
+router.use("/siak-sync", siakSyncRoutes); // Task 6: admin tools — user mapping, course mapping, validasi sync
 router.use("/parents", parentsRoutes);
 router.use("/absensi-external", absensiExternalRoutes);
 router.use("/surat", suratRoutes);

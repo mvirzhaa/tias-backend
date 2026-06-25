@@ -27,6 +27,19 @@ const {
 } = require("../../controllers/lms/contentItemController");
 const { forumMember, forumModerator } = require("../../middleware/lms/forumAccess");
 const {
+  studentEnrolledContent,
+  submissionViewAccess,
+  lecturerGradesSubmission,
+} = require("../../middleware/lms/submissionAccess");
+const {
+  submitAssignment,
+  getMySubmission,
+  listSubmissions,
+  getSubmission,
+  serveSubmissionFile,
+  gradeSubmission,
+} = require("../../controllers/lms/submissionController");
+const {
   listThreads,
   createThread,
   getThread,
@@ -109,5 +122,25 @@ router.delete("/threads/:threadId", protected, forumMember, deleteThread); // pe
 router.post("/threads/:threadId/posts", protected, forumMember, createPost);
 router.put("/posts/:postId", protected, forumMember, updatePost); // milik sendiri
 router.delete("/posts/:postId", protected, forumMember, deletePost); // pemilik/moderator
+
+// --- Assignment (A5) — config = content item tipe `assignment` (CRUD via route item di atas).
+//     Submission = tabel lms_submissions. kelasKuliahId selalu server-side (item→section→kelas).
+//     Otorisasi berlapis + IDOR-baris (siak_mahasiswa_id == req.user.siakUserUuid).
+// Submit/resubmit & lihat punya sendiri (mahasiswa terdaftar).
+router.post(
+  "/items/:id/submissions",
+  protected,
+  studentEnrolledContent,
+  lmsUpload,
+  submitAssignment
+);
+router.get("/items/:id/submissions/me", protected, studentEnrolledContent, getMySubmission);
+// Lihat SEMUA submission (dosen pengampu/admin).
+router.get("/items/:id/submissions", protected, lecturerOwnsContentSection, listSubmissions);
+// Submission tunggal: dosen pengampu ATAU mahasiswa pemilik baris (anti IDOR-baris).
+router.get("/submissions/:submissionId", protected, submissionViewAccess, getSubmission);
+router.get("/submissions/:submissionId/file", protected, submissionViewAccess, serveSubmissionFile);
+// Menilai (dosen pengampu/admin; boleh re-grade).
+router.patch("/submissions/:submissionId/grade", protected, lecturerGradesSubmission, gradeSubmission);
 
 module.exports = router;

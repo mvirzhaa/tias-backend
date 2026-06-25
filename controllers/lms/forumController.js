@@ -1,6 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const db = require("../../config");
 const { response } = require("../../lib/response");
+const { getPagination } = require("../../lib/pagination-parser");
 const LmsForumThread = require("../../models/lms/LmsForumThread");
 const LmsForumPost = require("../../models/lms/LmsForumPost");
 
@@ -19,16 +20,29 @@ const cleanText = (s, max) => stripTags(s).trim().slice(0, max);
 const authorId = (req) => req.user.user_id;
 const isOwner = (req, row) => row.author_id === req.user.user_id;
 
-// GET /lms/items/:id/threads  (forumMember) — pinned dulu, lalu terbaru.
+// GET /lms/items/:id/threads?page=&limit=  (forumMember) — pinned dulu, lalu terbaru.
 exports.listThreads = asyncHandler(async (req, res) => {
-  const threads = await LmsForumThread.findAll({
+  const limit = parseInt(req.query.limit) > 0 ? parseInt(req.query.limit) : 10;
+  const page = req.query.page ? parseInt(req.query.page) : 1;
+  const pagelimit = getPagination(limit, page);
+
+  const data = await LmsForumThread.findAndCountAll({
     where: { content_item_id: req.lmsForumItem.id },
     order: [
       ["is_pinned", "DESC"],
       ["created_at", "DESC"],
     ],
+    limit: pagelimit.limit,
+    offset: pagelimit.offset,
   });
-  return response(res, true, "Success", threads);
+
+  return response(res, true, "Success", {
+    limit,
+    page,
+    total: data.count,
+    total_page: Math.ceil(parseInt(data.count) / limit),
+    rows: data.rows,
+  });
 });
 
 // POST /lms/items/:id/threads  (forumMember) — body { title, body? }.
@@ -76,13 +90,29 @@ exports.createThread = asyncHandler(async (req, res) => {
   return response(res, true, "Thread berhasil dibuat.", result, 201);
 });
 
-// GET /lms/threads/:threadId  (forumMember) — thread + daftar post (kronologis).
+// GET /lms/threads/:threadId?page=&limit=  (forumMember) — thread + post (kronologis, paginated).
 exports.getThread = asyncHandler(async (req, res) => {
-  const posts = await LmsForumPost.findAll({
+  const limit = parseInt(req.query.limit) > 0 ? parseInt(req.query.limit) : 10;
+  const page = req.query.page ? parseInt(req.query.page) : 1;
+  const pagelimit = getPagination(limit, page);
+
+  const data = await LmsForumPost.findAndCountAll({
     where: { thread_id: req.lmsThread.id },
     order: [["created_at", "ASC"]],
+    limit: pagelimit.limit,
+    offset: pagelimit.offset,
   });
-  return response(res, true, "Success", { thread: req.lmsThread, posts });
+
+  return response(res, true, "Success", {
+    thread: req.lmsThread,
+    posts: {
+      limit,
+      page,
+      total: data.count,
+      total_page: Math.ceil(parseInt(data.count) / limit),
+      rows: data.rows,
+    },
+  });
 });
 
 // PATCH /lms/threads/:threadId  (forumModerator) — body { is_pinned?, is_locked? }.

@@ -1,8 +1,10 @@
 const asyncHandler = require("express-async-handler");
+const { Op } = require("sequelize");
 const db = require("../../config");
 const { response } = require("../../lib/response");
 const LmsSection = require("../../models/lms/LmsSection");
 const LmsContentItem = require("../../models/lms/LmsContentItem");
+const LmsSubmission = require("../../models/lms/LmsSubmission");
 
 /**
  * SPEC v6 §4 — Sections CRUD + reorder (CABANG MATI).
@@ -124,12 +126,29 @@ exports.updateSection = asyncHandler(async (req, res) => {
 exports.deleteSection = asyncHandler(async (req, res) => {
   const section = req.lmsSection;
 
-  await section.update({ deleted_at: new Date() });
+  const now = new Date();
+  await section.update({ deleted_at: now });
+
+  // Submission anak (assignment di section ini) ikut soft-delete — ambil id item dulu
+  // sebelum item ditandai terhapus (defaultScope menyaring deleted_at IS NULL).
+  const items = await LmsContentItem.findAll({
+    where: { section_id: section.id, deleted_at: null },
+    attributes: ["id"],
+  });
+  const itemIds = items.map((i) => i.id);
+
   // Ikut soft-delete konten anak agar tidak yatim.
   await LmsContentItem.update(
-    { deleted_at: new Date() },
+    { deleted_at: now },
     { where: { section_id: section.id, deleted_at: null } }
   );
+
+  if (itemIds.length) {
+    await LmsSubmission.update(
+      { deleted_at: now, updated_at: now },
+      { where: { content_item_id: { [Op.in]: itemIds }, deleted_at: null } }
+    );
+  }
 
   return response(res, true, "Section berhasil dihapus.", null);
 });

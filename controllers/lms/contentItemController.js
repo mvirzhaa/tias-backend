@@ -1,8 +1,38 @@
 const asyncHandler = require("express-async-handler");
+const { Op } = require("sequelize");
 const db = require("../../config");
 const { response } = require("../../lib/response");
 const LmsContentItem = require("../../models/lms/LmsContentItem");
+const LmsSubmission = require("../../models/lms/LmsSubmission");
 const { validateContentPayload, FILE_TYPES } = require("../../lib/lms/payloadValidators");
+
+// Recompute is_late submission (cache) saat due_at assignment diedit — tutup celah deadline
+// diperpanjang tapi baris lama tetap "telat". Sumber kebenaran tetap dihitung saat baca.
+async function recomputeIsLate(contentItemId, dueAt) {
+  const now = new Date();
+  if (dueAt) {
+    await LmsSubmission.update(
+      { is_late: true, updated_at: now },
+      { where: { content_item_id: contentItemId, submitted_at: { [Op.gt]: dueAt } } }
+    );
+    await LmsSubmission.update(
+      { is_late: false, updated_at: now },
+      { where: { content_item_id: contentItemId, submitted_at: { [Op.lte]: dueAt } } }
+    );
+  } else {
+    await LmsSubmission.update(
+      { is_late: false, updated_at: now },
+      { where: { content_item_id: contentItemId } }
+    );
+  }
+}
+
+// Deskripsi item = teks polos opsional. Buang tag HTML & batasi panjang (defense-in-depth).
+const cleanDescription = (value) => {
+  if (value == null) return null;
+  const text = String(value).replace(/<[^>]*>/g, "").trim();
+  return text === "" ? null : text.slice(0, 2000);
+};
 
 /**
  * SPEC v8 §5 — Items CRUD + reorder. Tulis dilindungi `lecturerOwnsContentSection`
@@ -116,13 +146,26 @@ exports.updateItem = asyncHandler(async (req, res) => {
 
   await item.update(updates);
 
+  // Assignment: bila due_at berubah, segarkan cache is_late submission terkait.
+  if (item.type === "assignment" && updates.payload !== undefined) {
+    await recomputeIsLate(item.id, updates.payload.due_at || null);
+  }
+
   return response(res, true, "Item berhasil diperbarui.", item);
 });
 
 // DELETE /lms/items/:id  (soft delete)
 exports.deleteItem = asyncHandler(async (req, res) => {
   const item = req.lmsContentItem;
-  await item.update({ deleted_at: new Date() });
+  const now = new Date();
+  await item.update({ deleted_at: now });
+  // Assignment: ikut soft-delete submission anak (file fisik tetap; cleanup terpisah).
+  if (item.type === "assignment") {
+    await LmsSubmission.update(
+      { deleted_at: now, updated_at: now },
+      { where: { content_item_id: item.id, deleted_at: null } }
+    );
+  }
   return response(res, true, "Item berhasil dihapus.", null);
 });
 

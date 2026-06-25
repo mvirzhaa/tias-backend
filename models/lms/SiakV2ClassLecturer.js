@@ -3,11 +3,12 @@ const db = require("../../config");
 const SiakV2Class = require("./SiakV2Class");
 
 /**
- * siak_v2_participants — SPEC v8 §2.2 (FULL SYNC). Salinan lokal daftar peserta kelas.
- * Dipakai studentEnrolled: cek (kelasKuliahId, npm).
+ * siak_v2_class_lecturers — BRIEF v2 §Task 2.
+ * Dosen pengampu per kelas (join table). Sumber: jadwalKuliah[].dosen distinct.
+ * Otorisasi lecturerOwnsClass membaca siak_dosen_id dari sini.
  */
-class SiakV2Participant extends Model {}
-SiakV2Participant.init(
+class SiakV2ClassLecturer extends Model {}
+SiakV2ClassLecturer.init(
   {
     id: {
       type: DataTypes.INTEGER,
@@ -18,15 +19,15 @@ SiakV2Participant.init(
       type: DataTypes.UUID,
       allowNull: false,
     },
-    siak_mahasiswa_id: {
+    siak_dosen_id: {
       type: DataTypes.UUID,
-    },
-    npm: {
-      type: DataTypes.STRING,
       allowNull: false,
     },
+    nidn: {
+      type: DataTypes.STRING(64),
+    },
     nama: {
-      // nama mahasiswa dari SIAK (peserta.nama) — identifikasi unmatched Task 6.
+      // nama dosen dari SIAK (jadwalKuliah[].dosen.nama) — dipakai saran match Task 6.
       type: DataTypes.STRING,
     },
     created_at: {
@@ -38,21 +39,21 @@ SiakV2Participant.init(
   },
   {
     timestamps: false,
-    tableName: "siak_v2_participants",
-    modelName: "SiakV2Participant",
+    tableName: "siak_v2_class_lecturers",
+    modelName: "SiakV2ClassLecturer",
     sequelize: db,
   }
 );
 
-SiakV2Class.hasMany(SiakV2Participant, {
+SiakV2Class.hasMany(SiakV2ClassLecturer, {
   foreignKey: "kelasKuliahId",
   sourceKey: "kelasKuliahId",
-  as: "participants",
+  as: "lecturers",
 });
-SiakV2Participant.belongsTo(SiakV2Class, {
+SiakV2ClassLecturer.belongsTo(SiakV2Class, {
   foreignKey: "kelasKuliahId",
   targetKey: "kelasKuliahId",
   as: "class",
 });
 
-module.exports = SiakV2Participant;
+module.exports = SiakV2ClassLecturer;
