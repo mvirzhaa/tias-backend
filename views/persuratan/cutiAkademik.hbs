@@ -2,195 +2,231 @@
   <head>
     <meta charset="utf-8" />
     <style>
-      body {
-        font-family: "Times New Roman", serif;
-        line-height: 1.3;
-        padding: 20px 45px;
-        color: #000;
-        font-size: 11pt;
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
       }
 
-      /* ===== Header ===== */
+      body {
+        font-family: "Times New Roman", serif;
+        font-size: 11pt;
+        line-height: 1.35;
+        color: #000;
+        padding: 18px 42px 14px;
+      }
+
+      /* ===== HEADER ===== */
       .header-table {
         width: 100%;
         border-collapse: collapse;
       }
       .header-left {
         vertical-align: middle;
-        width: 70%;
+        width: 68%;
       }
       .header-flex {
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 12px;
       }
       .logo {
-        width: 65px;
-        height: 65px;
+        width: 62px;
+        height: 62px;
         object-fit: contain;
         flex-shrink: 0;
       }
       .univ-name {
         font-weight: bold;
-        font-size: 14pt;
-        letter-spacing: 0.3px;
+        font-size: 13.5pt;
+        letter-spacing: 0.2px;
         white-space: nowrap;
       }
       .univ-address {
-        font-size: 9.5pt;
+        font-size: 9pt;
         margin-top: 2px;
       }
       .header-right {
         vertical-align: top;
-        width: 30%;
+        width: 32%;
+        text-align: right;
       }
       .form-box {
         border-collapse: collapse;
         border: 1px solid #000;
-        width: 175px;
+        width: 170px;
         margin-left: auto;
-        font-size: 8pt;
+        font-size: 7.5pt;
+        line-height: 1.4;
       }
       .form-box-title {
         text-align: center;
         font-weight: bold;
         border-bottom: 1px solid #000;
-        padding: 3px;
+        padding: 3px 6px;
       }
       .form-box-list {
-        padding: 4px 6px;
-        line-height: 1.3;
+        padding: 3px 6px;
       }
       .header-divider {
+        border: none;
         border-top: 3px double #000;
-        margin: 8px 0 15px 0;
+        margin: 6px 0 12px;
       }
 
-      /* ===== Kepada Yth + Title box ===== */
+      /* ===== KEPADA + TITLE BOX ===== */
       .body-top {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 15px;
+        margin-bottom: 12px;
       }
       .kepada-col {
         vertical-align: top;
-        width: 60%;
-        padding-right: 15px;
+        width: 58%;
+        padding-right: 12px;
       }
-      .title-col {
-        vertical-align: top;
-        width: 40%;
-        padding-top: 5px;
+      .kepada-label {
+        margin-bottom: 3px;
+        font-size: 11pt;
       }
       .table-bio {
-        margin-top: 5px;
         width: 100%;
         border-collapse: collapse;
       }
       .table-bio td {
         padding: 1px 0;
         vertical-align: top;
+        font-size: 11pt;
       }
       .table-bio td:first-child {
         white-space: nowrap;
-        padding-right: 10px;
+        width: 90px;
       }
       .table-bio td:nth-child(2) {
-        padding-right: 8px;
+        width: 10px;
+        padding-right: 6px;
+      }
+      .title-col {
+        vertical-align: top;
+        width: 42%;
+        padding-top: 0;
       }
       .title-box {
         border: 1px solid #000;
         border-collapse: collapse;
         width: 100%;
-        max-width: 250px;
+        max-width: 230px;
         margin-left: auto;
       }
       .title-box-title {
         text-align: center;
         font-weight: bold;
         text-transform: uppercase;
-        padding: 8px 10px 5px;
+        padding: 7px 10px 5px;
         border-bottom: 1px solid #000;
+        font-size: 11pt;
       }
       .title-box-no {
-        padding: 5px 10px;
+        padding: 4px 10px;
         text-align: center;
+        font-size: 10pt;
       }
 
-      /* ===== Paragraphs ===== */
+      /* ===== PARAGRAF ===== */
       p {
         text-align: justify;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
         margin-top: 0;
       }
       p.indent {
         text-indent: 40px;
       }
 
-      /* ===== Semester / Tahun Akademik tables ===== */
+      /* ===== TABEL SEMESTER / TAHUN AKADEMIK ===== */
       .table-wrap {
         display: flex;
         justify-content: flex-end;
-        margin: 8px 0 12px;
+        margin: 6px 0 10px;
       }
       .data-table {
-        width: 60%;
+        width: 58%;
         border-collapse: collapse;
       }
       .data-table th,
       .data-table td {
         border: 1px solid #000;
-        padding: 4px 10px;
+        padding: 3px 10px;
         text-align: left;
         text-transform: capitalize;
+        font-size: 10.5pt;
       }
       .data-table th {
         font-weight: bold;
-        background-color: #f9f9f9;
+        background-color: #f5f5f5;
       }
 
-      /* ===== Signature ===== */
+      /* ===== TANDA TANGAN ===== */
       .footer-table {
         width: 100%;
-        margin-top: 20px;
+        margin-top: 12px;
         border-collapse: collapse;
       }
       .footer-table td {
         width: 50%;
         vertical-align: top;
       }
-      .sign-date,
-      .sign-role,
-      .sign-name {
+      .sign-right {
         text-align: center;
       }
-      .sign-gap {
+      .sign-role {
+        font-size: 10.5pt;
+        margin-bottom: 2px;
+      }
+      .sign-img-wrap {
         height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .sign-img-wrap img {
+        height: 58px;
+        max-width: 140px;
+        object-fit: contain;
+      }
+      .sign-name-line {
+        border-bottom: 1px solid #000;
+        width: 72%;
+        margin: 0 auto 4px;
+      }
+      .sign-name {
+        font-size: 10.5pt;
       }
 
-      /* ===== Catatan Perhatian ===== */
+      /* ===== CATATAN PERHATIAN ===== */
       .catatan {
-        margin-top: 25px;
-        font-size: 9pt;
+        margin-top: 14px;
+        font-size: 8.5pt;
+        line-height: 1.35;
       }
       .catatan-title {
         font-weight: bold;
         font-style: italic;
         text-decoration: underline;
-        margin-bottom: 5px;
+        margin-bottom: 4px;
       }
       .catatan ol {
         margin: 0;
-        padding-left: 18px;
+        padding-left: 16px;
       }
       .catatan li {
-        margin-bottom: 4px;
+        margin-bottom: 3px;
         text-align: justify;
       }
     </style>
   </head>
   <body>
 
+    {{!-- ===== HEADER ===== --}}
     <table class="header-table">
       <tr>
         <td class="header-left">
@@ -218,18 +254,39 @@
         </td>
       </tr>
     </table>
-    <div class="header-divider"></div>
+    <hr class="header-divider" />
 
+    {{!-- ===== KEPADA YTH + TITLE BOX ===== --}}
     <table class="body-top">
       <tr>
         <td class="kepada-col">
-          <div style="margin-bottom: 4px;">Kepada Yth :</div>
+          <div class="kepada-label">Kepada Yth :</div>
           <table class="table-bio">
-            <tr><td>Saudara</td><td>:</td><td><strong>{{nama_lengkap}}</strong></td></tr>
-            <tr><td>NPM</td><td>:</td><td>{{npm}}</td></tr>
-            <tr><td>Fak./Jurusan</td><td>:</td><td>{{fakultas}}</td></tr>
-            <tr><td>Program Studi</td><td>:</td><td>{{program_studi}}</td></tr>
-            <tr><td>Alamat</td><td>:</td><td>{{alamat}}</td></tr>
+            <tr>
+              <td>Saudara</td>
+              <td>:</td>
+              <td><strong>{{nama_lengkap}}</strong></td>
+            </tr>
+            <tr>
+              <td>NPM</td>
+              <td>:</td>
+              <td>{{npm}}</td>
+            </tr>
+            <tr>
+              <td>Fak./Jurusan</td>
+              <td>:</td>
+              <td>{{fakultas}}</td>
+            </tr>
+            <tr>
+              <td>Program Studi</td>
+              <td>:</td>
+              <td>{{program_studi}}</td>
+            </tr>
+            <tr>
+              <td>Alamat</td>
+              <td>:</td>
+              <td>{{alamat}}</td>
+            </tr>
           </table>
         </td>
         <td class="title-col">
@@ -241,9 +298,11 @@
       </tr>
     </table>
 
+    {{!-- ===== ISI SURAT ===== --}}
     <p>
       Menunjuk surat permohonan Cuti Akademik Saudara tertanggal
-      <strong>{{tanggal_permohonan}}</strong>, dengan ini diberitahukan bahwa Saudara diizinkan untuk cuti akademik pada :
+      <strong>{{tanggal_permohonan}}</strong>, dengan ini diberitahukan bahwa Saudara diizinkan
+      untuk cuti akademik pada :
     </p>
 
     <div class="table-wrap">
@@ -254,7 +313,9 @@
     </div>
 
     <p>
-      Selanjutnya, untuk mengikuti kegiatan akademik kembali, Saudara harus mengajukan permohonan untuk aktif kembali dan melakukan registrasi ulang pada masa registrasi yang telah ditetapkan dalam kalender akademik untuk :
+      Selanjutnya, untuk mengikuti kegiatan akademik kembali, Saudara harus mengajukan permohonan
+      untuk aktif kembali dan melakukan registrasi ulang pada masa registrasi yang telah ditetapkan
+      dalam kalender akademik untuk :
     </p>
 
     <div class="table-wrap">
@@ -265,49 +326,60 @@
     </div>
 
     <p>
-      dan melaksanakan ketentuan-ketentuan yang telah ditetapkan, setelah dinyatakan aktif mengikuti perkuliahan kembali.
+      dan melaksanakan ketentuan-ketentuan yang telah ditetapkan, setelah dinyatakan aktif
+      mengikuti perkuliahan kembali.
     </p>
 
     <p class="indent">Demikian, harap saudara maklum adanya.</p>
 
+    {{!-- ===== TANDA TANGAN ===== --}}
     <table class="footer-table">
       <tr>
         <td></td>
-        <td class="sign-date">Bogor, {{tanggal_surat}}</td>
+        <td class="sign-right">Bogor, {{tanggal_surat}}</td>
       </tr>
       <tr>
         <td></td>
-        <td class="sign-role">Ketua Program Studi Teknik Informatika</td>
+        <td class="sign-right sign-role">Ketua Program Studi Teknik Informatika</td>
       </tr>
       <tr>
         <td></td>
-        <td style="text-align: center; padding-top: 4px;">
-          {{#if ttdBase64}}
-          <img src="{{ttdBase64}}" alt="TTD Kaprodi" style="height: 65px; max-width: 150px; object-fit: contain;" />
-          {{else}}
-          <div class="sign-gap"></div>
-          {{/if}}
+        <td class="sign-right">
+          <div class="sign-img-wrap">
+            {{#if ttdBase64}}
+              <img src="{{ttdBase64}}" alt="TTD Kaprodi" />
+            {{else}}
+              <div style="height: 58px;"></div>
+            {{/if}}
+          </div>
         </td>
       </tr>
       <tr>
         <td></td>
-        <td class="sign-name">
-          <div style="border-bottom: 1px solid #000; width: 70%; margin: 0 auto;"></div>
-          <div style="margin-top: 5px;">( <strong>{{nama_dekan}}</strong> )</div>
+        <td class="sign-right">
+          <div class="sign-name-line"></div>
+          <div class="sign-name">( <strong>{{nama_dekan}}</strong> )</div>
         </td>
       </tr>
     </table>
 
+    {{!-- ===== CATATAN PERHATIAN ===== --}}
     <div class="catatan">
       <div class="catatan-title">Catatan Perhatian :</div>
       <ol>
         <li>
-          Bilamana batas waktu cuti akademik telah habis dan mahasiswa yang bersangkutan tidak mengajukan permohonan untuk kembali aktif mengikuti perkuliahan, maka semester atau tahun akademik berikutnya diperhitungkan dalam perhitungan
-          masa studi dan mahasiswa dikenakan kewajiban membayar SPP penuh. Untuk kasus ini pejabat yang berwenang akan memberikan peringatan tertulis kepada mahasiswa yang bersangkutan.
+          Bilamana batas waktu cuti akademik telah habis dan mahasiswa yang bersangkutan tidak
+          mengajukan permohonan untuk kembali aktif mengikuti perkuliahan, maka semester atau tahun
+          akademik berikutnya diperhitungkan dalam perhitungan masa studi dan mahasiswa dikenakan
+          kewajiban membayar SPP penuh. Untuk kasus ini pejabat yang berwenang akan memberikan
+          peringatan tertulis kepada mahasiswa yang bersangkutan.
         </li>
         <li>
-          Setelah diberikan peringatan tertulis oleh pejabat yang berwenang, mahasiswa yang dimaksud pada butir (1) di atas masih juga tidak mengajukan permohonan untuk kembali aktif mengikuti perkuliahan sampai dengan dua semester
-          berikutnya, maka mahasiswa tersebut dinyatakan mengundurkan diri dan hilang haknya sebagai mahasiswa UIKA. Sangsi ini harus disebutkan dalam surat peringatan yang dimaksud butir (1) diatas.
+          Setelah diberikan peringatan tertulis oleh pejabat yang berwenang, mahasiswa yang dimaksud
+          pada butir (1) di atas masih juga tidak mengajukan permohonan untuk kembali aktif mengikuti
+          perkuliahan sampai dengan dua semester berikutnya, maka mahasiswa tersebut dinyatakan
+          mengundurkan diri dan hilang haknya sebagai mahasiswa UIKA. Sangsi ini harus disebutkan
+          dalam surat peringatan yang dimaksud butir (1) diatas.
         </li>
       </ol>
     </div>

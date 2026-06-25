@@ -113,8 +113,6 @@ class SuratController {
           return response(res, false, "Jenis pengajuan tidak valid atau tidak didukung oleh modul mahasiswa.");
         }
 
-        // ✅ Validasi TTD hanya untuk Surat Pengunduran Diri
-        // (Surat Cuti tidak butuh TTD mahasiswa — yang TTD di sana adalah Kaprodi)
         if (jenis_surat?.toLowerCase() === "surat pengunduran diri") {
           const dataPribadi = await DataPribadi.findOne({
             where: { user_id: req.user.user_id },
@@ -135,18 +133,84 @@ class SuratController {
             );
           }
         }
+     
+        const [adminUsers, stafTuRecords] = await Promise.all([        
+          User.findAll({
+            where: { role: "Admin" },
+            attributes: ["user_id"],
+            transaction: t,
+          }),
+    
+          TrxUserJabatanUnit.findAll({
+            include: [
+              {
+                model: Jabatan,
+                as: "jabatan",
+                where: { nama_jabatan: { [Op.like]: "%Tata Usaha%" } },
+                attributes: ["nama_jabatan"],
+              },
+            ],
+            attributes: ["user_id"],
+            transaction: t,
+          }),
+        ]);
 
-        const adminUser = await User.findOne({
-          where: { role: "Admin" },
-          transaction: t,
-        });
+        const adminIds = adminUsers.map((u) => String(u.user_id));
+        const tuIds = stafTuRecords.map((r) => String(r.user_id));
+        const uniquePenerimaIds = [...new Set([...adminIds, ...tuIds])];
 
-        if (!adminUser) {
+        if (uniquePenerimaIds.length === 0) {
           await t.rollback();
-          return response(res, false, "Gagal mengirim: Akun Admin TU belum dikonfigurasi di sistem.");
+          return response(res, false, "Gagal mengirim: Tidak ada Admin atau Staf Tata Usaha yang terdaftar di sistem.");
         }
 
-        penerima_id = adminUser.user_id;
+        const parsedFormData = safeJsonParse(form_data);
+
+        const savedSuratList = await Promise.all(
+          uniquePenerimaIds.map((pid) =>
+            Surat.create(
+              {
+                user_id: req.user.user_id,
+                penerima_id: pid,
+                parent_id: parent_id || null,
+                jenis_surat,
+                nomor_surat: nomor_surat || null,
+                status: "Sent",
+                form_data: parsedFormData,
+              },
+              { transaction: t }
+            )
+          )
+        );
+
+        for (const savedSurat of savedSuratList) {
+          if (req.files && req.files.length > 0) {
+            const lampiranData = req.files.map((file) => ({
+              surat_id: savedSurat.id,
+              nama_file: file.originalname,
+              file_url: file.filename,
+            }));
+            await DokumenLampiran.bulkCreate(lampiranData, { transaction: t });
+          }
+
+          await RiwayatSurat.create(
+            {
+              surat_id: savedSurat.id,
+              status: "Sent",
+              catatan: `Pengajuan dokumen mahasiswa berhasil dibuat. Dilakukan oleh: ${nama_aktor || "Pengguna"}`,
+            },
+            { transaction: t }
+          );
+        }
+
+        await t.commit();
+
+        const fullData = await Surat.findOne({
+          where: { id: savedSuratList[0].id },
+          include: [{ model: DokumenLampiran }],
+        });
+
+        return response(res, true, `Surat berhasil dikirim ke ${uniquePenerimaIds.length} penerima (Admin & Staf TU)`, fullData);
       }
 
       const finalData = {
@@ -181,7 +245,7 @@ class SuratController {
         {
           surat_id: save.id,
           status: "Sent",
-          catatan: isReply ? `Pesan balasan dikirimkan. Dilakukan oleh: ${nama_aktor || "Pengguna"}` : `Pengajuan dokumen mahasiswa berhasil dibuat. Dilakukan oleh: ${nama_aktor || "Pengguna"}`,
+          catatan: `Pesan balasan dikirimkan. Dilakukan oleh: ${nama_aktor || "Pengguna"}`,
         },
         { transaction: t },
       );
@@ -245,7 +309,6 @@ class SuratController {
         let htmlDocumentString = "";
 
         if (data.jenis_surat?.toLowerCase() === "surat pengunduran diri") {
-          // ✅ TTD Mahasiswa (pengirim surat)
           const dataPribadiMhs = await DataPribadi.findOne({
             where: { user_id: data.user_id },
             attributes: ["ttd"],
@@ -255,8 +318,6 @@ class SuratController {
           htmlDocumentString = await compileSuratPengunduranDiri(data, formatTanggal, ttdMhsBase64);
 
         } else if (data.jenis_surat?.toLowerCase() === "surat pengajuan cuti") {
-          // ✅ TTD Kaprodi — dicari dinamis dari jabatan struktural
-          // Query: cari user yang jabatannya "Ketua Program Studi" di unit FT_TI
           const kaprodiJabatan = await TrxUserJabatanUnit.findOne({
             include: [
               {
