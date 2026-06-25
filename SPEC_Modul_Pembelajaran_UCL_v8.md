@@ -2,16 +2,6 @@
 
 **Status:** Final pasca-kesepakatan *Full Sync* dengan Tim SIAK. Dokumen ini MENGGANTIKAN SEMUA versi V7 ke bawah.
 
-**Penekanan produk:** Modul Pembelajaran ini adalah **LMS SPADA-style untuk UCL**. Maksudnya, pola pengalaman belajar mengikuti konsep SPADA: user masuk ke kelas kuliah, melihat topik/pertemuan, lalu mengakses aktivitas atau sumber belajar di dalam topik tersebut. Ini bukan sekadar CRUD/upload file, dan bukan klaim sebagai SPADA resmi/aggregator Kemdikbud.
-
-Prinsip UI/UX yang harus dijaga:
-- Kelas kuliah menjadi pintu masuk utama.
-- Struktur belajar di dalam kelas berbasis topik/pertemuan/minggu.
-- Setiap topik berisi item pembelajaran: page, PDF, PPT, video, URL, forum, assignment, dan exam/quiz saat siap.
-- Dosen mengelola konten pada kelas yang dia ampu.
-- Mahasiswa hanya membaca/mengikuti aktivitas pada kelas yang dia ambil.
-- Admin memantau dan mengelola sesuai scope universitas/fakultas/prodi.
-
 **Perubahan Arsitektur Mayor (FULL SYNC):**
 Berdasarkan kesepakatan terbaru dengan Tim SIAK, **kita tidak lagi menggunakan metode Live Proxy** (dimana UCL menembak API SIAK setiap kali *user* membuka halaman). 
 SIAK v2 akan menyediakan satu atau beberapa *endpoint* khusus (*bulk*) untuk menyedot seluruh data Mata Kuliah, Kelas, Jadwal, dan Peserta Kelas. Data tersebut akan **disimpan permanen secara lokal di UCL** melalui sebuah fitur *Synchronize*.

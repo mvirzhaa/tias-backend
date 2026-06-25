@@ -18,13 +18,12 @@ function walkDir(dir) {
     return results;
 }
 
-const modelsDir = path.resolve(__dirname, '../models');
-const allModelFiles = walkDir(modelsDir);
+const allModelFiles = walkDir('./models');
 const allModels = [];
 
 allModelFiles.forEach(file => {
     try {
-        const model = require(file);
+        const model = require('./' + file);
         if (model && model.tableName) {
             allModels.push(model);
         }

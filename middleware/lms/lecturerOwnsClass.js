@@ -4,7 +4,6 @@ const LmsSection = require("../../models/lms/LmsSection");
 const LmsContentItem = require("../../models/lms/LmsContentItem");
 const SiakV2ClassLecturer = require("../../models/lms/SiakV2ClassLecturer");
 const SiakV2Participant = require("../../models/lms/SiakV2Participant");
-const { userCanViewClassByScope } = require("../../lib/lms/roleScopeService");
 
 /**
  * Otorisasi LMS. SEMUA pengecekan membaca tabel LOKAL
@@ -128,13 +127,6 @@ const makeViewMiddleware = (resolver) =>
     if (kelasKuliahId === undefined) return;
 
     if (req.user && req.user.role === "Admin") return next();
-
-    const scopedAdminAccess = await userCanViewClassByScope(req.user, kelasKuliahId);
-    if (scopedAdminAccess.allowed) {
-      req.lmsRoleScope = scopedAdminAccess.scope;
-      req.lmsClassScope = scopedAdminAccess.class_scope;
-      return next();
-    }
 
     if (req.user && (req.user.role === "Dosen" || req.user.role === "Dosen_Ext")) {
       if (await lecturerOwns(req, kelasKuliahId)) {

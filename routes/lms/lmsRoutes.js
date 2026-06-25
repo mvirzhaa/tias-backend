@@ -7,7 +7,6 @@ const {
   classViewContentAccess,
 } = require("../../middleware/lms/lecturerOwnsClass");
 const { syncSiak } = require("../../controllers/lms/syncController");
-const { listClasses } = require("../../controllers/lms/classController");
 const { createUploadItem, serveFile } = require("../../controllers/lms/fileController");
 const { lmsUpload } = require("../../middleware/lms/lmsUpload");
 const {
@@ -26,7 +25,7 @@ const {
   deleteItem,
   reorderItems,
 } = require("../../controllers/lms/contentItemController");
-const { forumViewer, forumMember, forumModerator } = require("../../middleware/lms/forumAccess");
+const { forumMember, forumModerator } = require("../../middleware/lms/forumAccess");
 const {
   studentEnrolledContent,
   submissionViewAccess,
@@ -50,28 +49,11 @@ const {
   updatePost,
   deletePost,
 } = require("../../controllers/lms/forumController");
-const {
-  listRoleScopes,
-  getMyRoleScopes,
-  createRoleScope,
-  updateRoleScope,
-  deactivateRoleScope,
-} = require("../../controllers/lms/roleScopeController");
 
 const router = express.Router();
 
 // --- Sinkronisasi SIAK v2 (FULL SYNC, admin) — SPEC v8 §4 ---
 router.post("/sync-siak", protected, adminOnly, syncSiak);
-
-// --- Daftar kelas LMS dari staging SIAK baru, difilter sesuai role/scope user ---
-router.get("/classes", protected, listClasses);
-
-// --- Scope role LMS: Admin Univ/Fakultas/Prodi berbasis data SIAK lokal ---
-router.get("/role-scopes/me", protected, getMyRoleScopes);
-router.get("/role-scopes", protected, adminOnly, listRoleScopes);
-router.post("/role-scopes", protected, adminOnly, createRoleScope);
-router.patch("/role-scopes/:id", protected, adminOnly, updateRoleScope);
-router.delete("/role-scopes/:id", protected, adminOnly, deactivateRoleScope);
 
 /**
  * Modul Pembelajaran (LMS) — Fase 1: Sections & Content Items (CRUD + reorder).
@@ -130,10 +112,10 @@ router.get("/files/:id", protected, classViewContentAccess, serveFile);
 // --- Forum (Fase 5) — content item bertipe `forum`. Otorisasi via keanggotaan kelas.
 //     forumMember = admin|dosen-pengampu|mhs-terdaftar; forumModerator = dosen-pengampu|admin.
 // Threads di bawah forum item (:id = id content item tipe forum).
-router.get("/items/:id/threads", protected, forumViewer, listThreads);
+router.get("/items/:id/threads", protected, forumMember, listThreads);
 router.post("/items/:id/threads", protected, forumMember, createThread);
 // Thread tunggal & moderasi.
-router.get("/threads/:threadId", protected, forumViewer, getThread);
+router.get("/threads/:threadId", protected, forumMember, getThread);
 router.patch("/threads/:threadId", protected, forumModerator, updateThreadFlags); // pin/lock
 router.delete("/threads/:threadId", protected, forumMember, deleteThread); // pemilik/moderator
 // Posts (balasan, reply 1-level).

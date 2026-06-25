@@ -3,7 +3,6 @@ const { response } = require("../../lib/response");
 const {
   lecturerOwns,
   studentIsEnrolled,
-  userCanViewClassByScope,
 } = require("./lecturerOwnsClass");
 const LmsSection = require("../../models/lms/LmsSection");
 const LmsContentItem = require("../../models/lms/LmsContentItem");
@@ -81,33 +80,6 @@ async function loadForumContext(req, res) {
 
 const isLecturer = (req) =>
   req.user && (req.user.role === "Dosen" || req.user.role === "Dosen_Ext");
-
-// Viewer forum: anggota kelas atau admin scope akademik. Dipakai untuk GET.
-exports.forumViewer = asyncHandler(async (req, res, next) => {
-  const kelasKuliahId = await loadForumContext(req, res);
-  if (kelasKuliahId === undefined) return;
-
-  if (req.user && req.user.role === "Admin") {
-    req.lmsIsModerator = true;
-    return next();
-  }
-  const scopedAdminAccess = await userCanViewClassByScope(req.user, kelasKuliahId);
-  if (scopedAdminAccess.allowed) {
-    req.lmsIsModerator = false;
-    req.lmsRoleScope = scopedAdminAccess.scope;
-    req.lmsClassScope = scopedAdminAccess.class_scope;
-    return next();
-  }
-  if (isLecturer(req) && (await lecturerOwns(req, kelasKuliahId))) {
-    req.lmsIsModerator = true;
-    return next();
-  }
-  if (req.user && req.user.role === "Mahasiswa" && (await studentIsEnrolled(req, kelasKuliahId))) {
-    req.lmsIsModerator = false;
-    return next();
-  }
-  return response(res, false, "Anda tidak punya akses ke forum kelas ini.", null, 403);
-});
 
 // Anggota kelas (baca + ikut diskusi). Set req.lmsIsModerator utk kontrol moderasi.
 exports.forumMember = asyncHandler(async (req, res, next) => {

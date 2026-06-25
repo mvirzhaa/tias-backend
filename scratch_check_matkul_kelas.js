@@ -1,7 +1,7 @@
 require('dotenv').config();
-const db = require('../models');
-const Matakuliah = require('../models/master/Matakuliah');
-const SiakClass = require('../models/Siak/Class');
+const db = require('./models');
+const Matakuliah = require('./models/master/Matakuliah');
+const SiakClass = require('./models/Siak/Class');
 
 async function check() {
   try {

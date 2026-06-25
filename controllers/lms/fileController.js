@@ -57,7 +57,7 @@ exports.createUploadItem = asyncHandler(async (req, res) => {
     return response(res, false, "File wajib diunggah (field 'file').", null, 400);
   }
 
-  const { type, title, description, is_published, position } = req.body;
+  const { type, title, is_published, position } = req.body;
   if (!SUPPORTED_UPLOAD_TYPES.includes(type)) {
     return response(
       res,
@@ -87,15 +87,10 @@ exports.createUploadItem = asyncHandler(async (req, res) => {
   const storage_key = await storage.save(file.buffer, cfg.ext);
 
   const now = new Date();
-  const cleanDesc = description == null
-    ? null
-    : (String(description).replace(/<[^>]*>/g, "").trim() || null);
-
   const item = await LmsContentItem.create({
     section_id: req.lmsSection.id, // dari middleware (terverifikasi)
     type,
     title,
-    description: cleanDesc ? cleanDesc.slice(0, 2000) : null,
     position: position != null ? parseInt(position, 10) : 0,
     is_published: is_published === true || is_published === "true",
     payload: {

@@ -1,4 +1,5 @@
 const asyncHandler = require("express-async-handler");
+const db = require("../../config");
 const { response } = require("../../lib/response");
 const { syncSiakV2 } = require("../../lib/lms/siakV2/syncService");
 

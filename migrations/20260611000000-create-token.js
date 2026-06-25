@@ -4,7 +4,7 @@ module.exports = {
     await queryInterface.createTable('token', {
       token_id: {
         type: Sequelize.UUID,
-        defaultValue: Sequelize.UUIDV4,
+        defaultValue: Sequelize.literal('gen_random_uuid()'),
         primaryKey: true,
         allowNull: false
       },
