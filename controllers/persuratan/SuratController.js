@@ -48,11 +48,21 @@ class SuratController {
       page = page ? parseInt(page) : 1;
       const pagelimit = getPagination(limit, page);
 
+      // ── Kondisi dasar: tampilkan surat asal ATAU surat disposisi ─────────────
+      // Logika:
+      //   parent_id: null           → surat asal dari mahasiswa ✅
+      //   root_surat_id: [ada]      → surat disposisi untuk pejabat ✅
+      //   parent_id: [ada] + root_surat_id: null → reply ChatRoom ❌ (disembunyikan)
       const condition = {
         deleted_at: null,
-        // Hanya tampilkan surat asal (bukan surat hasil disposisi internal)
-        // Sehingga list tidak penuh dengan surat-surat rantai disposisi
-        root_surat_id: null,
+        [Op.and]: [
+          {
+            [Op.or]: [
+              { parent_id: null },
+              { root_surat_id: { [Op.ne]: null } },
+            ],
+          },
+        ],
       };
 
       // ── Filter berdasarkan mode (inbox/outbox/semua) ──────────────────────────
@@ -61,9 +71,9 @@ class SuratController {
       } else if (mode === "outbox") {
         condition.user_id = req.user.user_id;
       } else {
-        condition[Op.and] = [
-          { [Op.or]: [{ user_id: req.user.user_id }, { penerima_id: req.user.user_id }] },
-        ];
+        condition[Op.and].push({
+          [Op.or]: [{ user_id: req.user.user_id }, { penerima_id: req.user.user_id }],
+        });
       }
 
       // ── Filter berdasarkan status (opsional) ──────────────────────────────────
@@ -451,8 +461,15 @@ class SuratController {
       }));
 
       // ── Surat balasan (reply thread) ──────────────────────────────────────────
+      // Hanya ambil reply murni dari ChatRoom (parent_id ada, root_surat_id null)
+      // Surat disposisi (root_surat_id ada) TIDAK masuk ke sini agar tidak
+      // mencemari ruang percakapan dengan lampiran disposisi
       const replies = await Surat.findAll({
-        where: { parent_id: id, deleted_at: null },
+        where: { 
+          parent_id: id, 
+          root_surat_id: null,  // filter: hanya reply ChatRoom, bukan surat disposisi
+          deleted_at: null 
+        },
         include: [
           { model: User, as: "Pengirim", attributes: ["npm", "email"] },
           { model: DokumenLampiran },

@@ -30,7 +30,7 @@ class SuratValidator {
 
     if (!status) return response(res, false, "Status tidak boleh kosong.");
 
-    const allowedStatus = ["Sent", "Read", "Replied", "Selesai", "Ditolak", "Archived"];
+    const allowedStatus = ["Sent", "Read", "Replied", "Disposisi", "Disetujui", "Ditolak", "Selesai", "Archived"];
     if (!allowedStatus.includes(status)) {
       return response(res, false, "Status yang dikirim tidak valid.");
     }
