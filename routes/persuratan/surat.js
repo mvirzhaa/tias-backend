@@ -13,6 +13,7 @@ router.post("/disposisi/:id", protected, persuratanUpload, SuratValidator.dispos
 router.put("/status/:id", protected, SuratValidator.updateStatus, SuratController.updateStatus);
 
 // --- Standard Routes (Without using Validator) ---
+router.get("/qr/:id", SuratController.getQr); // Public: no auth required (QR validation)
 router.get("/", protected, SuratController.index);
 router.get("/tracking/:id", protected, SuratController.getTracking);
 router.get("/:id", protected, SuratController.detail);
