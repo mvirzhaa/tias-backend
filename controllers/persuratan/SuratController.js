@@ -164,53 +164,52 @@ class SuratController {
           return response(res, false, "Gagal mengirim: Tidak ada Admin atau Staf Tata Usaha yang terdaftar di sistem.");
         }
 
+        // Pilih HANYA SATU perwakilan (Admin pertama atau TU pertama) sebagai penerima utama.
+        // Tujuannya agar mahasiswa tidak melihat duplikat surat (misal 3 surat jika ada 3 admin/TU).
+        // Admin yang menerima dapat menggunakan fitur Disposisi jika perlu diteruskan.
+        const targetPenerimaId = uniquePenerimaIds[0];
+
         const parsedFormData = safeJsonParse(form_data);
 
-        const savedSuratList = await Promise.all(
-          uniquePenerimaIds.map((pid) =>
-            Surat.create(
-              {
-                user_id: req.user.user_id,
-                penerima_id: pid,
-                parent_id: parent_id || null,
-                jenis_surat,
-                nomor_surat: nomor_surat || null,
-                status: "Sent",
-                form_data: parsedFormData,
-              },
-              { transaction: t }
-            )
-          )
+        const savedSurat = await Surat.create(
+          {
+            user_id: req.user.user_id,
+            penerima_id: targetPenerimaId,
+            parent_id: parent_id || null,
+            jenis_surat,
+            nomor_surat: nomor_surat || null,
+            status: "Sent",
+            form_data: parsedFormData,
+          },
+          { transaction: t }
         );
 
-        for (const savedSurat of savedSuratList) {
-          if (req.files && req.files.length > 0) {
-            const lampiranData = req.files.map((file) => ({
-              surat_id: savedSurat.id,
-              nama_file: file.originalname,
-              file_url: file.filename,
-            }));
-            await DokumenLampiran.bulkCreate(lampiranData, { transaction: t });
-          }
-
-          await RiwayatSurat.create(
-            {
-              surat_id: savedSurat.id,
-              status: "Sent",
-              catatan: `Pengajuan dokumen mahasiswa berhasil dibuat. Dilakukan oleh: ${nama_aktor || "Pengguna"}`,
-            },
-            { transaction: t }
-          );
+        if (req.files && req.files.length > 0) {
+          const lampiranData = req.files.map((file) => ({
+            surat_id: savedSurat.id,
+            nama_file: file.originalname,
+            file_url: file.filename,
+          }));
+          await DokumenLampiran.bulkCreate(lampiranData, { transaction: t });
         }
+
+        await RiwayatSurat.create(
+          {
+            surat_id: savedSurat.id,
+            status: "Sent",
+            catatan: `Pengajuan dokumen mahasiswa berhasil dibuat. Dilakukan oleh: ${nama_aktor || "Pengguna"}`,
+          },
+          { transaction: t }
+        );
 
         await t.commit();
 
         const fullData = await Surat.findOne({
-          where: { id: savedSuratList[0].id },
+          where: { id: savedSurat.id },
           include: [{ model: DokumenLampiran }],
         });
 
-        return response(res, true, `Surat berhasil dikirim ke ${uniquePenerimaIds.length} penerima (Admin & Staf TU)`, fullData);
+        return response(res, true, `Surat berhasil dikirim ke Admin TU`, fullData);
       }
 
       const finalData = {
