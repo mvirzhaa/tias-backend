@@ -1,7 +1,33 @@
 const { Op } = require("sequelize");
+const fs = require("fs");
+const path = require("path");
 const { getPagination } = require("../../lib/pagination-parser");
 const { response } = require("../../lib/response");
 const { Surat, User, DataPribadi, RiwayatSurat, DokumenLampiran, sequelize } = require("../../models/Persuratan");
+const TrxUserJabatanUnit = require("../../models/TrxUserJabatanUnit");
+const Jabatan = require("../../models/master/Jabatan");
+const Unit = require("../../models/master/Unit");
+
+const { compileSuratPengunduranDiri, compileSuratCutiAkademik } = require("../../utils/persuratanHelper");
+
+/**
+ * Mengambil TTD user sebagai Base64 dari file lokal.
+ * @param {string} ttdFilename - nama file TTD dari tb_data_pribadi
+ * @returns {string|null} data URI base64 atau null jika tidak ada
+ */
+const getTtdBase64 = (ttdFilename) => {
+  if (!ttdFilename) return null;
+  try {
+    const ttdPath = path.join(__dirname, "../../public/ttd", ttdFilename);
+    if (!fs.existsSync(ttdPath)) return null;
+    const buffer = fs.readFileSync(ttdPath);
+    const ext = path.extname(ttdFilename).replace(".", "") || "png";
+    return `data:image/${ext};base64,${buffer.toString("base64")}`;
+  } catch (err) {
+    console.error("[TTD Base64 Error]:", err.message);
+    return null;
+  }
+};
 
 const safeJsonParse = (data) => {
   if (!data) return {};
@@ -70,20 +96,125 @@ class SuratController {
   static create = async (req, res) => {
     const t = await sequelize.transaction();
     try {
-      const { penerima_id, jenis_surat, form_data, parent_id, nomor_surat, nama_aktor } = req.body;
+      let { penerima_id, jenis_surat, form_data, parent_id, nomor_surat, nama_aktor } = req.body;
       const userRole = req.user.role?.toLowerCase();
-
       const isReply = !!parent_id;
-      const allowedMhs = ["surat pengunduran diri", "surat pengajuan cuti"];
 
-      if (userRole === "mahasiswa" && !isReply && !allowedMhs.includes(jenis_surat?.toLowerCase())) {
-        await t.rollback();
-        return response(res, false, "Akses ditolak untuk jenis surat ini.");
+      const allowedSuratMhs = ["surat pengunduran diri", "surat pengajuan cuti"];
+
+      if (!isReply) {
+        if (userRole !== "mahasiswa") {
+          await t.rollback();
+          return response(res, false, "Akses ditolak. Modul pengajuan dokumen ini hanya dikhususkan untuk Mahasiswa.");
+        }
+
+        if (!allowedSuratMhs.includes(jenis_surat?.toLowerCase())) {
+          await t.rollback();
+          return response(res, false, "Jenis pengajuan tidak valid atau tidak didukung oleh modul mahasiswa.");
+        }
+
+        if (jenis_surat?.toLowerCase() === "surat pengunduran diri") {
+          const dataPribadi = await DataPribadi.findOne({
+            where: { user_id: req.user.user_id },
+            attributes: ["ttd", "nama_lengkap"],
+            transaction: t,
+          });
+
+          const namaUser = dataPribadi?.nama_lengkap || req.user.username || "Pengguna";
+          const npmUser = req.user.npm || req.user.nidn || req.user.user_id;
+          const roleUser = req.user.role || "Pengguna";
+
+          if (!dataPribadi || !dataPribadi.ttd) {
+            await t.rollback();
+            return response(
+              res,
+              false,
+              `Pengajuan gagal: Akun atas nama "${namaUser}" (${npmUser} - ${roleUser}) belum memiliki tanda tangan digital. Silakan buka aplikasi TIAS Mobile → menu Profil → Tanda Tangan Digital, lalu buat tanda tangan Anda sebelum mengajukan surat.`
+            );
+          }
+        }
+     
+        const [adminUsers, stafTuRecords] = await Promise.all([        
+          User.findAll({
+            where: { role: "Admin" },
+            attributes: ["user_id"],
+            transaction: t,
+          }),
+    
+          TrxUserJabatanUnit.findAll({
+            include: [
+              {
+                model: Jabatan,
+                as: "jabatan",
+                where: { nama_jabatan: { [Op.like]: "%Tata Usaha%" } },
+                attributes: ["nama_jabatan"],
+              },
+            ],
+            attributes: ["user_id"],
+            transaction: t,
+          }),
+        ]);
+
+        const adminIds = adminUsers.map((u) => String(u.user_id));
+        const tuIds = stafTuRecords.map((r) => String(r.user_id));
+        const uniquePenerimaIds = [...new Set([...adminIds, ...tuIds])];
+
+        if (uniquePenerimaIds.length === 0) {
+          await t.rollback();
+          return response(res, false, "Gagal mengirim: Tidak ada Admin atau Staf Tata Usaha yang terdaftar di sistem.");
+        }
+
+        // Pilih HANYA SATU perwakilan (Admin pertama atau TU pertama) sebagai penerima utama.
+        // Tujuannya agar mahasiswa tidak melihat duplikat surat (misal 3 surat jika ada 3 admin/TU).
+        // Admin yang menerima dapat menggunakan fitur Disposisi jika perlu diteruskan.
+        const targetPenerimaId = uniquePenerimaIds[0];
+
+        const parsedFormData = safeJsonParse(form_data);
+
+        const savedSurat = await Surat.create(
+          {
+            user_id: req.user.user_id,
+            penerima_id: targetPenerimaId,
+            parent_id: parent_id || null,
+            jenis_surat,
+            nomor_surat: nomor_surat || null,
+            status: "Sent",
+            form_data: parsedFormData,
+          },
+          { transaction: t }
+        );
+
+        if (req.files && req.files.length > 0) {
+          const lampiranData = req.files.map((file) => ({
+            surat_id: savedSurat.id,
+            nama_file: file.originalname,
+            file_url: file.filename,
+          }));
+          await DokumenLampiran.bulkCreate(lampiranData, { transaction: t });
+        }
+
+        await RiwayatSurat.create(
+          {
+            surat_id: savedSurat.id,
+            status: "Sent",
+            catatan: `Pengajuan dokumen mahasiswa berhasil dibuat. Dilakukan oleh: ${nama_aktor || "Pengguna"}`,
+          },
+          { transaction: t }
+        );
+
+        await t.commit();
+
+        const fullData = await Surat.findOne({
+          where: { id: savedSurat.id },
+          include: [{ model: DokumenLampiran }],
+        });
+
+        return response(res, true, `Surat berhasil dikirim ke Admin TU`, fullData);
       }
 
       const finalData = {
         user_id: req.user.user_id,
-        penerima_id,
+        penerima_id: penerima_id,
         parent_id: parent_id || null,
         jenis_surat,
         nomor_surat: nomor_surat || null,
@@ -104,7 +235,6 @@ class SuratController {
 
       if (parent_id) {
         const parentSurat = await Surat.findByPk(parent_id, { transaction: t });
-
         if (parentSurat && String(parentSurat.penerima_id) === String(req.user.user_id)) {
           await parentSurat.update({ status: "Replied" }, { transaction: t });
         }
@@ -114,7 +244,7 @@ class SuratController {
         {
           surat_id: save.id,
           status: "Sent",
-          catatan: isReply ? `Pesan balasan dikirimkan. Dilakukan oleh: ${nama_aktor || "Pengguna"}` : `Pengajuan dokumen berhasil dibuat. Dilakukan oleh: ${nama_aktor || "Pengguna"}`,
+          catatan: `Pesan balasan dikirimkan. Dilakukan oleh: ${nama_aktor || "Pengguna"}`,
         },
         { transaction: t },
       );
@@ -145,7 +275,15 @@ class SuratController {
         return response(res, false, "Data tidak ditemukan");
       }
 
-      await data.update({ status, catatan_pejabat: catatan }, { transaction: t });
+      let currentFormData = safeJsonParse(data.form_data);
+
+      await data.update(
+        {
+          status,
+          catatan_pejabat: catatan,
+        },
+        { transaction: t },
+      );
 
       await RiwayatSurat.create(
         {
@@ -157,9 +295,93 @@ class SuratController {
       );
 
       await t.commit();
-      return response(res, true, `Status berhasil diperbarui menjadi ${status}`);
+
+      if (status === "Selesai") {
+        const htmlPdf = require("html-pdf-node");
+
+        const formatTanggal = new Date().toLocaleDateString("id-ID", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+
+        let htmlDocumentString = "";
+
+        if (data.jenis_surat?.toLowerCase() === "surat pengunduran diri") {
+          const dataPribadiMhs = await DataPribadi.findOne({
+            where: { user_id: data.user_id },
+            attributes: ["ttd"],
+          });
+          const ttdMhsBase64 = getTtdBase64(dataPribadiMhs?.ttd);
+
+          htmlDocumentString = await compileSuratPengunduranDiri(data, formatTanggal, ttdMhsBase64);
+
+        } else if (data.jenis_surat?.toLowerCase() === "surat pengajuan cuti") {
+          const kaprodiJabatan = await TrxUserJabatanUnit.findOne({
+            include: [
+              {
+                model: Jabatan,
+                as: "jabatan",
+                where: { nama_jabatan: "Ketua Program Studi" },
+                attributes: ["nama_jabatan"],
+              },
+              {
+                model: Unit,
+                as: "unit",
+                where: { code: "FT_TI" },
+                attributes: ["code", "nama_unit"],
+              },
+              {
+                model: DataPribadi,
+                as: "personal_data",
+                attributes: ["ttd", "nama_lengkap"],
+              },
+            ],
+          });
+
+          const ttdKaprodiBase64 = getTtdBase64(kaprodiJabatan?.personal_data?.ttd);
+          const namaKaprodi = kaprodiJabatan?.personal_data?.nama_lengkap || "Ketua Program Studi";
+
+          htmlDocumentString = await compileSuratCutiAkademik(data, formatTanggal, ttdKaprodiBase64, namaKaprodi);
+        }
+
+        if (htmlDocumentString) {
+          const folderPath = path.join(__dirname, "../../public/generated-pdf");
+          if (!fs.existsSync(folderPath)) {
+            fs.mkdirSync(folderPath, { recursive: true });
+          }
+
+          const fileName = `Surat_${data.jenis_surat.replace(/\s+/g, "_")}_${data.id}.pdf`;
+          const fileOutputPath = path.join(folderPath, fileName);
+
+          const options = {
+            format: "A4",
+            margin: { top: "40px", right: "50px", bottom: "40px", left: "50px" },
+          };
+          const file = { content: htmlDocumentString };
+
+          const pdfBuffer = await new Promise((resolve, reject) => {
+            htmlPdf.generatePdf(file, options, (err, buffer) => {
+              if (err) return reject(err);
+              resolve(buffer);
+            });
+          });
+
+          fs.writeFileSync(fileOutputPath, pdfBuffer);
+
+          currentFormData.pdf_url = `/generated-pdf/${fileName}`;
+
+          await Surat.update({ form_data: currentFormData }, { where: { id: id } });
+        }
+      }
+
+      return response(res, true, `Status berhasil diperbarui menjadi ${status}`, {
+        pdf_url: currentFormData.pdf_url || null,
+      });
     } catch (error) {
-      await t.rollback();
+      if (!t.finished) {
+        await t.rollback();
+      }
       return response(res, false, error.message);
     }
   };
@@ -253,6 +475,37 @@ class SuratController {
     }
   };
 
+  static getQr = async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const data = await Surat.findOne({
+        where: { id, deleted_at: null },
+        attributes: ["id", "jenis_surat", "nomor_surat", "status", "created_at", "updated_at", "form_data"],
+        include: [
+          {
+            model: User,
+            as: "Pengirim",
+            attributes: ["npm", "email"],
+            include: [{ model: DataPribadi, as: "personal_data", attributes: ["nama_lengkap"] }],
+          },
+          {
+            model: User,
+            as: "Penerima",
+            attributes: ["npm", "email", "role"],
+            include: [{ model: DataPribadi, as: "personal_data", attributes: ["nama_lengkap"] }],
+          },
+        ],
+      });
+
+      if (!data) return response(res, false, "Dokumen tidak ditemukan atau telah dihapus.");
+
+      return response(res, true, "Data QR berhasil dimuat", data);
+    } catch (error) {
+      return response(res, false, error.message);
+    }
+  };
+
   static disposisi = async (req, res) => {
     const t = await sequelize.transaction();
     try {
@@ -262,7 +515,7 @@ class SuratController {
       const oldSurat = await Surat.findOne({
         where: { id, deleted_at: null },
         include: [{ model: DokumenLampiran }],
-        transaction: t, // ✅ Konsistensi transaksi
+        transaction: t,
       });
 
       if (!oldSurat) {
