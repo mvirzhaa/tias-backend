@@ -74,9 +74,9 @@ router.get("/google/callback", (req, res, next) => {
       return next(err);
     }
     if (!user) {
-      res.redirect(`${process.env.FRONTEND_URL}/login?error=invalid`);
+      res.redirect(`${process.env.FRONTEND_REDIRECT_URL}/login?error=invalid`);
     } else if (user && !user.isverified) {
-      res.redirect(`${process.env.FRONTEND_URL}/login?error=not_verified`);
+      res.redirect(`${process.env.FRONTEND_REDIRECT_URL}/login?error=not_verified`);
     } else {
       try {
         const token = generateToken(user.user_id);
@@ -98,10 +98,10 @@ router.get("/google/callback", (req, res, next) => {
         const personalData = getPersonalData.rows[0];
 
         res.redirect(
-          `${process.env.FRONTEND_URL}/oauth/callback?token=${token}&user_id=${user.user_id}&npm=${user.npm}&nidn=${user.nidn}&username=${user.username}&email=${user.email}&role=${user.role}&nip=${personalData.nip}&nama_lengkap=${personalData.nama_lengkap}&image=${personalData.image}&no_hp=${personalData.no_hp}&imageUrl=${process.env.API_URL}/foto-profile/${personalData.image}&kode_mhs=${personalData.kode_mhs}&isverified=${user.isverified}&created_at=${user.created_at}`
+          `${process.env.FRONTEND_REDIRECT_URL}/oauth/callback?token=${token}&user_id=${user.user_id}&npm=${user.npm}&nidn=${user.nidn}&username=${user.username}&email=${user.email}&role=${user.role}&nip=${personalData.nip}&nama_lengkap=${personalData.nama_lengkap}&image=${personalData.image}&no_hp=${personalData.no_hp}&imageUrl=${process.env.API_URL}/foto-profile/${personalData.image}&kode_mhs=${personalData.kode_mhs}&isverified=${user.isverified}&created_at=${user.created_at}`
         );
       } catch (error) {
-        res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_failed`);
+        res.redirect(`${process.env.FRONTEND_REDIRECT_URL}/login?error=auth_failed`);
       }
     }
   })(req, res, next);

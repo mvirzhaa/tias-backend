@@ -20,7 +20,7 @@ async function insertValidasiDokumen(data = {}) {
 
     const idValidasiBaru = saveData.rows[0].id;
 
-    const linkValidasi = `${process.env.FRONTEND_URL}/validasi-dokumen/${idValidasiBaru}`;
+    const linkValidasi = `${process.env.FRONTEND_REDIRECT_URL}/validasi-dokumen/${idValidasiBaru}`;
 
     const update = await DB_.query(
       "UPDATE validasi_dokumen SET link_validasi = $1 WHERE id = $2 RETURNING *",
