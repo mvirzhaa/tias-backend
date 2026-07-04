@@ -4,7 +4,7 @@ const handlebars = require("handlebars");
 const QRCode = require("qrcode-svg");
 
 const generateQrSvg = (suratId) => {
-  const baseUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+  const baseUrl = process.env.FRONTEND_REDIRECT_URL || "http://localhost:3000";
   return new QRCode({
     content: `${baseUrl}/tracking-surat/${suratId}`,
     padding: 0,
