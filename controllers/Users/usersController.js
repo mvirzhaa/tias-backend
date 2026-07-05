@@ -1057,7 +1057,7 @@ exports.getUsers = asyncHandler(async (req, res) => {
         {
           model: DataPribadi,
           as: "personal_data",
-          required: true,
+          required: false,
         },
       ],
     });
