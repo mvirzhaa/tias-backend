@@ -31,7 +31,7 @@
     "express-winston": "^4.2.0",
     "formidable": "^3.5.1",
     "fs-extra": "^11.1.1",
-    "html-pdf-node": "^1.0.8",
+    "html-pdf": "^3.0.1",
     "joi": "^17.9.0",
     "joi-password-complexity": "^5.1.0",
     "jsonwebtoken": "^9.0.0",
