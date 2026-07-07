@@ -1,0 +1,128 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      @page {
+        size: A4;
+        margin: 0;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        font-family: "Times New Roman", Times, serif;
+        line-height: 1.4;
+        padding: 0;
+        color: #000;
+        font-size: 12pt;
+      }
+      .title {
+        text-align: center;
+        font-weight: bold;
+        text-decoration: underline;
+        font-size: 13pt;
+        margin-bottom: 18px;
+      }
+      .tujuan {
+        margin-bottom: 14px;
+        font-weight: bold;
+      }
+      .table-bio {
+        margin-bottom: 14px;
+        margin-left: 15px;
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .table-bio td {
+        padding: 3px 0;
+        vertical-align: top;
+      }
+      p {
+        text-align: justify;
+        margin-bottom: 10px;
+        margin-top: 0;
+      }
+      .footer-table {
+        width: 100%;
+        margin-top: 18px;
+        border-collapse: collapse;
+        page-break-inside: avoid;
+      }
+      .footer-table td {
+        width: 50%;
+        vertical-align: top;
+        text-align: center;
+      }
+      .qr-container {
+        padding: 5px 0;
+      }
+      .qr-container svg {
+        width: 80px;
+        height: 80px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="title">SURAT PERMOHONAN PENGUNDURAN DIRI SEBAGAI MAHASISWA</div>
+    <div class="tujuan">
+      Yth. Dekan Fakultas Teknik dan Sains<br />
+      TU Prodi Teknik Informatika<br />
+      Universitas Ibn Khaldun Bogor
+    </div>
+    <div style="margin-bottom: 10px;">Yang bertanda tangan dibawah ini,</div>
+    <table class="table-bio">
+      <tr><td width="25%">Nama</td><td width="2%">:</td><td>{{nama_lengkap}}</td></tr>
+      <tr><td>NPM</td><td>:</td><td>{{npm}}</td></tr>
+      <tr><td>Program Studi</td><td>:</td><td>Teknik Informatika</td></tr>
+      <tr><td>Semester</td><td>:</td><td>{{semester}}</td></tr>
+      <tr><td>Alamat</td><td>:</td><td>{{alamat}}</td></tr>
+      <tr><td>No. Telepon/HP</td><td>:</td><td>{{no_hp}}</td></tr>
+    </table>
+    <p>
+      Mengajukan
+      <strong>Permohonan Undur Diri</strong>
+      sebagai mahasiswa Universitas Ibn Khaldun Bogor. Setelah mendapatkan pengarahan dan penjelasan terkait kuota Beasiswa KIP Kuliah yang dilaksanakan pada hari
+      {{tanggal_pengarahan}}. Saya telah mempertimbangkan keputusan ini dengan matang bersama kedua Orang Tua dan penuh tanggung jawab.
+    </p>
+    <p>
+      Sehubungan dengan hal tersebut, saya memutuskan untuk mengundurkan diri dari Penerima Program Beasiswa KIP Kuliah serta berhenti sebagai mahasiswa Fakultas Teknik dan Sains, Program Studi Teknik Informatika di Universitas Ibn Khaldun
+      Bogor. Keputusan ini saya ambil sebagai langkah terbaik setelah memahami kondisi dan ketentuan yang berlaku.
+    </p>
+    <p>
+      Saya mengucapkan terima kasih yang sebesar-besarnya kepada Universitas Ibn Khaldun Bogor, Fakultas Teknik dan Sains, serta seluruh dosen dan staf akademik atas bimbingan, ilmu, dan pengalaman yang telah saya peroleh selama menjalani
+      studi. Saya menyadari bahwa pengunduran diri ini dapat berdampak pada status akademik maupun administrasi saya, dan dengan ini saya menyatakan siap menerima segala konsekuensi yang berlaku sesuai dengan ketentuan universitas.
+    </p>
+    <p>
+      Demikian permohonan pengunduran diri ini saya sampaikan. Besar harapan saya agar proses pengunduran diri dapat berjalan dengan lancar. Atas perhatian dan pengertiannya, saya ucapkan terima kasih.
+    </p>
+    <table class="footer-table">
+      <tr>
+        <td></td>
+        <td style="text-align: center; padding-left: 50px;">Bogor, {{tanggal_selesai}}</td>
+      </tr>
+      <tr>
+        <td style="padding-top: 10px;">Mengetahui,<br />Orang Tua/Wali</td>
+        <td style="padding-top: 10px;">Hormat Saya,</td>
+      </tr>
+      <tr>
+        <td style="height: 85px; vertical-align: bottom;">{{nama_ortu_wali}}</td>
+        <td style="vertical-align: middle; padding-top: 5px;">
+          {{#if ttdBase64}}
+          <div style="text-align: center; margin-bottom: 2px;">
+            <img src="{{ttdBase64}}" alt="Tanda Tangan" style="height: 65px; max-width: 150px; object-fit: contain;" />
+          </div>
+          {{else}}
+          <div style="height: 65px;"></div>
+          {{/if}}
+          <div class="qr-container">
+            {{{qrCodeSvg}}}
+          </div>
+          <div class="signature-text">Verifikasi Digital UCL</div>
+          <div style="font-weight: bold; margin-top: 5px;">{{nama_lengkap}}</div>
+          <div>NPM: {{npm}}</div>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
