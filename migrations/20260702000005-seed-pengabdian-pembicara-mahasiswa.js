@@ -133,16 +133,33 @@ module.exports = {
       mahasiswaMap[row.npm] = row.user_id;
     }
 
-    // 2. Ambil kategori_id dari kategori_publikasi berdasarkan kode
+    // 2. Ambil kategori_id dari kategori_publikasi (tabel tidak punya kolom 'kode').
+    //    Petakan berdasarkan nama_kategori: pengabdian -> kategori 'Pengabdian',
+    //    pembicara -> kategori 'Pembicara'.
     const kategoriPubRows = await queryInterface.sequelize.query(
-      `SELECT id, kode FROM kategori_publikasi`,
+      `SELECT id, nama_kategori FROM kategori_publikasi`,
       { type: queryInterface.sequelize.QueryTypes.SELECT }
     );
 
-    const kategoriMap = {};
+    let pengabdianKatId = null;
+    let pembicaraKatId = null;
     for (const row of kategoriPubRows) {
-      kategoriMap[row.kode] = row.id;
+      const nama = (row.nama_kategori || '').toLowerCase();
+      if (nama.includes('pengabdian')) pengabdianKatId = row.id;
+      else if (nama.includes('pembicara')) pembicaraKatId = row.id;
     }
+    const fallbackPubId = kategoriPubRows.length ? kategoriPubRows[0].id : null;
+    if (!pengabdianKatId) pengabdianKatId = fallbackPubId;
+    if (!pembicaraKatId) pembicaraKatId = fallbackPubId;
+
+    // Sinkronkan sequence PK agar tidak bentrok dengan data yang sudah ada
+    // (mis. setelah restore dump). Aman & idempoten.
+    await queryInterface.sequelize.query(
+      `SELECT setval(pg_get_serial_sequence('tb_pengabdian','pengabdian_id'), COALESCE((SELECT MAX(pengabdian_id) FROM tb_pengabdian), 0) + 1, false)`
+    );
+    await queryInterface.sequelize.query(
+      `SELECT setval(pg_get_serial_sequence('tb_pembicara','pembicara_id'), COALESCE((SELECT MAX(pembicara_id) FROM tb_pembicara), 0) + 1, false)`
+    );
 
     // 3. (Aman) Tidak ada hapus data sepihak di up() agar tidak merusak data riil di staging
     console.log('[Migration] Memulai pengecekan data Pengabdian & Pembicara...');
@@ -169,11 +186,10 @@ module.exports = {
           continue;
         }
 
-        const katId = kategoriMap[tpl.kategori_kode] || kategoriMap['JL-NS'];
+        const katId = pengabdianKatId;
         const tglSk = new Date(2024, i * 2, 12);
 
         pengabdianData.push({
-          pengabdian_id: uuidv4(),
           user_id: userId,
           kategori_id: katId,
           judul_kegiatan: tpl.judul_kegiatan,
@@ -215,11 +231,10 @@ module.exports = {
           continue;
         }
 
-        const katId = kategoriMap[tpl.kategori_kode] || kategoriMap['JL-NS'];
+        const katId = pembicaraKatId;
         const tglPelaksanaan = new Date(2024, i * 2 + 1, 18);
 
         pembicaraData.push({
-          pembicara_id: uuidv4(),
           user_id: userId,
           kategori_id: katId,
           kategori_pembicara: tpl.kategori_pembicara,

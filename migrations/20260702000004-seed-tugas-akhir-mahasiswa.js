@@ -264,7 +264,7 @@ module.exports = {
 
     console.log('[Migration] ✅ Sinkronisasi sequence ID tugas akhir...');
     await queryInterface.sequelize.query(
-      `SELECT setval('pengajuan_sk_id_seq', COALESCE((SELECT MAX(id) FROM ta_pengajuan_sk), 0) + 1, false)`
+      `SELECT setval('ta_pengajuan_sk_id_seq', COALESCE((SELECT MAX(id) FROM ta_pengajuan_sk), 0) + 1, false)`
     );
 
     console.log('[Migration] ✅ Pengisian data Tugas Akhir selesai dengan sukses!');

@@ -133,15 +133,31 @@ module.exports = {
     // 2. Ambil kategori_id dari kategori_sertifikasi berdasarkan kode
     // ──────────────────────────────────────────────────────────────
     const kategoriRows = await queryInterface.sequelize.query(
-      `SELECT id, kode, nama_kategori, point FROM kategori_sertifikasi`,
+      `SELECT id, nama_kategori, point FROM kategori_sertifikasi`,
       { type: queryInterface.sequelize.QueryTypes.SELECT }
     );
 
+    // kategori_sertifikasi tidak memiliki kolom 'kode'; petakan via nama_kategori.
+    // IL = Internasional, NL = Nasional.
     const kategoriMap = {};
     for (const row of kategoriRows) {
-      kategoriMap[row.kode] = row.id;
+      const nama = (row.nama_kategori || '').toLowerCase();
+      if (nama.includes('internasional')) kategoriMap['IL'] = row.id;
+      else if (nama.includes('nasional')) kategoriMap['NL'] = row.id;
     }
+    const fallbackKatId = kategoriRows.length ? kategoriRows[0].id : null;
+    if (!kategoriMap['IL']) kategoriMap['IL'] = kategoriMap['NL'] || fallbackKatId;
+    if (!kategoriMap['NL']) kategoriMap['NL'] = kategoriMap['IL'] || fallbackKatId;
     console.log('[Migration] Kategori tersedia:', Object.keys(kategoriMap));
+
+    // Sinkronkan sequence PK agar tidak bentrok dengan data yang sudah ada
+    // (mis. setelah restore dump). Aman & idempoten.
+    await queryInterface.sequelize.query(
+      `SELECT setval(pg_get_serial_sequence('tb_sertifikasi','sertifikat_id'), COALESCE((SELECT MAX(sertifikat_id) FROM tb_sertifikasi), 0) + 1, false)`
+    );
+    await queryInterface.sequelize.query(
+      `SELECT setval(pg_get_serial_sequence('tb_tes','tes_id'), COALESCE((SELECT MAX(tes_id) FROM tb_tes), 0) + 1, false)`
+    );
 
     // ──────────────────────────────────────────────────────────────
     // 3. Cek existing data agar tidak duplikat
@@ -178,7 +194,6 @@ module.exports = {
           const tglSerti = new Date(2024, i * 2, 10 + (parseInt(npm.slice(-2), 10) % 15));
 
           sertifikasiData.push({
-            sertifikat_id: uuidv4(),
             user_id: userId,
             kategori_id: katId,
             jenis_serti: tpl.jenis_serti,
@@ -223,7 +238,6 @@ module.exports = {
           const skrVariasi = tpl.skor_base + (parseInt(npm.slice(-3), 10) % 20) - 10;
 
           tesData.push({
-            tes_id: uuidv4(),
             user_id: userId,
             kategori_id: katId,
             nama_tes: tpl.nama_tes,

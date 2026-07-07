@@ -81,6 +81,24 @@ module.exports = {
       console.log('[Migration] Tabel pembelajaran_dosen_ext sudah ada, skip create.');
     }
 
+    // Tabel lama (migration 20260602000001) belum punya kolom semester &
+    // tahun_akademik. Pastikan ada agar seeding di bawah tidak gagal.
+    const pembColumns = await queryInterface.describeTable('pembelajaran_dosen_ext');
+    if (!pembColumns.semester) {
+      await queryInterface.addColumn('pembelajaran_dosen_ext', 'semester', {
+        type: Sequelize.STRING,
+        allowNull: true,
+      });
+      console.log('[Migration] Kolom semester ditambahkan ke pembelajaran_dosen_ext.');
+    }
+    if (!pembColumns.tahun_akademik) {
+      await queryInterface.addColumn('pembelajaran_dosen_ext', 'tahun_akademik', {
+        type: Sequelize.STRING,
+        allowNull: true,
+      });
+      console.log('[Migration] Kolom tahun_akademik ditambahkan ke pembelajaran_dosen_ext.');
+    }
+
     // ──────────────────────────────────────────────────────────────────
     // 2. Buat tabel absensi_mhs jika belum ada
     // ──────────────────────────────────────────────────────────────────

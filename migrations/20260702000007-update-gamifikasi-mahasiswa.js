@@ -84,9 +84,12 @@ module.exports = {
       const pointPengabdian = Number(pengabdianPoints[0]?.total || 0) + Number(pembicaraPoints[0]?.total || 0);
 
       // 4. Penelitian points (from tb_penelitian)
+      // Catatan: tb_penelitian.kategori_id bertipe uuid sedangkan
+      // kategori_publikasi.id bertipe integer, jadi join di-cast ke text agar
+      // tidak error tipe (tidak ada data penelitian ter-seed -> hasil 0).
       const penelitianPoints = await queryInterface.sequelize.query(
         `SELECT COALESCE(SUM(kp.point), 0) as total FROM tb_penelitian tp 
-         JOIN kategori_publikasi kp ON tp.kategori_id = kp.id 
+         JOIN kategori_publikasi kp ON tp.kategori_id::text = kp.id::text 
          WHERE tp.user_id = '${userId}' AND tp.status = 1`,
         { type: queryInterface.sequelize.QueryTypes.SELECT }
       );
