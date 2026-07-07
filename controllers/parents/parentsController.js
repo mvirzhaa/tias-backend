@@ -161,7 +161,8 @@ class ParentsController {
         email,
         process.env.EMAIL_USER,
         "verifyEmail",
-        verificationUrl
+        verificationUrl,
+        nama_lengkap
       );
 
       await transaction.commit();
@@ -338,7 +339,8 @@ class ParentsController {
           email,
           process.env.EMAIL_USER,
           "verifyEmail",
-          verificationUrl
+          verificationUrl,
+          findParent.nama_lengkap
         );
 
         return response(
