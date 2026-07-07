@@ -16,7 +16,7 @@
  *   TIF103 - Matematika Diskrit (id=5)
  *
  * Jadwal: 5 hari (Senin-Jumat), masing-masing 1 sesi/hari, 1 MK per slot waktu
- * Simulasi 16 pertemuan per mata kuliah (1 semester)
+ * Simulasi 14 pertemuan per mata kuliah (1 semester)
  */
 
 // NPM mahasiswa yang memiliki KRS Disetujui dengan 5 MK tersebut
@@ -44,7 +44,7 @@ const MATAKULIAH_MAP = [
   { kode: 'TIF103',  nama: 'Matematika Diskrit',           id_matkul_key: 'TIF103' },
 ];
 
-const TOTAL_PERTEMUAN = 16; // 1 semester = 16 pertemuan
+const TOTAL_PERTEMUAN = 14; // 1 semester = 14 pertemuan
 const SEMESTER = '2025 Ganjil';
 const TAHUN_AKADEMIK = '2025/2026';
 
@@ -125,7 +125,7 @@ module.exports = {
     // 3. Ambil id m_matakuliah berdasarkan kode
     // ──────────────────────────────────────────────────────────────────
     const mkRows = await queryInterface.sequelize.query(
-      `SELECT id, kode_matakuliah FROM m_matakuliah WHERE kode_matakuliah IN ('IHK110','PAI111','PBI106X','TIF101','TIF103')`,
+      `SELECT id, kode_matakuliah FROM m_matakuliah WHERE kode_matakuliah IN ('IHK110','PAI111','PBI106X','TIF101','TIF103') AND deleted_at IS NULL`,
       { type: queryInterface.sequelize.QueryTypes.SELECT }
     );
 
@@ -162,10 +162,24 @@ module.exports = {
     console.log(`[Migration] Ditemukan ${mahasiswaRows.length} mahasiswa.`);
 
     // ──────────────────────────────────────────────────────────────────
-    // 5. Cek pembelajaran_dosen_ext yang sudah ada untuk 5 MK ini
-    //    agar tidak duplikat jika migration dijalankan ulang
+    // 5. Bersihkan pertemuan > 14 (jika migration lama sempat seed 16x)
     // ──────────────────────────────────────────────────────────────────
     const idMatkuls = Object.values(mkIdMap).join(',');
+    await queryInterface.sequelize.query(
+      `DELETE FROM absensi_mhs WHERE id_pembelajaran IN (
+         SELECT id FROM pembelajaran_dosen_ext
+         WHERE id_matkul IN (${idMatkuls}) AND semester = '${SEMESTER}' AND pertemuan > ${TOTAL_PERTEMUAN}
+       )`
+    );
+    await queryInterface.sequelize.query(
+      `DELETE FROM pembelajaran_dosen_ext
+       WHERE id_matkul IN (${idMatkuls}) AND semester = '${SEMESTER}' AND pertemuan > ${TOTAL_PERTEMUAN}`
+    );
+
+    // ──────────────────────────────────────────────────────────────────
+    // 6. Pastikan pembelajaran_dosen_ext ada untuk pertemuan 1..14
+    //    agar tidak duplikat jika migration dijalankan ulang
+    // ──────────────────────────────────────────────────────────────────
     const existingPemb = await queryInterface.sequelize.query(
       `SELECT id, id_matkul, pertemuan FROM pembelajaran_dosen_ext WHERE id_matkul IN (${idMatkuls}) AND semester = '${SEMESTER}'`,
       { type: queryInterface.sequelize.QueryTypes.SELECT }
@@ -173,47 +187,44 @@ module.exports = {
 
     let pembelajaranInserts = [];
     let pembIdLookup = {}; // key: "id_matkul-pertemuan" → id
+    const existingPertSet = new Set(existingPemb.map(p => `${p.id_matkul}-${p.pertemuan}`));
 
-    if (existingPemb.length === 0) {
-      // Belum ada → insert baru
-      for (const mk of MATAKULIAH_MAP) {
-        const matkulId = mkIdMap[mk.kode];
-        if (!matkulId) continue;
-        for (let pert = 1; pert <= TOTAL_PERTEMUAN; pert++) {
-          pembelajaranInserts.push({
-            id_matkul: matkulId,
-            pertemuan: pert,
-            kelas: 1,
-            semester: SEMESTER,
-            tahun_akademik: TAHUN_AKADEMIK,
-            status_kelas: 1, // 1 = sudah selesai
-            created_at: now,
-            updated_at: now,
-          });
-        }
+    for (const mk of MATAKULIAH_MAP) {
+      const matkulId = mkIdMap[mk.kode];
+      if (!matkulId) continue;
+      for (let pert = 1; pert <= TOTAL_PERTEMUAN; pert++) {
+        const key = `${matkulId}-${pert}`;
+        if (existingPertSet.has(key)) continue;
+        pembelajaranInserts.push({
+          id_matkul: matkulId,
+          pertemuan: pert,
+          kelas: 1,
+          semester: SEMESTER,
+          tahun_akademik: TAHUN_AKADEMIK,
+          status_kelas: 1, // 1 = sudah selesai
+          created_at: now,
+          updated_at: now,
+        });
       }
+    }
 
+    if (pembelajaranInserts.length > 0) {
       await queryInterface.bulkInsert('pembelajaran_dosen_ext', pembelajaranInserts);
       console.log(`[Migration] ${pembelajaranInserts.length} record pembelajaran_dosen_ext di-insert.`);
-
-      // Ambil ulang untuk dapatkan ID yang di-generate
-      const insertedPemb = await queryInterface.sequelize.query(
-        `SELECT id, id_matkul, pertemuan FROM pembelajaran_dosen_ext WHERE id_matkul IN (${idMatkuls}) AND semester = '${SEMESTER}' ORDER BY id`,
-        { type: queryInterface.sequelize.QueryTypes.SELECT }
-      );
-      for (const p of insertedPemb) {
-        pembIdLookup[`${p.id_matkul}-${p.pertemuan}`] = p.id;
-      }
     } else {
-      // Sudah ada → pakai yang lama
-      for (const p of existingPemb) {
-        pembIdLookup[`${p.id_matkul}-${p.pertemuan}`] = p.id;
-      }
-      console.log(`[Migration] Ditemukan ${existingPemb.length} record pembelajaran_dosen_ext yang sudah ada.`);
+      console.log(`[Migration] Semua pertemuan 1-${TOTAL_PERTEMUAN} sudah ada di pembelajaran_dosen_ext.`);
+    }
+
+    const allPemb = await queryInterface.sequelize.query(
+      `SELECT id, id_matkul, pertemuan FROM pembelajaran_dosen_ext WHERE id_matkul IN (${idMatkuls}) AND semester = '${SEMESTER}' AND pertemuan <= ${TOTAL_PERTEMUAN} ORDER BY id`,
+      { type: queryInterface.sequelize.QueryTypes.SELECT }
+    );
+    for (const p of allPemb) {
+      pembIdLookup[`${p.id_matkul}-${p.pertemuan}`] = p.id;
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // 6. Cek apakah absensi untuk mahasiswa ini sudah ada
+    // 7. Cek apakah absensi untuk mahasiswa ini sudah ada
     // ──────────────────────────────────────────────────────────────────
     const npmListStr = VALID_NPMS.map(n => `'${n}'`).join(',');
     const existingAbsensi = await queryInterface.sequelize.query(
@@ -228,7 +239,7 @@ module.exports = {
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // 7. Generate data absensi
+    // 8. Generate data absensi
     //    Status: 1=Hadir, 2=Izin, 3=Sakit, 4=Alpha
     //    Distribusi realistis: 85% Hadir, 8% Izin, 5% Sakit, 2% Alpha
     // ──────────────────────────────────────────────────────────────────

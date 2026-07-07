@@ -5,7 +5,7 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     const now = new Date();
 
-    await queryInterface.bulkInsert('m_matakuliah', [
+    const rows = [
       {
         kode_matakuliah: 'IHK110',
         nama_matakuliah: 'Pancasila',
@@ -56,10 +56,23 @@ module.exports = {
         updated_at: now,
         deleted_at: null,
       },
-    ], {
-      // Lewati baris yang sudah ada berdasarkan kode_matakuliah
-      ignoreDuplicates: true,
-    });
+    ];
+
+    const kodes = rows.map((r) => `'${r.kode_matakuliah}'`).join(',');
+    const existing = await queryInterface.sequelize.query(
+      `SELECT kode_matakuliah FROM m_matakuliah WHERE kode_matakuliah IN (${kodes}) AND deleted_at IS NULL`,
+      { type: queryInterface.sequelize.QueryTypes.SELECT }
+    );
+    const existingSet = new Set(existing.map((r) => r.kode_matakuliah));
+    const toInsert = rows.filter((r) => !existingSet.has(r.kode_matakuliah));
+
+    if (toInsert.length === 0) {
+      console.log('[Migration] Semua matakuliah SIAK sudah ada, skip insert.');
+      return;
+    }
+
+    await queryInterface.bulkInsert('m_matakuliah', toInsert);
+    console.log(`[Migration] ${toInsert.length} matakuliah SIAK di-insert.`);
   },
 
   async down(queryInterface, Sequelize) {
