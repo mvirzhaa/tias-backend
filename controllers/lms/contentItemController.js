@@ -95,13 +95,25 @@ exports.createItem = asyncHandler(async (req, res) => {
     return response(res, false, validation.error, null, 400);
   }
 
+  // Default posisi = urutan berikutnya (paling bawah), bukan 0 — 0 selalu menaruh
+  // item baru di ATAS item yang sudah ada (diurutkan ASC by position).
+  let nextPosition = 0;
+  if (position != null) {
+    nextPosition = parseInt(position, 10);
+  } else {
+    const maxPosition = await LmsContentItem.max("position", {
+      where: { section_id: req.lmsSection.id },
+    });
+    nextPosition = maxPosition != null ? maxPosition + 1 : 0;
+  }
+
   const now = new Date();
   const item = await LmsContentItem.create({
     section_id: req.lmsSection.id, // dari middleware (terverifikasi)
     type,
     title,
     description: cleanDescription(description),
-    position: position != null ? parseInt(position, 10) : 0,
+    position: nextPosition,
     is_published: is_published === true || is_published === "true",
     payload: validation.payload,
     created_at: now,
@@ -118,12 +130,22 @@ exports.updateItem = asyncHandler(async (req, res) => {
 
   const updates = { updated_at: new Date() };
   if (description !== undefined) updates.description = cleanDescription(description);
-  if (type !== undefined) {
+  // `type` hanya dianggap "diubah" bila nilainya beda dari yang tersimpan — form edit lazim
+  // mengirim balik seluruh field item (termasuk type lama) sebagai no-op, itu harus tetap
+  // lolos. Yang ditolak: percobaan mengubah type SUNGGUHAN dari/ke tipe berbasis file
+  // (pdf/ppt), karena payload-nya hanya boleh diatur lewat endpoint upload.
+  if (type !== undefined && type !== item.type) {
     if (!LmsContentItem.CONTENT_TYPES.includes(type)) {
       return response(res, false, "type tidak valid.", null, 400);
     }
-    if (FILE_TYPES.includes(type)) {
-      return response(res, false, `Tidak bisa mengubah type menjadi '${type}' lewat JSON; pakai endpoint upload.`, null, 400);
+    if (FILE_TYPES.includes(type) || FILE_TYPES.includes(item.type)) {
+      return response(
+        res,
+        false,
+        `Tidak bisa mengubah type dari/ke '${FILE_TYPES.includes(item.type) ? item.type : type}' lewat JSON; pakai endpoint upload.`,
+        null,
+        400
+      );
     }
     updates.type = type;
   }
@@ -134,16 +156,24 @@ exports.updateItem = asyncHandler(async (req, res) => {
 
   // Bila payload diubah, validasi terhadap tipe efektif (tipe baru bila diubah, else tipe lama).
   if (payload !== undefined) {
-    const effectiveType = type !== undefined ? type : item.type;
-    // File payload (storage_key dll) hanya boleh diatur server-side lewat upload, bukan JSON.
+    const effectiveType = updates.type !== undefined ? updates.type : item.type;
     if (FILE_TYPES.includes(effectiveType)) {
-      return response(res, false, `Payload tipe '${effectiveType}' diubah lewat endpoint upload, bukan JSON.`, null, 400);
+      // Payload file (storage_key dll) hanya boleh diatur server-side lewat upload, bukan
+      // JSON — tapi form edit lazim mengirim balik payload lama yang sama sebagai no-op.
+      // Hanya tolak bila klien benar-benar mencoba MENGUBAH isinya.
+      const unchanged =
+        JSON.stringify(payload) === JSON.stringify(item.payload);
+      if (!unchanged) {
+        return response(res, false, `Payload tipe '${effectiveType}' diubah lewat endpoint upload, bukan JSON.`, null, 400);
+      }
+      // no-op: payload sama persis, lewati (tidak masuk `updates`).
+    } else {
+      const validation = validateContentPayload(effectiveType, payload);
+      if (!validation.ok) {
+        return response(res, false, validation.error, null, 400);
+      }
+      updates.payload = validation.payload;
     }
-    const validation = validateContentPayload(effectiveType, payload);
-    if (!validation.ok) {
-      return response(res, false, validation.error, null, 400);
-    }
-    updates.payload = validation.payload;
   }
 
   await item.update(updates);
