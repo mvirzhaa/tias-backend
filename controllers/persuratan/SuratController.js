@@ -297,7 +297,7 @@ class SuratController {
       await t.commit();
 
       if (status === "Selesai") {
-        const htmlPdf = require("html-pdf-node");
+        const pdf = require("html-pdf");
 
         const formatTanggal = new Date().toLocaleDateString("id-ID", {
           year: "numeric",
@@ -356,12 +356,11 @@ class SuratController {
 
           const options = {
             format: "A4",
-            margin: { top: "40px", right: "50px", bottom: "40px", left: "50px" },
+            border: { top: "40px", right: "50px", bottom: "40px", left: "50px" },
           };
-          const file = { content: htmlDocumentString };
 
           const pdfBuffer = await new Promise((resolve, reject) => {
-            htmlPdf.generatePdf(file, options, (err, buffer) => {
+            pdf.create(htmlDocumentString, options).toBuffer((err, buffer) => {
               if (err) return reject(err);
               resolve(buffer);
             });
