@@ -15,7 +15,46 @@ const LmsSubmission = require("../../models/lms/LmsSubmission");
 const pick = (req, key) =>
   req.query[key] != null ? req.query[key] : req.body[key];
 
+// Info kelas dari siak_v2_classes (+ join prodi), kolom/join konsisten dengan
+// listLmsClasses (siakStagingBridgeService). Dipakai listSections & getSection agar FE
+// bisa menampilkan identitas matkul (mis. judul halaman modul) tanpa fetch terpisah.
+// Catatan: kolom `semester` sudah di-drop dari siak_v2_classes (brief v2) — hanya
+// siakPeriodeAkademikId (UUID) yang tersedia, jadi `semester` return null sampai ada
+// sumber periode akademik yang bisa di-resolve.
+async function getClassInfo(kelasKuliahId) {
+  const [classRows] = await db.query(
+    `SELECT
+       cls."kelasKuliahId",
+       cls.nama_matakuliah,
+       cls.kode_matakuliah,
+       cls.nama AS nama_kelas,
+       cls."siakPeriodeAkademikId",
+       ps.nama_prodi
+     FROM siak_v2_classes cls
+     LEFT JOIN siak_v2_program_studi ps ON ps."siakProgramStudiId" = cls."siakProgramStudiId"
+     WHERE cls."kelasKuliahId" = :kelasKuliahId
+     LIMIT 1`,
+    { replacements: { kelasKuliahId } }
+  );
+
+  const row = classRows[0];
+  return row
+    ? {
+        kelasKuliahId: row.kelasKuliahId,
+        nama_matakuliah: row.nama_matakuliah,
+        kode_matakuliah: row.kode_matakuliah,
+        nama_kelas: row.nama_kelas,
+        semester: null, // kolom di-drop dari siak_v2_classes; lihat catatan di atas
+        siakPeriodeAkademikId: row.siakPeriodeAkademikId,
+        nama_prodi: row.nama_prodi,
+      }
+    : null;
+}
+
 // GET /lms/sections?kelasKuliahId=
+// Respons: { class: {...info kelas...}, sections: [...] }. `sections` tetap berisi
+// data yang sama seperti sebelumnya (array topik + content_items). `class` ditambahkan
+// agar FE bisa menampilkan identitas matkul (mis. judul halaman) tanpa fetch terpisah.
 exports.listSections = asyncHandler(async (req, res) => {
   const { kelasKuliahId } = req.query;
 
@@ -40,10 +79,15 @@ exports.listSections = asyncHandler(async (req, res) => {
     ],
   });
 
-  return response(res, true, "Success", sections);
+  const classInfo = await getClassInfo(kelasKuliahId);
+
+  return response(res, true, "Success", { class: classInfo, sections });
 });
 
 // GET /lms/sections/:id  (middleware sudah memuat req.lmsSection)
+// Respons: { class: {...info kelas...}, ...section }. `class` ditambahkan (konsisten
+// dengan listSections) agar FE bisa menampilkan nama matkul di judul halaman modul,
+// tanpa perlu fetch /lms/sections?kelasKuliahId= terpisah.
 exports.getSection = asyncHandler(async (req, res) => {
   const section = await LmsSection.findByPk(req.params.id, {
     include: [
@@ -61,7 +105,9 @@ exports.getSection = asyncHandler(async (req, res) => {
     return response(res, false, "Section tidak ditemukan.", null, 404);
   }
 
-  return response(res, true, "Success", section);
+  const classInfo = await getClassInfo(section.kelasKuliahId);
+
+  return response(res, true, "Success", { class: classInfo, ...section.toJSON() });
 });
 
 // POST /lms/sections?kelasKuliahId=&pertemuan=
@@ -83,6 +129,18 @@ exports.createSection = asyncHandler(async (req, res) => {
     return response(res, false, "title wajib diisi.", null, 400);
   }
 
+  // Default posisi = urutan berikutnya (paling bawah), bukan 0 — 0 selalu menaruh
+  // section baru di ATAS section yang sudah ada (diurutkan ASC by position).
+  let nextPosition = 0;
+  if (position != null) {
+    nextPosition = parseInt(position, 10);
+  } else {
+    const maxPosition = await LmsSection.max("position", {
+      where: { kelasKuliahId: String(kelasKuliahId) },
+    });
+    nextPosition = maxPosition != null ? maxPosition + 1 : 0;
+  }
+
   const now = new Date();
   const section = await LmsSection.create({
     kelasKuliahId: String(kelasKuliahId),
@@ -90,7 +148,7 @@ exports.createSection = asyncHandler(async (req, res) => {
     id_lecture: req.lmsLecturerId, // = user_id dosen, dari JWT via middleware
     title,
     description: description ?? null,
-    position: position != null ? parseInt(position, 10) : 0,
+    position: nextPosition,
     is_published: is_published === true || is_published === "true",
     available_from: available_from ?? null,
     created_at: now,
