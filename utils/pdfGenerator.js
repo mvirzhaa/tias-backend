@@ -90,10 +90,11 @@ const writePdf = async (docDefinition, outputFilePath) => {
  * @param {string} tanggalStr     - tanggal selesai (string teks)
  * @param {string|null} ttdBase64     - TTD mahasiswa sebagai data URI base64
  * @param {string|null} ttdOrtuBase64 - TTD orang tua/wali sebagai data URI base64
+ * @param {string} namaOrtuDB         - Nama orang tua dari database (fallback ke form_data)
  * @param {string} outputPath         - absolute path file PDF tujuan
  * @returns {Promise<void>}
  */
-const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, ttdOrtuBase64, outputPath) => {
+const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, ttdOrtuBase64, namaOrtuDB, outputPath) => {
   const fd = dataSurat.form_data || {};
   const pengirim = dataSurat.Pengirim || {};
   const pd = pengirim.personal_data || {};
@@ -222,7 +223,7 @@ const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, tt
             {
               stack: [
                 ...ttdOrtuSection,
-                { text: fd.nama_ortu_wali || "-", bold: true, alignment: "center", margin: [0, 4, 0, 0] },
+                { text: namaOrtuDB, bold: true, alignment: "center", margin: [0, 4, 0, 0] },
               ],
               width: "50%",
               alignment: "center",

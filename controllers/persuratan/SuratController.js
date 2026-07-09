@@ -387,8 +387,9 @@ class SuratController {
             transaction: t,
           });
           const ttdOrtuBase64 = getTtdBase64(parentLink?.parent?.ttd);
+          const namaOrtu = parentLink?.parent?.nama_lengkap || currentFormData.nama_ortu_wali || "-";
 
-          await generateSuratPengunduranDiri(data, formatTanggal, ttdMhsBase64, ttdOrtuBase64, fileOutputPath);
+          await generateSuratPengunduranDiri(data, formatTanggal, ttdMhsBase64, ttdOrtuBase64, namaOrtu, fileOutputPath);
 
           currentFormData.pdf_url = `/generated-pdf/${fileName}`;
           await Surat.update({ form_data: currentFormData }, { where: { id: id } });
