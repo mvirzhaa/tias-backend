@@ -7,6 +7,8 @@ const { Surat, User, DataPribadi, RiwayatSurat, DokumenLampiran, sequelize } = r
 const TrxUserJabatanUnit = require("../../models/TrxUserJabatanUnit");
 const Jabatan = require("../../models/master/Jabatan");
 const Unit = require("../../models/master/Unit");
+const TrxParentMhs = require("../../models/TrxParentMhs");
+const Parents = require("../../models/Parents");
 
 const { generateSuratPengunduranDiri, generateSuratCutiAkademik } = require("../../utils/pdfGenerator");
 
@@ -373,7 +375,20 @@ class SuratController {
         const fileOutputPath = path.join(folderPath, fileName);
 
         if (data.jenis_surat?.toLowerCase() === "surat pengunduran diri") {
-          await generateSuratPengunduranDiri(data, formatTanggal, ttdMhsBase64, fileOutputPath);
+          const parentLink = await TrxParentMhs.findOne({
+            where: { mhs_id: data.user_id },
+            include: [
+              {
+                model: Parents,
+                as: "parent",
+                attributes: ["ttd", "nama_lengkap"],
+              },
+            ],
+            transaction: t,
+          });
+          const ttdOrtuBase64 = getTtdBase64(parentLink?.parent?.ttd);
+
+          await generateSuratPengunduranDiri(data, formatTanggal, ttdMhsBase64, ttdOrtuBase64, fileOutputPath);
 
           currentFormData.pdf_url = `/generated-pdf/${fileName}`;
           await Surat.update({ form_data: currentFormData }, { where: { id: id } });

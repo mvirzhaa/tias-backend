@@ -27,12 +27,17 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(express.static("public"));
+
+// --- PERBAIKAN CORS ---
 app.use(
   cors({
-    origin: "*",
+    origin: process.env.FRONTEND_URL || "https://ucl.uika-bogor.ac.id",
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     credentials: true,
   })
 );
+// ----------------------
+
 app.use(
   session({
     secret: process.env.SECRET,

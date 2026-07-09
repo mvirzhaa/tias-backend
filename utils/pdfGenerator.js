@@ -88,11 +88,12 @@ const writePdf = async (docDefinition, outputFilePath) => {
  * Generate PDF Surat Pengunduran Diri ke file.
  * @param {object} dataSurat      - record Surat dari DB
  * @param {string} tanggalStr     - tanggal selesai (string teks)
- * @param {string|null} ttdBase64 - TTD mahasiswa sebagai data URI base64
- * @param {string} outputPath     - absolute path file PDF tujuan
+ * @param {string|null} ttdBase64     - TTD mahasiswa sebagai data URI base64
+ * @param {string|null} ttdOrtuBase64 - TTD orang tua/wali sebagai data URI base64
+ * @param {string} outputPath         - absolute path file PDF tujuan
  * @returns {Promise<void>}
  */
-const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, outputPath) => {
+const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, ttdOrtuBase64, outputPath) => {
   const fd = dataSurat.form_data || {};
   const pengirim = dataSurat.Pengirim || {};
   const pd = pengirim.personal_data || {};
@@ -105,9 +106,12 @@ const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, ou
   const logoBase64 = getLogoBase64();
   const qrBase64 = await generateQrBase64(dataSurat.id);
 
-  // Kolom TTD mahasiswa
   const ttdSection = ttdBase64
     ? [{ image: ttdBase64, width: 80, alignment: "center", margin: [0, 0, 0, 4] }]
+    : [{ text: "", margin: [0, 40, 0, 4] }];
+
+  const ttdOrtuSection = ttdOrtuBase64
+    ? [{ image: ttdOrtuBase64, width: 80, alignment: "center", margin: [0, 0, 0, 4] }]
     : [{ text: "", margin: [0, 40, 0, 4] }];
 
 
@@ -215,7 +219,14 @@ const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, ou
         },
         {
           columns: [
-            { text: fd.nama_ortu_wali || "-", width: "50%", margin: [0, 60, 0, 0] },
+            {
+              stack: [
+                ...ttdOrtuSection,
+                { text: fd.nama_ortu_wali || "-", bold: true, alignment: "center", margin: [0, 4, 0, 0] },
+              ],
+              width: "50%",
+              alignment: "center",
+            },
             {
               stack: [
                 ...ttdSection,

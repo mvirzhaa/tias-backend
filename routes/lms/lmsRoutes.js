@@ -8,7 +8,7 @@ const {
 } = require("../../middleware/lms/lecturerOwnsClass");
 const { syncSiak } = require("../../controllers/lms/syncController");
 const { listClasses } = require("../../controllers/lms/classController");
-const { createUploadItem, serveFile } = require("../../controllers/lms/fileController");
+const { createUploadItem, replaceUploadItem, serveFile } = require("../../controllers/lms/fileController");
 const { lmsUpload } = require("../../middleware/lms/lmsUpload");
 const {
   listSections,
@@ -122,6 +122,14 @@ router.patch(
 );
 router.get("/items/:id", protected, classViewContentAccess, getItem);
 router.put("/items/:id", protected, lecturerOwnsContentSection, updateItem);
+// Ganti berkas item pdf/ppt yang sudah ada (dulu hanya bisa hapus + unggah ulang).
+router.put(
+  "/items/:id/upload",
+  protected,
+  lecturerOwnsContentSection,
+  lmsUpload,
+  replaceUploadItem
+);
 router.delete("/items/:id", protected, lecturerOwnsContentSection, deleteItem);
 
 // --- Serve file berotorisasi (stream, BUKAN redirect ke URL publik) ---

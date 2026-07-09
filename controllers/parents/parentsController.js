@@ -17,6 +17,8 @@ const crypto = require("crypto");
 const DB = require("../../database");
 const sendMail = require("../../utils/sendMail");
 const { formRegisterParentValidation } = require("../../validation/formValidation");
+const fs = require("fs-extra");
+const path = require("path");
 
 class ParentsController {
   // =====================================================================
@@ -161,7 +163,8 @@ class ParentsController {
         email,
         process.env.EMAIL_USER,
         "verifyEmail",
-        verificationUrl
+        verificationUrl,
+        nama_lengkap
       );
 
       await transaction.commit();
@@ -338,7 +341,8 @@ class ParentsController {
           email,
           process.env.EMAIL_USER,
           "verifyEmail",
-          verificationUrl
+          verificationUrl,
+          findParent.nama_lengkap
         );
 
         return response(
@@ -388,9 +392,43 @@ class ParentsController {
     try {
       const data = await Parents.findOne({ where: { id: req.user.id } });
       if (!data) return response(res, false, "user tidak ditemukan", null);
-      response(res, true, "success", data);
+      const profile = {
+        ...data.dataValues,
+        ttd: data.ttd ? `${process.env.API_URL}/ttd/${data.ttd}` : null,
+        status_ttd: !!data.ttd,
+      };
+      response(res, true, "success", profile);
     } catch (error) {
       response(res, false, "error", error.message);
+    }
+  };
+
+  static uploadTtd = async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file) {
+        return response(res, false, "File tanda tangan wajib diunggah.", null, 400);
+      }
+
+      const findParent = await Parents.findOne({ where: { id: req.user.id } });
+      if (!findParent) {
+        return response(res, false, "User tidak ditemukan", null, 404);
+      }
+
+      if (findParent.ttd) {
+        await fs.remove(path.join("public/ttd", findParent.ttd));
+      }
+
+      findParent.ttd = file.filename;
+      findParent.updated_at = convertDate(unixTimestamp);
+      await findParent.save();
+
+      return response(res, true, "Tanda tangan berhasil diperbarui", {
+        ttd: `${process.env.API_URL}/ttd/${findParent.ttd}`,
+        status_ttd: true,
+      });
+    } catch (error) {
+      return response(res, false, "Terjadi kesalahan", error.message, 500);
     }
   };
 
