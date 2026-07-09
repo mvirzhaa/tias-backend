@@ -8,7 +8,7 @@ const TrxUserJabatanUnit = require("../../models/TrxUserJabatanUnit");
 const Jabatan = require("../../models/master/Jabatan");
 const Unit = require("../../models/master/Unit");
 
-const { compileSuratPengunduranDiri, compileSuratCutiAkademik } = require("../../utils/persuratanHelper");
+const { generateSuratPengunduranDiri, generateSuratCutiAkademik } = require("../../utils/pdfGenerator");
 
 /**
  * Mengambil TTD user sebagai Base64 dari file lokal.
@@ -297,15 +297,19 @@ class SuratController {
       await t.commit();
 
       if (status === "Selesai") {
-        const pdf = require("html-pdf");
-
         const formatTanggal = new Date().toLocaleDateString("id-ID", {
           year: "numeric",
           month: "long",
           day: "numeric",
         });
 
-        let htmlDocumentString = "";
+        const folderPath = path.join(__dirname, "../../public/generated-pdf");
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+
+        const fileName = `Surat_${data.jenis_surat.replace(/\s+/g, "_")}_${data.id}.pdf`;
+        const fileOutputPath = path.join(folderPath, fileName);
 
         if (data.jenis_surat?.toLowerCase() === "surat pengunduran diri") {
           const dataPribadiMhs = await DataPribadi.findOne({
@@ -314,7 +318,10 @@ class SuratController {
           });
           const ttdMhsBase64 = getTtdBase64(dataPribadiMhs?.ttd);
 
-          htmlDocumentString = await compileSuratPengunduranDiri(data, formatTanggal, ttdMhsBase64);
+          await generateSuratPengunduranDiri(data, formatTanggal, ttdMhsBase64, fileOutputPath);
+
+          currentFormData.pdf_url = `/generated-pdf/${fileName}`;
+          await Surat.update({ form_data: currentFormData }, { where: { id: id } });
 
         } else if (data.jenis_surat?.toLowerCase() === "surat pengajuan cuti") {
           const kaprodiJabatan = await TrxUserJabatanUnit.findOne({
@@ -342,34 +349,9 @@ class SuratController {
           const ttdKaprodiBase64 = getTtdBase64(kaprodiJabatan?.personal_data?.ttd);
           const namaKaprodi = kaprodiJabatan?.personal_data?.nama_lengkap || "Ketua Program Studi";
 
-          htmlDocumentString = await compileSuratCutiAkademik(data, formatTanggal, ttdKaprodiBase64, namaKaprodi);
-        }
-
-        if (htmlDocumentString) {
-          const folderPath = path.join(__dirname, "../../public/generated-pdf");
-          if (!fs.existsSync(folderPath)) {
-            fs.mkdirSync(folderPath, { recursive: true });
-          }
-
-          const fileName = `Surat_${data.jenis_surat.replace(/\s+/g, "_")}_${data.id}.pdf`;
-          const fileOutputPath = path.join(folderPath, fileName);
-
-          const options = {
-            format: "A4",
-            border: { top: "40px", right: "50px", bottom: "40px", left: "50px" },
-          };
-
-          const pdfBuffer = await new Promise((resolve, reject) => {
-            pdf.create(htmlDocumentString, options).toBuffer((err, buffer) => {
-              if (err) return reject(err);
-              resolve(buffer);
-            });
-          });
-
-          fs.writeFileSync(fileOutputPath, pdfBuffer);
+          await generateSuratCutiAkademik(data, formatTanggal, ttdKaprodiBase64, namaKaprodi, fileOutputPath);
 
           currentFormData.pdf_url = `/generated-pdf/${fileName}`;
-
           await Surat.update({ form_data: currentFormData }, { where: { id: id } });
         }
       }
@@ -478,6 +460,17 @@ class SuratController {
     try {
       const { id } = req.params;
 
+      // Validate UUID format — return 400 for invalid param
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(id)) {
+        return res.status(400).json({
+          isSuccess: false,
+          statusCode: 400,
+          responseMessage: "Format ID tidak valid. Parameter harus berupa UUID yang valid.",
+          data: null,
+        });
+      }
+
       const data = await Surat.findOne({
         where: { id, deleted_at: null },
         attributes: ["id", "jenis_surat", "nomor_surat", "status", "created_at", "updated_at", "form_data"],
@@ -497,10 +490,23 @@ class SuratController {
         ],
       });
 
-      if (!data) return response(res, false, "Dokumen tidak ditemukan atau telah dihapus.");
+      // Return 404 (not 400) when surat is not found — required for public QR validation flow
+      if (!data) {
+        return res.status(404).json({
+          isSuccess: false,
+          statusCode: 404,
+          responseMessage: "Dokumen tidak ditemukan atau telah dihapus.",
+          data: null,
+        });
+      }
 
-      return response(res, true, "Data QR berhasil dimuat", data);
+      // Ensure form_data is always returned as a parsed object, not a raw string
+      const plain = data.toJSON();
+      plain.form_data = safeJsonParse(plain.form_data);
+
+      return response(res, true, "Data QR berhasil dimuat", plain);
     } catch (error) {
+      console.error("[getQr Error]:", error.message);
       return response(res, false, error.message);
     }
   };
