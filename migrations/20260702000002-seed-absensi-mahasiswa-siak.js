@@ -47,10 +47,18 @@ const MATAKULIAH_MAP = [
 const TOTAL_PERTEMUAN = 14; // 1 semester = 14 pertemuan
 const SEMESTER = '2025 Ganjil';
 const TAHUN_AKADEMIK = '2025/2026';
+// Senin pertama semester ganjil 2025 — tiap MK offset 1 hari (Sen–Jum), tiap pertemuan +7 hari
+const SEMESTER_START = new Date('2025-08-04T08:00:00+07:00');
+
+const getPertemuanDate = (matkulIndex, pertemuan) => {
+  const date = new Date(SEMESTER_START);
+  date.setDate(date.getDate() + matkulIndex + (pertemuan - 1) * 7);
+  date.setHours(8, 0, 0, 0);
+  return date;
+};
 
 module.exports = {
   async up(queryInterface, Sequelize) {
-    const now = new Date();
     const tables = await queryInterface.showAllTables();
 
     // ──────────────────────────────────────────────────────────────────
@@ -189,12 +197,13 @@ module.exports = {
     let pembIdLookup = {}; // key: "id_matkul-pertemuan" → id
     const existingPertSet = new Set(existingPemb.map(p => `${p.id_matkul}-${p.pertemuan}`));
 
-    for (const mk of MATAKULIAH_MAP) {
+    for (const [mkIdx, mk] of MATAKULIAH_MAP.entries()) {
       const matkulId = mkIdMap[mk.kode];
       if (!matkulId) continue;
       for (let pert = 1; pert <= TOTAL_PERTEMUAN; pert++) {
         const key = `${matkulId}-${pert}`;
         if (existingPertSet.has(key)) continue;
+        const meetingDate = getPertemuanDate(mkIdx, pert);
         pembelajaranInserts.push({
           id_matkul: matkulId,
           pertemuan: pert,
@@ -202,8 +211,9 @@ module.exports = {
           semester: SEMESTER,
           tahun_akademik: TAHUN_AKADEMIK,
           status_kelas: 1, // 1 = sudah selesai
-          created_at: now,
-          updated_at: now,
+          learning_done: meetingDate,
+          created_at: meetingDate,
+          updated_at: meetingDate,
         });
       }
     }
@@ -223,10 +233,37 @@ module.exports = {
       pembIdLookup[`${p.id_matkul}-${p.pertemuan}`] = p.id;
     }
 
+    const npmListStr = VALID_NPMS.map(n => `'${n}'`).join(',');
+
+    // Sinkronkan tanggal pertemuan yang sudah ada (gap 1 minggu per pertemuan)
+    for (const [mkIdx, mk] of MATAKULIAH_MAP.entries()) {
+      const matkulId = mkIdMap[mk.kode];
+      if (!matkulId) continue;
+      for (let pert = 1; pert <= TOTAL_PERTEMUAN; pert++) {
+        const meetingDate = getPertemuanDate(mkIdx, pert);
+        const pembId = pembIdLookup[`${matkulId}-${pert}`];
+        if (!pembId) continue;
+
+        await queryInterface.sequelize.query(
+          `UPDATE pembelajaran_dosen_ext
+           SET learning_done = :meetingDate, created_at = :meetingDate, updated_at = :meetingDate
+           WHERE id = :pembId`,
+          { replacements: { meetingDate, pembId } }
+        );
+
+        await queryInterface.sequelize.query(
+          `UPDATE absensi_mhs
+           SET created_at = :meetingDate, updated_at = :meetingDate
+           WHERE id_pembelajaran = :pembId AND npm IN (${npmListStr})`,
+          { replacements: { meetingDate, pembId } }
+        );
+      }
+    }
+    console.log('[Migration] Tanggal pertemuan disinkronkan (gap 1 minggu).');
+
     // ──────────────────────────────────────────────────────────────────
     // 7. Cek apakah absensi untuk mahasiswa ini sudah ada
     // ──────────────────────────────────────────────────────────────────
-    const npmListStr = VALID_NPMS.map(n => `'${n}'`).join(',');
     const existingAbsensi = await queryInterface.sequelize.query(
       `SELECT COUNT(*) as cnt FROM absensi_mhs WHERE npm IN (${npmListStr})`,
       { type: queryInterface.sequelize.QueryTypes.SELECT }
@@ -268,6 +305,7 @@ module.exports = {
       for (const mk of MATAKULIAH_MAP) {
         const matkulId = mkIdMap[mk.kode];
         if (!matkulId) continue;
+        const mkIdx = MATAKULIAH_MAP.indexOf(mk);
 
         for (let pert = 1; pert <= TOTAL_PERTEMUAN; pert++) {
           const pembId = pembIdLookup[`${matkulId}-${pert}`];
@@ -278,6 +316,7 @@ module.exports = {
 
           const hash = pseudoRand(npm, matkulId, pert);
           const status = getStatus(hash);
+          const meetingDate = getPertemuanDate(mkIdx, pert);
 
           absensiData.push({
             id_pembelajaran: pembId,
@@ -287,8 +326,8 @@ module.exports = {
             upload_dok: status !== 1 ? `surat_${status === 2 ? 'izin' : status === 3 ? 'sakit' : 'alpha'}_${npm}_mk${matkulId}_p${pert}.pdf` : null,
             nilai: null,
             coordinate_absen: status === 1 ? JSON.stringify({ lat: -6.595972, lng: 106.816667 }) : null,
-            created_at: now,
-            updated_at: now,
+            created_at: meetingDate,
+            updated_at: meetingDate,
             deleted_at: null,
           });
         }

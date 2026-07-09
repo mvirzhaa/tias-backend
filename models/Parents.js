@@ -42,6 +42,9 @@ Parents.init(
     reset_token: {
       type: DataTypes.STRING,
     },
+    ttd: {
+      type: DataTypes.STRING,
+    },
     created_at: {
       type: DataTypes.DATE,
     },
