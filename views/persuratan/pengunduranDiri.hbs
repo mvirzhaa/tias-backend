@@ -106,7 +106,16 @@
         <td style="padding-top: 10px;">Hormat Saya,</td>
       </tr>
       <tr>
-        <td style="height: 85px; vertical-align: bottom;">{{nama_ortu_wali}}</td>
+        <td style="vertical-align: middle; padding-top: 5px;">
+          {{#if ttdOrtuBase64}}
+          <div style="text-align: center; margin-bottom: 2px;">
+            <img src="{{ttdOrtuBase64}}" alt="Tanda Tangan Orang Tua" style="height: 65px; max-width: 150px; object-fit: contain;" />
+          </div>
+          {{else}}
+          <div style="height: 65px;"></div>
+          {{/if}}
+          <div style="font-weight: bold; margin-top: 5px;">{{nama_ortu_wali}}</div>
+        </td>
         <td style="vertical-align: middle; padding-top: 5px;">
           {{#if ttdBase64}}
           <div style="text-align: center; margin-bottom: 2px;">

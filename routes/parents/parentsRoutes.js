@@ -6,12 +6,14 @@ const {
 } = require("../../middleware/authMiddleware");
 const ParentsController = require("../../controllers/parents/parentsController");
 const formidable = require("../../middleware/functional/formidable");
+const { profileUploadTtd } = require("../../middleware/profileUploadTtd");
 
 const router = express.Router();
 
 // router.get("/", ParentsController.exportExcelMhs);
 router.get("/get-profile", protectedParents, ParentsController.getUserLogin);
 router.put("/edit-profile", protectedParents, ParentsController.editProfile);
+router.patch("/update-ttd", protectedParents, profileUploadTtd, ParentsController.uploadTtd);
 router.post("/register", ParentsController.register);
 router.post("/import", formidable, ParentsController.importParent);
 router.post("/login", ParentsController.login);
