@@ -94,6 +94,14 @@ const writePdf = async (docDefinition, outputFilePath) => {
  */
 const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, outputPath) => {
   const fd = dataSurat.form_data || {};
+  const pengirim = dataSurat.Pengirim || {};
+  const pd = pengirim.personal_data || {};
+
+  const namaLengkap = fd.nama_lengkap || pd.nama_lengkap || "-";
+  const npmStr = fd.npm || pengirim.npm || pengirim.nidn || "-";
+  const alamatStr = fd.alamat || pd.alamat || "-";
+  const noHpStr = fd.no_hp || pd.no_hp || "-";
+
   const logoBase64 = getLogoBase64();
   const qrBase64 = await generateQrBase64(dataSurat.id);
 
@@ -131,12 +139,12 @@ const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, ou
           [
             { text: "Nama", border: [false, false, false, false] },
             { text: ":", border: [false, false, false, false] },
-            { text: fd.nama_lengkap || "-", border: [false, false, false, false] },
+            { text: namaLengkap, border: [false, false, false, false] },
           ],
           [
             { text: "NPM", border: [false, false, false, false] },
             { text: ":", border: [false, false, false, false] },
-            { text: String(fd.npm || "-"), border: [false, false, false, false] },
+            { text: String(npmStr), border: [false, false, false, false] },
           ],
           [
             { text: "Program Studi", border: [false, false, false, false] },
@@ -151,12 +159,12 @@ const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, ou
           [
             { text: "Alamat", border: [false, false, false, false] },
             { text: ":", border: [false, false, false, false] },
-            { text: fd.alamat || "-", border: [false, false, false, false] },
+            { text: alamatStr, border: [false, false, false, false] },
           ],
           [
             { text: "No. Telepon/HP", border: [false, false, false, false] },
             { text: ":", border: [false, false, false, false] },
-            { text: String(fd.no_hp || "-"), border: [false, false, false, false] },
+            { text: String(noHpStr), border: [false, false, false, false] },
           ],
         ],
       },
@@ -191,30 +199,35 @@ const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, ou
 
     // ── Footer Tanda Tangan ──
     {
-      columns: [
-        { text: "", width: "50%" },
-        { text: `Bogor, ${tanggalStr}`, alignment: "center", width: "50%" },
-      ],
-    },
-    {
-      columns: [
-        { text: "Mengetahui,\nOrang Tua/Wali", width: "50%", margin: [0, 8, 0, 0] },
-        { text: "Hormat Saya,", alignment: "center", width: "50%", margin: [0, 8, 0, 0] },
-      ],
-    },
-    {
-      columns: [
-        { text: fd.nama_ortu_wali || "-", width: "50%", margin: [0, 60, 0, 0] },
+      unbreakable: true,
+      stack: [
         {
-          stack: [
-            ...ttdSection,
-            { text: fd.nama_lengkap || "-", bold: true, alignment: "center", margin: [0, 4, 0, 0] },
-            { text: `NPM: ${String(fd.npm || "-")}`, alignment: "center" },
+          columns: [
+            { text: "", width: "50%" },
+            { text: `Bogor, ${tanggalStr}`, alignment: "center", width: "50%" },
           ],
-          width: "50%",
-          alignment: "center",
         },
-      ],
+        {
+          columns: [
+            { text: "Mengetahui,\nOrang Tua/Wali", width: "50%", margin: [0, 8, 0, 0] },
+            { text: "Hormat Saya,", alignment: "center", width: "50%", margin: [0, 8, 0, 0] },
+          ],
+        },
+        {
+          columns: [
+            { text: fd.nama_ortu_wali || "-", width: "50%", margin: [0, 60, 0, 0] },
+            {
+              stack: [
+                ...ttdSection,
+                { text: namaLengkap, bold: true, alignment: "center", margin: [0, 4, 0, 0] },
+                { text: `NPM: ${String(npmStr)}`, alignment: "center" },
+              ],
+              width: "50%",
+              alignment: "center",
+            },
+          ],
+        }
+      ]
     }
   );
 
@@ -239,6 +252,13 @@ const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, ou
  */
 const generateSuratCutiAkademik = async (dataSurat, tanggalStr, ttdBase64, namaKaprodi, outputPath) => {
   const fd = dataSurat.form_data || {};
+  const pengirim = dataSurat.Pengirim || {};
+  const pd = pengirim.personal_data || {};
+
+  const namaLengkap = fd.nama_lengkap || pd.nama_lengkap || "-";
+  const npmStr = fd.npm || pengirim.npm || pengirim.nidn || "-";
+  const alamatStr = fd.alamat || pd.alamat || "-";
+
   const logoBase64 = getLogoBase64();
   const qrBase64 = await generateQrBase64(dataSurat.id);
 
@@ -323,12 +343,12 @@ const generateSuratCutiAkademik = async (dataSurat, tanggalStr, ttdBase64, namaK
                     [
                       { text: "Saudara", border: [false, false, false, false] },
                       { text: ":", border: [false, false, false, false] },
-                      { text: fd.nama_lengkap || "-", bold: true, border: [false, false, false, false] },
+                      { text: namaLengkap, bold: true, border: [false, false, false, false] },
                     ],
                     [
                       { text: "NPM", border: [false, false, false, false] },
                       { text: ":", border: [false, false, false, false] },
-                      { text: String(fd.npm || "-"), border: [false, false, false, false] },
+                      { text: String(npmStr), border: [false, false, false, false] },
                     ],
                     [
                       { text: "Fak./Jurusan", border: [false, false, false, false] },
@@ -343,7 +363,7 @@ const generateSuratCutiAkademik = async (dataSurat, tanggalStr, ttdBase64, namaK
                     [
                       { text: "Alamat", border: [false, false, false, false] },
                       { text: ":", border: [false, false, false, false] },
-                      { text: fd.alamat || "-", border: [false, false, false, false] },
+                      { text: alamatStr, border: [false, false, false, false] },
                     ],
                   ],
                 },
@@ -440,36 +460,41 @@ const generateSuratCutiAkademik = async (dataSurat, tanggalStr, ttdBase64, namaK
 
       // ── Tanda Tangan ──
       {
-        columns: [
-          { text: "", width: "50%" },
-          { text: `Bogor, ${tanggalStr}`, alignment: "center", width: "50%" },
-        ],
-      },
-      {
-        columns: [
-          { text: "", width: "50%" },
+        unbreakable: true,
+        stack: [
           {
-            text: "Ketua Program Studi Teknik Informatika",
-            alignment: "center",
-            width: "50%",
-            margin: [0, 2, 0, 0],
-          },
-        ],
-      },
-      {
-        columns: [
-          { text: "", width: "50%" },
-          {
-            stack: [
-              ...ttdSection,
-              { canvas: [{ type: "line", x1: 30, y1: 0, x2: 170, y2: 0, lineWidth: 0.8 }], margin: [0, 2, 0, 4] },
-              { text: `( ${namaDekan} )`, alignment: "center", bold: true },
+            columns: [
+              { text: "", width: "50%" },
+              { text: `Bogor, ${tanggalStr}`, alignment: "center", width: "50%" },
             ],
-            width: "50%",
-            alignment: "center",
           },
-        ],
-        margin: [0, 0, 0, 16],
+          {
+            columns: [
+              { text: "", width: "50%" },
+              {
+                text: "Ketua Program Studi Teknik Informatika",
+                alignment: "center",
+                width: "50%",
+                margin: [0, 2, 0, 0],
+              },
+            ],
+          },
+          {
+            columns: [
+              { text: "", width: "50%" },
+              {
+                stack: [
+                  ...ttdSection,
+                  { canvas: [{ type: "line", x1: 30, y1: 0, x2: 170, y2: 0, lineWidth: 0.8 }], margin: [0, 2, 0, 4] },
+                  { text: `( ${namaDekan} )`, alignment: "center", bold: true },
+                ],
+                width: "50%",
+                alignment: "center",
+              },
+            ],
+            margin: [0, 0, 0, 16],
+          }
+        ]
       },
 
       // ── Catatan Perhatian ──

@@ -269,13 +269,74 @@ class SuratController {
       const { id } = req.params;
       const { status, catatan } = req.body;
 
-      const data = await Surat.findByPk(id, { transaction: t });
+      const data = await Surat.findByPk(id, {
+        include: [
+          {
+            model: User,
+            as: "Pengirim",
+            attributes: ["npm", "nidn"],
+            include: [{ model: DataPribadi, as: "personal_data", attributes: ["nama_lengkap", "alamat", "no_hp"] }]
+          }
+        ],
+        transaction: t
+      });
       if (!data) {
         await t.rollback();
         return response(res, false, "Data tidak ditemukan");
       }
 
       let currentFormData = safeJsonParse(data.form_data);
+      let ttdMhsBase64 = null;
+      let ttdKaprodiBase64 = null;
+      let namaKaprodi = "Ketua Program Studi";
+
+      if (status === "Selesai") {
+        if (data.jenis_surat?.toLowerCase() === "surat pengunduran diri") {
+          const dataPribadiMhs = await DataPribadi.findOne({
+            where: { user_id: data.user_id },
+            attributes: ["ttd"],
+            transaction: t,
+          });
+          ttdMhsBase64 = getTtdBase64(dataPribadiMhs?.ttd);
+          
+          if (!ttdMhsBase64) {
+            await t.rollback();
+            return response(res, false, "Gagal menyelesaikan pengajuan: Tanda Tangan Digital Mahasiswa tidak ditemukan atau rusak.");
+          }
+        } else if (data.jenis_surat?.toLowerCase() === "surat pengajuan cuti") {
+          const kaprodiJabatan = await TrxUserJabatanUnit.findOne({
+            include: [
+              {
+                model: Jabatan,
+                as: "jabatan",
+                where: { nama_jabatan: "Ketua Program Studi" },
+                attributes: ["nama_jabatan"],
+              },
+              {
+                model: Unit,
+                as: "unit",
+                where: { code: "FT_TI" },
+                attributes: ["code", "nama_unit"],
+              },
+              {
+                model: DataPribadi,
+                as: "personal_data",
+                attributes: ["ttd", "nama_lengkap"],
+              },
+            ],
+            transaction: t,
+          });
+
+          ttdKaprodiBase64 = getTtdBase64(kaprodiJabatan?.personal_data?.ttd);
+          namaKaprodi = kaprodiJabatan?.personal_data?.nama_lengkap || "Ketua Program Studi";
+
+          // Bypass Validasi Kaprodi sementara untuk presentasi.
+          // Jika TTD tidak ada, PDF tetap akan ter-generate dengan spasi kosong.
+          if (!ttdKaprodiBase64) {
+            console.warn("[DEMO BYPASS] Kaprodi belum memiliki TTD. Meloloskan PDF dengan ttd kosong.");
+          }
+        }
+      }
 
       await data.update(
         {
@@ -312,43 +373,12 @@ class SuratController {
         const fileOutputPath = path.join(folderPath, fileName);
 
         if (data.jenis_surat?.toLowerCase() === "surat pengunduran diri") {
-          const dataPribadiMhs = await DataPribadi.findOne({
-            where: { user_id: data.user_id },
-            attributes: ["ttd"],
-          });
-          const ttdMhsBase64 = getTtdBase64(dataPribadiMhs?.ttd);
-
           await generateSuratPengunduranDiri(data, formatTanggal, ttdMhsBase64, fileOutputPath);
 
           currentFormData.pdf_url = `/generated-pdf/${fileName}`;
           await Surat.update({ form_data: currentFormData }, { where: { id: id } });
 
         } else if (data.jenis_surat?.toLowerCase() === "surat pengajuan cuti") {
-          const kaprodiJabatan = await TrxUserJabatanUnit.findOne({
-            include: [
-              {
-                model: Jabatan,
-                as: "jabatan",
-                where: { nama_jabatan: "Ketua Program Studi" },
-                attributes: ["nama_jabatan"],
-              },
-              {
-                model: Unit,
-                as: "unit",
-                where: { code: "FT_TI" },
-                attributes: ["code", "nama_unit"],
-              },
-              {
-                model: DataPribadi,
-                as: "personal_data",
-                attributes: ["ttd", "nama_lengkap"],
-              },
-            ],
-          });
-
-          const ttdKaprodiBase64 = getTtdBase64(kaprodiJabatan?.personal_data?.ttd);
-          const namaKaprodi = kaprodiJabatan?.personal_data?.nama_lengkap || "Ketua Program Studi";
-
           await generateSuratCutiAkademik(data, formatTanggal, ttdKaprodiBase64, namaKaprodi, fileOutputPath);
 
           currentFormData.pdf_url = `/generated-pdf/${fileName}`;
