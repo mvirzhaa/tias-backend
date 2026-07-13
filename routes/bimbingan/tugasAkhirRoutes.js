@@ -28,6 +28,7 @@ const {
   getFinalSkripsi,
   uploadFinalSkripsiController,
   getNomorNota,
+  getBeritaAcaraKolo,
   updatePenilaian,
   deleteData,
   updateNilaiAkhirKolo,
@@ -38,6 +39,7 @@ const {
   exportsRekapPenilainKolokium,
   exportRekapPenilaianSidang,
   updateKelulusan,
+  getBeritaAcaraSidang,
 } = require("../../controllers/bimbingan/tugasAkhirController");
 const {
   makalahKolokiumUpload,
@@ -112,6 +114,8 @@ router.patch(
 );
 
 router.post("/get-nomor-nota", protected, getNomorNota);
+router.get("/berita-acara-kolo/:id", protected, getBeritaAcaraKolo);
+router.get("/berita-acara-sidang/:id", protected, getBeritaAcaraSidang);
 router.put("/update-nilai/:id", protected, adminDosenOnly, updatePenilaian);
 router.put(
   "/update-nilai-sidang/:id",
