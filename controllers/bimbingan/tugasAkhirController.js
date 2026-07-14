@@ -2527,13 +2527,7 @@ exports.getBeritaAcaraSidang = asyncHandler(async (req, res) => {
   let dosenMap = {};
   if (dosenIds.length > 0) {
     const dosenResult = await DB.query(
-      `SELECT user_id,
-        TRIM(CONCAT_WS(' ',
-          NULLIF(TRIM(COALESCE(gelar_depan, '')), ''),
-          TRIM(nama_lengkap),
-          NULLIF(TRIM(COALESCE(gelar_belakang, '')), '')
-        )) as nama_lengkap,
-        nip FROM tb_data_pribadi WHERE user_id::text IN (${dosenIds
+      `SELECT user_id, nama_lengkap, nip FROM tb_data_pribadi WHERE user_id::text IN (${dosenIds
         .map((_, i) => `$${i + 1}`)
         .join(",")})`,
       dosenIds.map(String)
