@@ -2513,6 +2513,12 @@ exports.getBeritaAcaraSidang = asyncHandler(async (req, res) => {
     [sidang.id]
   );
 
+  const sk = dataSk.rows[0];
+  const nilaiAkhir = nilaiAkhirResult.rows[0] || null;
+
+  const ketuaPengujiId = sidang.ketua_penguji || nilaiAkhir?.ketua_penguji || sidang.sidang_pembimbing_1 || nilaiAkhir?.pembimbing_1;
+  const sekertarisSidangId = sidang.sekertaris_sidang || nilaiAkhir?.sekertaris_sidang || sidang.penguji_1 || nilaiAkhir?.penguji_1;
+
   // Collect all dosen IDs to fetch names
   const dosenIds = [
     sidang.sidang_pembimbing_1,
@@ -2522,6 +2528,12 @@ exports.getBeritaAcaraSidang = asyncHandler(async (req, res) => {
     sidang.penguji_2,
     sidang.sekertaris_sidang,
     sidang.ketua_penguji,
+    ketuaPengujiId,
+    sekertarisSidangId,
+    nilaiAkhir?.pembimbing_1,
+    nilaiAkhir?.pembimbing_2,
+    nilaiAkhir?.penguji_1,
+    nilaiAkhir?.penguji_2,
   ].filter(Boolean);
 
   let dosenMap = {};
@@ -2555,9 +2567,6 @@ exports.getBeritaAcaraSidang = asyncHandler(async (req, res) => {
     // kaprodi not found, continue without it
   }
 
-  const sk = dataSk.rows[0];
-  const nilaiAkhir = nilaiAkhirResult.rows[0] || null;
-
   res.status(200).json({
     data: {
       // Student info
@@ -2574,20 +2583,20 @@ exports.getBeritaAcaraSidang = asyncHandler(async (req, res) => {
       waktu: nilaiAkhir?.waktu || sidang.waktu || "",
       tempat: nilaiAkhir?.tempat || sidang.tempat || "",
       // Dosen info (IDs + names)
-      sidang_pembimbing_1: sidang.sidang_pembimbing_1,
-      sidang_pembimbing_2: sidang.sidang_pembimbing_2,
+      sidang_pembimbing_1: sidang.sidang_pembimbing_1 || nilaiAkhir?.pembimbing_1,
+      sidang_pembimbing_2: sidang.sidang_pembimbing_2 || nilaiAkhir?.pembimbing_2,
       sidang_pembimbing_3: sidang.sidang_pembimbing_3,
-      penguji_1: sidang.penguji_1,
-      penguji_2: sidang.penguji_2,
-      sekertaris_sidang: sidang.sekertaris_sidang,
-      ketua_penguji: sidang.ketua_penguji,
-      nama_pembimbing_1: sidang.sidang_pembimbing_1 ? dosenMap[sidang.sidang_pembimbing_1]?.nama_lengkap || "" : "",
-      nama_pembimbing_2: sidang.sidang_pembimbing_2 ? dosenMap[sidang.sidang_pembimbing_2]?.nama_lengkap || "" : "",
+      penguji_1: sidang.penguji_1 || nilaiAkhir?.penguji_1,
+      penguji_2: sidang.penguji_2 || nilaiAkhir?.penguji_2,
+      sekertaris_sidang: sekertarisSidangId,
+      ketua_penguji: ketuaPengujiId,
+      nama_pembimbing_1: (sidang.sidang_pembimbing_1 || nilaiAkhir?.pembimbing_1) ? dosenMap[sidang.sidang_pembimbing_1 || nilaiAkhir?.pembimbing_1]?.nama_lengkap || "" : "",
+      nama_pembimbing_2: (sidang.sidang_pembimbing_2 || nilaiAkhir?.pembimbing_2) ? dosenMap[sidang.sidang_pembimbing_2 || nilaiAkhir?.pembimbing_2]?.nama_lengkap || "" : "",
       nama_pembimbing_3: sidang.sidang_pembimbing_3 ? dosenMap[sidang.sidang_pembimbing_3]?.nama_lengkap || "" : "",
-      nama_penguji_1: sidang.penguji_1 ? dosenMap[sidang.penguji_1]?.nama_lengkap || "" : "",
-      nama_penguji_2: sidang.penguji_2 ? dosenMap[sidang.penguji_2]?.nama_lengkap || "" : "",
-      nama_sekertaris_sidang: sidang.sekertaris_sidang ? dosenMap[sidang.sekertaris_sidang]?.nama_lengkap || "" : "",
-      nama_ketua_penguji: sidang.ketua_penguji ? dosenMap[sidang.ketua_penguji]?.nama_lengkap || "" : "",
+      nama_penguji_1: (sidang.penguji_1 || nilaiAkhir?.penguji_1) ? dosenMap[sidang.penguji_1 || nilaiAkhir?.penguji_1]?.nama_lengkap || "" : "",
+      nama_penguji_2: (sidang.penguji_2 || nilaiAkhir?.penguji_2) ? dosenMap[sidang.penguji_2 || nilaiAkhir?.penguji_2]?.nama_lengkap || "" : "",
+      nama_sekertaris_sidang: sekertarisSidangId ? dosenMap[sekertarisSidangId]?.nama_lengkap || "" : "",
+      nama_ketua_penguji: ketuaPengujiId ? dosenMap[ketuaPengujiId]?.nama_lengkap || "" : "",
       // Nilai akhir
       nilai_akhir: nilaiAkhir,
       // Individual penilaian per dosen
