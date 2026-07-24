@@ -7,9 +7,9 @@ const cbtApiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-const exchangeToCbtToken = async ({ email, nama, nim }) => {
+const exchangeToCbtToken = async ({ email, nama, nim, role }) => {
   const response = await cbtApiClient.post('/api/auth/external-login', {
-    email, nama, nim,
+    email, nama, nim, role,
     shared_secret: process.env.TIAS_CBT_SHARED_SECRET,
   });
   if (!response.data?.success) throw new Error('CBT API menolak request.');
