@@ -8,6 +8,7 @@ const TrxUserJabatanUnit = require("../models/TrxUserJabatanUnit");
 const DataPribadi = require("../models/DataPribadi");
 const Jabatan = require("../models/master/Jabatan");
 const Unit = require("../models/master/Unit");
+const { isUserBlacklisted } = require('../utils/tokenBlacklist');
 
 exports.protected = asyncHandler(async (req, res, next) => {
   try {
@@ -19,6 +20,13 @@ exports.protected = asyncHandler(async (req, res, next) => {
     }
 
     const verified = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Cek blacklist
+    const userIdToCheck = verified.eportal_user_id || verified.id;
+    if (isUserBlacklisted(userIdToCheck)) {
+        res.status(401);
+        throw new Error('Session telah berakhir. Silakan login kembali.');
+    }
 
     const user = await DB.query(
       `SELECT tb_data_pribadi.*, tb_users.* 
