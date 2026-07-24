@@ -5,6 +5,7 @@ const storage = require("../../lib/lms/storage");
 const { detectSubmissionType } = require("../../lib/lms/fileType");
 const LmsContentItem = require("../../models/lms/LmsContentItem");
 const LmsSubmission = require("../../models/lms/LmsSubmission");
+const SiakV2Participant = require("../../models/lms/SiakV2Participant");
 
 /**
  * Submission Assignment (A5). Config tugas ada di item.payload (type=assignment).
@@ -180,12 +181,28 @@ exports.listSubmissions = asyncHandler(async (req, res) => {
     offset: pagelimit.offset,
   });
 
+  // Lampirkan npm/nama mahasiswa dari siak_v2_participants — submission sendiri hanya
+  // menyimpan siak_mahasiswa_id (UUID), tak berguna ditampilkan mentah ke dosen.
+  const kelasKuliahId = req.lmsSection && req.lmsSection.kelasKuliahId;
+  const mhsIds = [...new Set(data.rows.map((s) => s.siak_mahasiswa_id))];
+  const participants =
+    kelasKuliahId && mhsIds.length
+      ? await SiakV2Participant.findAll({
+          where: { kelasKuliahId, siak_mahasiswa_id: mhsIds },
+          attributes: ["siak_mahasiswa_id", "npm", "nama"],
+        })
+      : [];
+  const pmap = new Map(participants.map((p) => [p.siak_mahasiswa_id, p]));
+
   return response(res, true, "Success", {
     limit,
     page,
     total: data.count,
     total_page: Math.ceil(parseInt(data.count) / limit),
-    rows: data.rows.map((s) => serialize(s, item)),
+    rows: data.rows.map((s) => {
+      const p = pmap.get(s.siak_mahasiswa_id);
+      return { ...serialize(s, item), npm: p?.npm || null, nama_mahasiswa: p?.nama || null };
+    }),
   });
 });
 

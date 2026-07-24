@@ -14,6 +14,8 @@ const getCbtToken = async (req, res) => {
     const nama     = tiasUser.nama_lengkap || tiasUser.nama || tiasUser.name || email;
     // Coba semua kemungkinan nama field untuk NIM/NPM
     const nim      = tiasUser.npm || tiasUser.nim || null;
+    // Dosen & Dosen_Ext dipetakan ke role 'dosen' di CBT; selainnya default 'mahasiswa'.
+    const role     = String(tiasUser.role || '').toLowerCase().startsWith('dosen') ? 'dosen' : 'mahasiswa';
 
     let mapping = await CbtUserMapping.findOne({
       where: { tias_user_id: userId }
@@ -37,7 +39,7 @@ const getCbtToken = async (req, res) => {
       });
     }
 
-    const { cbt_token, cbt_user_id } = await exchangeToCbtToken({ email, nama, nim });
+    const { cbt_token, cbt_user_id } = await exchangeToCbtToken({ email, nama, nim, role });
 
     const expiresAt = new Date(now + 8 * 60 * 60 * 1000);
 
