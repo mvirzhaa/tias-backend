@@ -213,7 +213,7 @@ exports.register = asyncHandler(async (req, res) => {
           dosenWithNidn.no_ktp,
           convert,
           dosenWithNidn.klasi_pegawai,
-          dosenWithNidn.nip,
+          dosenWithNidn?.nip,
         ],
       );
 
@@ -504,7 +504,7 @@ exports.registerPegawai = asyncHandler(async (req, res) => {
         pegawaiWithNip.no_ktp,
         convert,
         pegawaiWithNip.klasi_pegawai,
-        pegawaiWithNip.nip,
+        pegawaiWithNip?.nip,
       ],
     );
 
@@ -657,7 +657,7 @@ exports.loginUser = asyncHandler(async (req, res) => {
 
     const getPersonalData = await DB.query("SELECT * FROM tb_data_pribadi WHERE user_id = $1", [user_id]);
 
-    const queryLencana = await DB.query(`SELECT * FROM achievements WHERE gamify = $1`, [getPersonalData.rows[0].rank]);
+const queryLencana = await DB.query(`SELECT * FROM achievements WHERE gamify = $1`, [getPersonalData.rows[0]?.rank || ""]);
 
     const jabatanStruktural = await TrxUserJabatanUnit.findAll({
       where: {
@@ -695,12 +695,12 @@ exports.loginUser = asyncHandler(async (req, res) => {
         username,
         email,
         role,
-        nip: getPersonalData.rows[0].nip,
-        nama_lengkap: getPersonalData.rows[0].nama_lengkap,
-        image: getPersonalData.rows[0].image,
-        no_hp: getPersonalData.rows[0].no_hp,
-        imageUrl: `${process.env.API_URL}/foto-profile/${getPersonalData.rows[0].image}`,
-        kode_mhs: getPersonalData.rows[0].kode_mhs,
+        nip: getPersonalData.rows[0]?.nip || "",
+        nama_lengkap: getPersonalData.rows[0]?.nama_lengkap || "",
+        image: getPersonalData.rows[0]?.image || "",
+        no_hp: getPersonalData.rows[0]?.no_hp || "",
+        imageUrl: `${process.env.API_URL}/foto-profile/${getPersonalData.rows[0]?.image}` || "",
+        kode_mhs: getPersonalData.rows[0]?.kode_mhs || "",
         isverified,
         created_at,
         personalData: getPersonalData.rows[0],
@@ -1036,7 +1036,7 @@ exports.verifyUser = asyncHandler(async (req, res) => {
               <div class="icon">✓</div>
               <h1>Verifikasi Berhasil!</h1>
               <p>Akun Anda telah berhasil diverifikasi. Anda sekarang dapat masuk ke aplikasi TIAS menggunakan akun Anda.</p>
-              <a href="${process.env.FRONTEND_URL}/login" class="btn">Kembali ke Login</a>
+              <a href="${process.env.FRONTEND_REDIRECT_URL}/login" class="btn">Kembali ke Login</a>
           </div>
       </body>
       </html>
@@ -1246,7 +1246,7 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
   await DB.query("INSERT INTO token(user_id, reset_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [user.rows[0].user_id, hashedToken, now, later]);
 
   // construct reset password url
-  const resetPassUrl = `${process.env.FRONTEND_URL}/resetPassword/${resetToken}`;
+  const resetPassUrl = `${process.env.FRONTEND_REDIRECT_URL}/resetPassword/${resetToken}`;
 
   // Send verification email
   const subject = "Password Reset Request";
@@ -1364,7 +1364,7 @@ exports.sendAutomatedEmail = asyncHandler(async (req, res) => {
   }
 
   const send_from = process.env.EMAIL_USER;
-  const link = `${process.env.FRONTEND_URL}${url}`;
+  const link = `${process.env.FRONTEND_REDIRECT_URL}${url}`;
 
   try {
     await sendEmail(subject, send_to, send_from, template, link);
@@ -1428,8 +1428,7 @@ exports.eportalGoogle = asyncHandler(async (req, res) => {
 
       const getPersonalData = await DB.query("SELECT * FROM tb_data_pribadi WHERE user_id = $1", [user_id]);
 
-      const queryLencana = await DB.query(`SELECT * FROM achievements WHERE gamify = $1`, [getPersonalData.rows[0].rank]);
-
+const queryLencana = await DB.query(`SELECT * FROM achievements WHERE gamify = $1`, [getPersonalData.rows[0]?.rank || ""]);
       const oneMonth = 30 * 24 * 60 * 60 * 1000;
 
       res.cookie("token", token, {
@@ -1449,12 +1448,12 @@ exports.eportalGoogle = asyncHandler(async (req, res) => {
           username,
           email,
           role,
-          nip: getPersonalData.rows[0].nip,
-          nama_lengkap: getPersonalData.rows[0].nama_lengkap,
-          image: getPersonalData.rows[0].image,
-          no_hp: getPersonalData.rows[0].no_hp,
-          imageUrl: `${process.env.API_URL}/foto-profile/${getPersonalData.rows[0].image}`,
-          kode_mhs: getPersonalData.rows[0].kode_mhs,
+          nip: getPersonalData.rows[0]?.nip || "",
+          nama_lengkap: getPersonalData.rows[0]?.nama_lengkap || "",
+          image: getPersonalData.rows[0]?.image || "",
+          no_hp: getPersonalData.rows[0]?.no_hp || "",
+          imageUrl: `${process.env.API_URL}/foto-profile/${getPersonalData.rows[0]?.image}` || "",
+          kode_mhs: getPersonalData.rows[0]?.kode_mhs || "",
           isverified,
           created_at,
           personalData: getPersonalData.rows[0],

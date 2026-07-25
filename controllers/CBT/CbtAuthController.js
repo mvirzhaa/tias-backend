@@ -14,16 +14,19 @@ const getCbtToken = async (req, res) => {
     const nama     = tiasUser.nama_lengkap || tiasUser.nama || tiasUser.name || email;
     // Coba semua kemungkinan nama field untuk NIM/NPM
     const nim      = tiasUser.npm || tiasUser.nim || null;
+    // Dosen & Dosen_Ext dipetakan ke role 'dosen' di CBT; selainnya default 'mahasiswa'.
+    const role     = String(tiasUser.role || '').toLowerCase().startsWith('dosen') ? 'dosen' : 'mahasiswa';
 
     let mapping = await CbtUserMapping.findOne({
       where: { tias_user_id: userId }
     });
 
-    const now = new Date();
+    const now = Date.now();
+    const BUFFER_MS = 5 * 60 * 1000; // buffer 5 menit: jangan kirim token yang sebentar lagi mati
     const masihValid =
       mapping?.cbt_token &&
       mapping?.cbt_token_expires_at &&
-      new Date(mapping.cbt_token_expires_at) > now;
+      new Date(mapping.cbt_token_expires_at).getTime() > now + BUFFER_MS;
 
     if (masihValid) {
       return res.status(200).json({
@@ -31,13 +34,14 @@ const getCbtToken = async (req, res) => {
         data: {
           cbt_token: mapping.cbt_token,
           cbt_user_id: mapping.cbt_user_id,
+          expires_at: mapping.cbt_token_expires_at,
         }
       });
     }
 
-    const { cbt_token, cbt_user_id } = await exchangeToCbtToken({ email, nama, nim });
+    const { cbt_token, cbt_user_id } = await exchangeToCbtToken({ email, nama, nim, role });
 
-    const expiresAt = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const expiresAt = new Date(now + 8 * 60 * 60 * 1000);
 
     if (mapping) {
       await mapping.update({ cbt_token, cbt_user_id, cbt_token_expires_at: expiresAt });
@@ -54,7 +58,7 @@ const getCbtToken = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: { cbt_token, cbt_user_id }
+      data: { cbt_token, cbt_user_id, expires_at: expiresAt }
     });
 
   } catch (error) {

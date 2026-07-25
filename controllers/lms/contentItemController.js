@@ -1,8 +1,38 @@
 const asyncHandler = require("express-async-handler");
+const { Op } = require("sequelize");
 const db = require("../../config");
 const { response } = require("../../lib/response");
 const LmsContentItem = require("../../models/lms/LmsContentItem");
+const LmsSubmission = require("../../models/lms/LmsSubmission");
 const { validateContentPayload, FILE_TYPES } = require("../../lib/lms/payloadValidators");
+
+// Recompute is_late submission (cache) saat due_at assignment diedit — tutup celah deadline
+// diperpanjang tapi baris lama tetap "telat". Sumber kebenaran tetap dihitung saat baca.
+async function recomputeIsLate(contentItemId, dueAt) {
+  const now = new Date();
+  if (dueAt) {
+    await LmsSubmission.update(
+      { is_late: true, updated_at: now },
+      { where: { content_item_id: contentItemId, submitted_at: { [Op.gt]: dueAt } } }
+    );
+    await LmsSubmission.update(
+      { is_late: false, updated_at: now },
+      { where: { content_item_id: contentItemId, submitted_at: { [Op.lte]: dueAt } } }
+    );
+  } else {
+    await LmsSubmission.update(
+      { is_late: false, updated_at: now },
+      { where: { content_item_id: contentItemId } }
+    );
+  }
+}
+
+// Deskripsi item = teks polos opsional. Buang tag HTML & batasi panjang (defense-in-depth).
+const cleanDescription = (value) => {
+  if (value == null) return null;
+  const text = String(value).replace(/<[^>]*>/g, "").trim();
+  return text === "" ? null : text.slice(0, 2000);
+};
 
 /**
  * SPEC v8 §5 — Items CRUD + reorder. Tulis dilindungi `lecturerOwnsContentSection`
@@ -34,7 +64,7 @@ exports.getItem = asyncHandler(async (req, res) => {
 
 // POST /lms/sections/:sectionId/items
 exports.createItem = asyncHandler(async (req, res) => {
-  const { type, title, position, is_published, payload } = req.body;
+  const { type, title, description, position, is_published, payload } = req.body;
 
   if (!type || !LmsContentItem.CONTENT_TYPES.includes(type)) {
     return response(
@@ -65,12 +95,25 @@ exports.createItem = asyncHandler(async (req, res) => {
     return response(res, false, validation.error, null, 400);
   }
 
+  // Default posisi = urutan berikutnya (paling bawah), bukan 0 — 0 selalu menaruh
+  // item baru di ATAS item yang sudah ada (diurutkan ASC by position).
+  let nextPosition = 0;
+  if (position != null) {
+    nextPosition = parseInt(position, 10);
+  } else {
+    const maxPosition = await LmsContentItem.max("position", {
+      where: { section_id: req.lmsSection.id },
+    });
+    nextPosition = maxPosition != null ? maxPosition + 1 : 0;
+  }
+
   const now = new Date();
   const item = await LmsContentItem.create({
     section_id: req.lmsSection.id, // dari middleware (terverifikasi)
     type,
     title,
-    position: position != null ? parseInt(position, 10) : 0,
+    description: cleanDescription(description),
+    position: nextPosition,
     is_published: is_published === true || is_published === "true",
     payload: validation.payload,
     created_at: now,
@@ -83,15 +126,26 @@ exports.createItem = asyncHandler(async (req, res) => {
 // PUT /lms/items/:id
 exports.updateItem = asyncHandler(async (req, res) => {
   const item = req.lmsContentItem;
-  const { type, title, position, is_published, payload } = req.body;
+  const { type, title, description, position, is_published, payload } = req.body;
 
   const updates = { updated_at: new Date() };
-  if (type !== undefined) {
+  if (description !== undefined) updates.description = cleanDescription(description);
+  // `type` hanya dianggap "diubah" bila nilainya beda dari yang tersimpan — form edit lazim
+  // mengirim balik seluruh field item (termasuk type lama) sebagai no-op, itu harus tetap
+  // lolos. Yang ditolak: percobaan mengubah type SUNGGUHAN dari/ke tipe berbasis file
+  // (pdf/ppt), karena payload-nya hanya boleh diatur lewat endpoint upload.
+  if (type !== undefined && type !== item.type) {
     if (!LmsContentItem.CONTENT_TYPES.includes(type)) {
       return response(res, false, "type tidak valid.", null, 400);
     }
-    if (FILE_TYPES.includes(type)) {
-      return response(res, false, `Tidak bisa mengubah type menjadi '${type}' lewat JSON; pakai endpoint upload.`, null, 400);
+    if (FILE_TYPES.includes(type) || FILE_TYPES.includes(item.type)) {
+      return response(
+        res,
+        false,
+        `Tidak bisa mengubah type dari/ke '${FILE_TYPES.includes(item.type) ? item.type : type}' lewat JSON; pakai endpoint upload.`,
+        null,
+        400
+      );
     }
     updates.type = type;
   }
@@ -102,19 +156,32 @@ exports.updateItem = asyncHandler(async (req, res) => {
 
   // Bila payload diubah, validasi terhadap tipe efektif (tipe baru bila diubah, else tipe lama).
   if (payload !== undefined) {
-    const effectiveType = type !== undefined ? type : item.type;
-    // File payload (storage_key dll) hanya boleh diatur server-side lewat upload, bukan JSON.
+    const effectiveType = updates.type !== undefined ? updates.type : item.type;
     if (FILE_TYPES.includes(effectiveType)) {
-      return response(res, false, `Payload tipe '${effectiveType}' diubah lewat endpoint upload, bukan JSON.`, null, 400);
+      // Payload file (storage_key dll) hanya boleh diatur server-side lewat upload, bukan
+      // JSON — tapi form edit lazim mengirim balik payload lama yang sama sebagai no-op.
+      // Hanya tolak bila klien benar-benar mencoba MENGUBAH isinya.
+      const unchanged =
+        JSON.stringify(payload) === JSON.stringify(item.payload);
+      if (!unchanged) {
+        return response(res, false, `Payload tipe '${effectiveType}' diubah lewat endpoint upload, bukan JSON.`, null, 400);
+      }
+      // no-op: payload sama persis, lewati (tidak masuk `updates`).
+    } else {
+      const validation = validateContentPayload(effectiveType, payload);
+      if (!validation.ok) {
+        return response(res, false, validation.error, null, 400);
+      }
+      updates.payload = validation.payload;
     }
-    const validation = validateContentPayload(effectiveType, payload);
-    if (!validation.ok) {
-      return response(res, false, validation.error, null, 400);
-    }
-    updates.payload = validation.payload;
   }
 
   await item.update(updates);
+
+  // Assignment: bila due_at berubah, segarkan cache is_late submission terkait.
+  if (item.type === "assignment" && updates.payload !== undefined) {
+    await recomputeIsLate(item.id, updates.payload.due_at || null);
+  }
 
   return response(res, true, "Item berhasil diperbarui.", item);
 });
@@ -122,7 +189,15 @@ exports.updateItem = asyncHandler(async (req, res) => {
 // DELETE /lms/items/:id  (soft delete)
 exports.deleteItem = asyncHandler(async (req, res) => {
   const item = req.lmsContentItem;
-  await item.update({ deleted_at: new Date() });
+  const now = new Date();
+  await item.update({ deleted_at: now });
+  // Assignment: ikut soft-delete submission anak (file fisik tetap; cleanup terpisah).
+  if (item.type === "assignment") {
+    await LmsSubmission.update(
+      { deleted_at: now, updated_at: now },
+      { where: { content_item_id: item.id, deleted_at: null } }
+    );
+  }
   return response(res, true, "Item berhasil dihapus.", null);
 });
 

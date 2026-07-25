@@ -18,9 +18,16 @@ SiakV2Participant.init(
       type: DataTypes.UUID,
       allowNull: false,
     },
+    siak_mahasiswa_id: {
+      type: DataTypes.UUID,
+    },
     npm: {
       type: DataTypes.STRING,
       allowNull: false,
+    },
+    nama: {
+      // nama mahasiswa dari SIAK (peserta.nama) — identifikasi unmatched Task 6.
+      type: DataTypes.STRING,
     },
     created_at: {
       type: DataTypes.DATE,

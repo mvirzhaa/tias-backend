@@ -2,6 +2,12 @@
 
 module.exports = {
   async up(queryInterface, Sequelize) {
+    const tables = await queryInterface.showAllTables();
+    if (tables.includes('pembelajaran_dosen_ext')) {
+      console.log('Table pembelajaran_dosen_ext already exists, skipping create.');
+      return;
+    }
+
     await queryInterface.createTable('pembelajaran_dosen_ext', {
       id: {
         type: Sequelize.INTEGER,

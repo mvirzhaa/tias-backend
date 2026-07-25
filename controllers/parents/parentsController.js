@@ -17,6 +17,8 @@ const crypto = require("crypto");
 const DB = require("../../database");
 const sendMail = require("../../utils/sendMail");
 const { formRegisterParentValidation } = require("../../validation/formValidation");
+const fs = require("fs-extra");
+const path = require("path");
 
 class ParentsController {
   // =====================================================================
@@ -31,6 +33,7 @@ class ParentsController {
         email,
         npm,
         no_hp,
+        nik,
         password,
         password2,
       } = req.body;
@@ -111,6 +114,7 @@ class ParentsController {
       const newParent = await Parents.create(
         {
           role: "Parent",
+          nik,
           email,
           nama_lengkap,
           npm,
@@ -159,7 +163,8 @@ class ParentsController {
         email,
         process.env.EMAIL_USER,
         "verifyEmail",
-        verificationUrl
+        verificationUrl,
+        nama_lengkap
       );
 
       await transaction.commit();
@@ -240,11 +245,15 @@ class ParentsController {
       const dataMhs = await getDataImportMhs(file[0].filepath);
       let dataParents = dataMhs.map(iterator => ({
         role: "Parent",
-        nik: iterator.nik,
+        nik: iterator.nik || null,
+        email: iterator.email,
         nama_lengkap: iterator.nama_ibu,
-        no_hp: null,
-        password: iterator.password,
-        is_verified: false,
+        npm: iterator.npm,
+        no_hp: iterator.phone || null,
+        password: iterator.password, // sudah di-hash oleh getDataImportMhs
+        is_verified: true,           // import oleh admin → langsung terverifikasi
+        created_at: new Date(),
+        updated_at: new Date(),
       }));
       const insertedParents = await Parents.bulkCreate(dataParents, { returning: true, transaction });
       let dataTrx = dataMhs.map((mhs, i) => ({ parent_id: insertedParents[i].id, mhs_id: mhs.mhs_id }));
@@ -332,7 +341,8 @@ class ParentsController {
           email,
           process.env.EMAIL_USER,
           "verifyEmail",
-          verificationUrl
+          verificationUrl,
+          findParent.nama_lengkap
         );
 
         return response(
@@ -358,15 +368,13 @@ class ParentsController {
         secure: true,
       });
 
-      // Response sukses
+      // Response sukses — password hash tidak dikembalikan ke client
+      const { password: _pw, ...parentSafe } = findParent.dataValues;
       return response(
         res,
         true,
         "Login berhasil.",
-        {
-          ...findParent.dataValues,
-          token,
-        },
+        { ...parentSafe, token },
         200
       );
     } catch (error) {
@@ -384,9 +392,43 @@ class ParentsController {
     try {
       const data = await Parents.findOne({ where: { id: req.user.id } });
       if (!data) return response(res, false, "user tidak ditemukan", null);
-      response(res, true, "success", data);
+      const profile = {
+        ...data.dataValues,
+        ttd: data.ttd ? `${process.env.API_URL}/ttd/${data.ttd}` : null,
+        status_ttd: !!data.ttd,
+      };
+      response(res, true, "success", profile);
     } catch (error) {
       response(res, false, "error", error.message);
+    }
+  };
+
+  static uploadTtd = async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file) {
+        return response(res, false, "File tanda tangan wajib diunggah.", null, 400);
+      }
+
+      const findParent = await Parents.findOne({ where: { id: req.user.id } });
+      if (!findParent) {
+        return response(res, false, "User tidak ditemukan", null, 404);
+      }
+
+      if (findParent.ttd) {
+        await fs.remove(path.join("public/ttd", findParent.ttd));
+      }
+
+      findParent.ttd = file.filename;
+      findParent.updated_at = convertDate(unixTimestamp);
+      await findParent.save();
+
+      return response(res, true, "Tanda tangan berhasil diperbarui", {
+        ttd: `${process.env.API_URL}/ttd/${findParent.ttd}`,
+        status_ttd: true,
+      });
+    } catch (error) {
+      return response(res, false, "Terjadi kesalahan", error.message, 500);
     }
   };
 

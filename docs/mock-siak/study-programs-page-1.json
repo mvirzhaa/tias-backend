@@ -1,0 +1,29 @@
+{
+  "data": [
+    {
+      "prodiId": "TI",
+      "fakultasId": "FTS",
+      "kodeProdi": "TI",
+      "namaProdi": "Teknik Informatika",
+      "jenjang": "S1",
+      "isActive": true,
+      "updatedAt": "2026-06-14T08:00:00+07:00"
+    },
+    {
+      "prodiId": "SI",
+      "fakultasId": "FTS",
+      "kodeProdi": "SI",
+      "namaProdi": "Sistem Informasi",
+      "jenjang": "S1",
+      "isActive": true,
+      "updatedAt": "2026-06-14T08:00:00+07:00"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "perPage": 500,
+    "total": 2,
+    "lastPage": 1,
+    "hasNext": false
+  }
+}

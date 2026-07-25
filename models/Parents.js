@@ -12,6 +12,9 @@ Parents.init(
     role: {
       type: DataTypes.STRING,
     },
+    nik: {
+      type: DataTypes.STRING,
+    },
     email: {
       type: DataTypes.STRING,
     },
@@ -37,6 +40,9 @@ Parents.init(
       type: DataTypes.STRING,
     },
     reset_token: {
+      type: DataTypes.STRING,
+    },
+    ttd: {
       type: DataTypes.STRING,
     },
     created_at: {

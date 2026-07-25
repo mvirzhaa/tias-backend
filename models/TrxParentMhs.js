@@ -15,7 +15,7 @@ TrxParentMhs.init(
       type: DataTypes.INTEGER,
     },
     mhs_id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
     },
     created_at: {
       type: DataTypes.DATE,

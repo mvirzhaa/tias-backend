@@ -83,8 +83,8 @@ exports.addRekomendasi = asyncHandler(async (req, res) => {
         pelaksana: userNamaLengkap,
         mhs_id: user.rows[0].nama_lengkap,
         nama_kegiatan: `Memberikan Rekomendasi Mahasiswa`,
-        link_kegiatan: `${process.env.FRONTEND_URL}/dosen/rek-mhs/detail-mhs/${data.mahasiswa_id}`,
-        link_validasi: `${process.env.FRONTEND_URL}`,
+        link_kegiatan: `${process.env.FRONTEND_REDIRECT_URL}/dosen/rek-mhs/detail-mhs/${data.mahasiswa_id}`,
+        link_validasi: `${process.env.FRONTEND_REDIRECT_URL}`,
         link_attachment: "",
       });
 

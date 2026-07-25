@@ -14,10 +14,10 @@ const path = require("path");
 const { Sequelize } = require("sequelize");
 
 const MIGRATIONS = [
-  "20260608000003-create-siak-v2-classes.js",
-  "20260608000004-create-siak-v2-participants.js",
-  "20260608000001-create-lms-sections.js",
-  "20260608000002-create-lms-content-items.js",
+  "20260608000001-create-siak-v2-classes.js",
+  "20260608000002-create-siak-v2-participants.js",
+  "20260608000003-create-lms-sections.js",
+  "20260608000004-create-lms-content-items.js",
 ];
 
 (async () => {

@@ -58,7 +58,7 @@ class MatakuliahController {
         offset: pagelimit.offset,
         include: {
           model: Kurikulum,
-          required: true,
+          required: false,
           as: "data_kurikulum",
         },
       });

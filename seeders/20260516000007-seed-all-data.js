@@ -1,5 +1,6 @@
 'use strict';
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
@@ -60,7 +61,27 @@ module.exports = {
     ];
 
     // ==================== CEK APAKAH TABEL SUDAH ADA ====================
-    const tables = await queryInterface.showAllTables();
+    let tables = await queryInterface.showAllTables();
+
+    // Tabel auxiliary ini pernah muncul dengan variasi skema berbeda di DB dev.
+    // Recreate agar seed deterministik dan tidak gagal karena mismatch kolom/tipe.
+    const recreateSeedOwnedTables = [
+      'dokumen_penelitian',
+      'anggota_penelitian',
+      'tb_penelitian',
+      'user_achievements',
+      'achievements',
+      'point_rekomendasi',
+      'tb_ip_mhs',
+      'kategori_ip'
+    ];
+
+    for (const table of recreateSeedOwnedTables) {
+      if (tables.includes(table)) {
+        await queryInterface.dropTable(table, { cascade: true }).catch(() => { });
+      }
+    }
+    tables = await queryInterface.showAllTables();
 
     // Clean up all tables in reverse dependency order
     const deleteOrder = [
@@ -126,6 +147,138 @@ module.exports = {
       });
     }
 
+    if (!tables.includes('kategori_ip')) {
+      await queryInterface.createTable('kategori_ip', {
+        id: { type: Sequelize.INTEGER, primaryKey: true, autoIncrement: true },
+        kode: { type: Sequelize.STRING },
+        kategori: { type: Sequelize.STRING },
+        point: { type: Sequelize.INTEGER },
+        created_at: { type: Sequelize.DATE },
+        updated_at: { type: Sequelize.DATE },
+        deleted_at: { type: Sequelize.DATE }
+      });
+    }
+
+    if (!tables.includes('point_rekomendasi')) {
+      await queryInterface.createTable('point_rekomendasi', {
+        id: { type: Sequelize.INTEGER, primaryKey: true, autoIncrement: true },
+        kode: { type: Sequelize.STRING },
+        point: { type: Sequelize.INTEGER },
+        status: { type: Sequelize.INTEGER },
+        created_at: { type: Sequelize.DATE },
+        updated_at: { type: Sequelize.DATE },
+        deleted_at: { type: Sequelize.DATE }
+      });
+    }
+
+    if (!tables.includes('achievements')) {
+      await queryInterface.createTable('achievements', {
+        id: { type: Sequelize.INTEGER, primaryKey: true },
+        name: { type: Sequelize.STRING },
+        gamify: { type: Sequelize.STRING },
+        start_point: { type: Sequelize.INTEGER },
+        points: { type: Sequelize.INTEGER },
+        image: { type: Sequelize.STRING },
+        lencana: { type: Sequelize.STRING },
+        kode: { type: Sequelize.STRING },
+        sub_judul: { type: Sequelize.STRING },
+        deskripsi: { type: Sequelize.TEXT },
+        created_at: { type: Sequelize.DATE },
+        updated_at: { type: Sequelize.DATE },
+        deleted_at: { type: Sequelize.DATE }
+      });
+    }
+
+    if (!tables.includes('user_achievements')) {
+      await queryInterface.createTable('user_achievements', {
+        id: { type: Sequelize.INTEGER, primaryKey: true, autoIncrement: true },
+        user_id: { type: Sequelize.UUID },
+        achievement_id: { type: Sequelize.INTEGER },
+        status: { type: Sequelize.INTEGER },
+        created_at: { type: Sequelize.DATE },
+        updated_at: { type: Sequelize.DATE },
+        deleted_at: { type: Sequelize.DATE }
+      });
+    }
+
+    if (!tables.includes('tb_ip_mhs')) {
+      await queryInterface.createTable('tb_ip_mhs', {
+        ip_id: { type: Sequelize.INTEGER, primaryKey: true, autoIncrement: true },
+        user_id: { type: Sequelize.UUID },
+        semester: { type: Sequelize.STRING },
+        tahun: { type: Sequelize.STRING },
+        ip: { type: Sequelize.DECIMAL(4, 2) },
+        kode_ip: { type: Sequelize.STRING },
+        status: { type: Sequelize.INTEGER },
+        is_deleted: { type: Sequelize.BOOLEAN, defaultValue: false },
+        created_at: { type: Sequelize.DATE },
+        updated_at: { type: Sequelize.DATE },
+        deleted_at: { type: Sequelize.DATE }
+      });
+    }
+
+    if (!tables.includes('m_kurikulum')) {
+      await queryInterface.createTable('m_kurikulum', {
+        id: { type: Sequelize.INTEGER, primaryKey: true, autoIncrement: true },
+        kurikulum: { type: Sequelize.STRING },
+        created_at: { type: Sequelize.DATE },
+        updated_at: { type: Sequelize.DATE },
+        deleted_at: { type: Sequelize.DATE }
+      });
+    }
+
+    if (!tables.includes('m_matakuliah')) {
+      await queryInterface.createTable('m_matakuliah', {
+        id: { type: Sequelize.INTEGER, primaryKey: true, autoIncrement: true },
+        kode_matakuliah: { type: Sequelize.STRING },
+        nama_matakuliah: { type: Sequelize.STRING },
+        kurikulum: { type: Sequelize.INTEGER },
+        sks: { type: Sequelize.INTEGER },
+        materi: { type: Sequelize.TEXT },
+        created_at: { type: Sequelize.DATE },
+        updated_at: { type: Sequelize.DATE },
+        deleted_at: { type: Sequelize.DATE }
+      });
+    }
+
+    if (!tables.includes('pembelajaran_dosen_ext')) {
+      await queryInterface.createTable('pembelajaran_dosen_ext', {
+        id: { type: Sequelize.INTEGER, primaryKey: true, autoIncrement: true },
+        id_dosen: { type: Sequelize.UUID },
+        nik_dosen: { type: Sequelize.STRING },
+        id_matkul: { type: Sequelize.INTEGER },
+        pertemuan: { type: Sequelize.INTEGER },
+        kelas: { type: Sequelize.INTEGER },
+        semester: { type: Sequelize.STRING },
+        tahun_akademik: { type: Sequelize.STRING },
+        rps_dasar: { type: Sequelize.TEXT },
+        rps_pelaksanaan: { type: Sequelize.TEXT },
+        npm_komti: { type: Sequelize.INTEGER },
+        learning_done: { type: Sequelize.DATE },
+        token: { type: Sequelize.INTEGER },
+        status_kelas: { type: Sequelize.INTEGER },
+        created_at: { type: Sequelize.DATE },
+        updated_at: { type: Sequelize.DATE },
+        deleted_at: { type: Sequelize.DATE }
+      });
+    }
+
+    if (!tables.includes('absensi_mhs')) {
+      await queryInterface.createTable('absensi_mhs', {
+        id: { type: Sequelize.INTEGER, primaryKey: true, autoIncrement: true },
+        id_pembelajaran: { type: Sequelize.INTEGER },
+        id_mhs: { type: Sequelize.UUID },
+        npm: { type: Sequelize.STRING },
+        upload_dok: { type: Sequelize.STRING },
+        nilai: { type: Sequelize.STRING },
+        status_absen: { type: Sequelize.INTEGER },
+        coordinate_absen: { type: Sequelize.TEXT },
+        created_at: { type: Sequelize.DATE },
+        updated_at: { type: Sequelize.DATE },
+        deleted_at: { type: Sequelize.DATE }
+      });
+    }
+
     // ==================== INSERT USER RECORDS ====================
     const userRecords = [
       ...mahasiswaData.map(m => ({
@@ -150,7 +303,12 @@ module.exports = {
       }))
     ];
 
-    await queryInterface.bulkInsert('tb_users', userRecords);
+    await queryInterface.bulkInsert('tb_users', userRecords, { ignoreDuplicates: true });
+    const existingUserRows = await queryInterface.sequelize.query(
+      'SELECT user_id FROM tb_users',
+      { type: queryInterface.sequelize.QueryTypes.SELECT }
+    );
+    const existingUserIds = new Set(existingUserRows.map((row) => row.user_id));
 
     // Insert tb_data_pribadi
     const dataPribadiRecords = [
@@ -173,9 +331,9 @@ module.exports = {
         created_at: new Date(),
         updated_at: new Date()
       }))
-    ];
+    ].filter((row) => existingUserIds.has(row.user_id));
 
-    await queryInterface.bulkInsert('tb_data_pribadi', dataPribadiRecords);
+    await queryInterface.bulkInsert('tb_data_pribadi', dataPribadiRecords, { ignoreDuplicates: true });
 
     // Insert Parents
     const parentsToInsert = parentData.map(p => ({
@@ -191,7 +349,7 @@ module.exports = {
       updated_at: new Date()
     }));
 
-    await queryInterface.bulkInsert('tb_parents', parentsToInsert);
+    await queryInterface.bulkInsert('tb_parents', parentsToInsert, { ignoreDuplicates: true });
 
     // Insert trx_parent_mhs
     const relationsToInsert = parentData.map(p => ({
@@ -303,7 +461,7 @@ module.exports = {
           id: pembId++,
           id_matkul: mk.id,
           pertemuan: pert,
-          kelas: 'A',
+          kelas: 1,
           semester: 'gasal',
           tahun_akademik: '2024/2025',
           created_at: new Date(),
@@ -515,7 +673,7 @@ module.exports = {
         // Penelitian
         const lT = litTemplates[i];
         penelitianData.push({
-          penelitian_id: Sequelize.literal('gen_random_uuid()'),
+          penelitian_id: crypto.randomUUID(),
           user_id: mhs.id,
           kategori_id: 1, // Kategori publikasi 1
           judul_kegiatan: lT.judul,
