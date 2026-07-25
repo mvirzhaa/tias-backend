@@ -6,6 +6,7 @@ const https = require('https');
 const jwt = require('jsonwebtoken');
 const DB = require('../../database');
 const { generateToken } = require('../../utils');
+const { addUserToBlacklist, removeUserFromBlacklist } = require('../../utils/tokenBlacklist');
 
 const EPORTAL_API = process.env.EPORTAL_URL || 'http://localhost:8000';
 
@@ -96,8 +97,11 @@ router.get('/callback', async (req, res) => {
         }
 
         const user = userResult.rows[0];
-        const tiasToken = generateToken(user.user_id);
+        const eportalUserId = eportalUser.sso_id || eportalUser.id;
+        const tiasToken = generateToken(user.user_id, eportalUserId);
 
+        removeUserFromBlacklist(eportalUserId);
+        
         const t5 = Date.now();
         console.log(`[TIMING] total: ${t5 - t1}ms`);
 
@@ -136,6 +140,24 @@ router.get('/callback', async (req, res) => {
             debug: error.message,
         });
     }
+});
+
+router.post('/logout', async (req, res) => {
+    console.log('[SSO Logout] UCL hit, body:', req.body);
+    
+    const { user_id, secret } = req.body;
+    const validSecret = process.env.EXTERNAL_SYNC_API_KEY || 'secret_sso_uika';
+    
+    if (secret !== validSecret) {
+        return res.status(401).json({ status: 401, message: 'Invalid secret.' });
+    }
+
+    if (!user_id) {
+        return res.status(400).json({ status: 400, message: 'user_id wajib diisi.' });
+    }
+
+    addUserToBlacklist(user_id);
+    return res.json({ status: 200, message: `User ${user_id} berhasil di-logout dari UCL.` });
 });
 
 module.exports = router;
