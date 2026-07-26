@@ -56,8 +56,25 @@ class SuratController {
       } else if (mode === "outbox") {
         condition.user_id = req.user.user_id;
       } else {
+        const userRole = req.user.role?.toLowerCase();
         const adminRoles = ["admin", "staf", "staff", "tu", "pegawai"];
-        if (!adminRoles.includes(req.user.role?.toLowerCase())) {
+        
+        if (userRole === "parent") {
+          const children = await TrxParentMhs.findAll({
+            where: { parent_id: req.user.user_id }
+          });
+          const childIds = children.map(c => c.mhs_id);
+          
+          if (childIds.length > 0) {
+            condition[Op.and] = [
+              {
+                [Op.or]: [{ user_id: { [Op.in]: childIds } }, { penerima_id: { [Op.in]: childIds } }],
+              },
+            ];
+          } else {
+             condition.user_id = null;
+          }
+        } else if (!adminRoles.includes(userRole)) {
           condition[Op.and] = [
             {
               [Op.or]: [{ user_id: req.user.user_id }, { penerima_id: req.user.user_id }],
@@ -334,7 +351,7 @@ class SuratController {
         return response(res, false, "Data tidak ditemukan");
       }
 
-      let currentFormData = safeJsonParse(data.form_data);
+      let currentFormData = { ...safeJsonParse(data.form_data) };
 
       if (form_data_updates) {
          const updates = safeJsonParse(form_data_updates);
@@ -369,6 +386,8 @@ class SuratController {
              }
          }
       }
+
+      data.changed("form_data", true);
 
       await data.update(
         {
@@ -740,7 +759,6 @@ class SuratController {
           { transaction: t }
         );
 
-        // Catat history di surat baru
         await RiwayatSurat.create(
           {
             surat_id: newSurat.id,
