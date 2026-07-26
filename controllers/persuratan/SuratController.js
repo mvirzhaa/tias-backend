@@ -506,7 +506,8 @@ class SuratController {
           {
             model: User,
             as: "Pengirim",
-            attributes: ["npm", "email"],
+            attributes: ["npm", "email", "role"],
+            include: [{ model: DataPribadi, as: "personal_data", attributes: ["nama_lengkap"] }],
           },
           { model: DokumenLampiran },
         ],
