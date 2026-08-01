@@ -83,6 +83,23 @@ class SuratController {
         }
       }
 
+      const pengirimInclude = {
+        model: User,
+        as: "Pengirim",
+        attributes: ["npm", "email"],
+        include: [{ model: DataPribadi, as: "personal_data", attributes: ["nama_lengkap"] }],
+      };
+
+      const userRole = req.user.role?.toLowerCase();
+      const adminRoles = ["admin", "staf", "staff", "tu", "pegawai"];
+
+      if (adminRoles.includes(userRole) && req.user.department_code && mode !== "inbox" && mode !== "outbox") {
+        pengirimInclude.where = {
+          department_code: req.user.department_code,
+        };
+        pengirimInclude.required = true; // INNER JOIN
+      }
+
       const data = await Surat.findAndCountAll({
         where: condition,
         limit: pagelimit.limit,
@@ -90,12 +107,7 @@ class SuratController {
         order: [["updated_at", "DESC"]],
         attributes: { exclude: ["deleted_at"] },
         include: [
-          {
-            model: User,
-            as: "Pengirim",
-            attributes: ["npm", "email"],
-            include: [{ model: DataPribadi, as: "personal_data", attributes: ["nama_lengkap"] }],
-          },
+          pengirimInclude,
           {
             model: User,
             as: "Penerima",
@@ -165,6 +177,8 @@ class SuratController {
           parsedFormData.nama_ortu_wali = parentRelation.parent.nama_lengkap;
         }
      
+        const userDept = req.user.department_code || "informatika";
+
         const [adminUsers, stafTuRecords] = await Promise.all([        
           User.findAll({
             where: { role: "Admin" },
@@ -189,7 +203,7 @@ class SuratController {
               {
                 model: Unit,
                 as: "unit",
-                where: { nama_unit: { [Op.iLike]: "%informatika%" } },
+                where: { nama_unit: { [Op.iLike]: `%${userDept}%` } },
                 attributes: ["nama_unit"],
               },
             ],
@@ -205,7 +219,7 @@ class SuratController {
 
         if (uniquePenerimaIds.length === 0) {
           await t.rollback();
-          return response(res, false, "Gagal mengirim: Tidak ada Staf Tata Usaha Informatika atau Admin yang terdaftar di sistem.");
+          return response(res, false, `Gagal mengirim: Tidak ada Staf Tata Usaha ${userDept} atau Admin yang terdaftar di sistem.`);
         }
 
         const loadCounts = await Surat.findAll({
@@ -608,23 +622,6 @@ class SuratController {
       const { id } = req.params;
       let { target_penerima_id, catatan_disposisi } = req.body;
 
-      if (target_penerima_id === "AUTO_KAPRODI") {
-        const kaprodiUser = await User.findOne({
-          where: { email: { [Op.iLike]: "%hersanto%" } },
-          transaction: t,
-        });
-
-        if (!kaprodiUser) {
-          await t.rollback();
-          return response(res, false, "Otomatisasi Gagal: Akun Kaprodi Teknik Informatika tidak terdeteksi di database. Silakan gunakan tombol Disposisi Manual.");
-        }
-        
-        target_penerima_id = kaprodiUser.user_id;
-        if (!catatan_disposisi) {
-          catatan_disposisi = "Mohon evaluasi dan tanda tangan persetujuan untuk dokumen ini.";
-        }
-      }
-
       const oldSurat = await Surat.findOne({
         where: { id, deleted_at: null },
         include: [{ model: DokumenLampiran }],
@@ -634,6 +631,56 @@ class SuratController {
       if (!oldSurat) {
         await t.rollback();
         return response(res, false, "Surat tidak ditemukan");
+      }
+
+      if (target_penerima_id === "AUTO_KAPRODI") {
+        const pembuatSurat = await User.findOne({
+          where: { user_id: oldSurat.user_id },
+          transaction: t
+        });
+        
+        const unitName = pembuatSurat?.department_code || "informatika";
+
+        const kaprodiRecords = await TrxUserJabatanUnit.findAll({
+          include: [
+            {
+              model: Jabatan,
+              as: "jabatan",
+              where: {
+                [Op.or]: [
+                  { nama_jabatan: { [Op.iLike]: "%Kaprodi%" } },
+                  { nama_jabatan: { [Op.iLike]: "%Ketua Program Studi%" } },
+                ]
+              }
+            },
+            {
+              model: Unit,
+              as: "unit",
+              where: { nama_unit: { [Op.iLike]: `%${unitName}%` } }
+            }
+          ],
+          transaction: t
+        });
+
+        if (kaprodiRecords.length === 0) {
+          // Fallback manual to hersanto as last resort if seeder didn't set Jabatan properly
+          const fallbackKaprodi = await User.findOne({
+            where: { email: { [Op.iLike]: "%hersanto%" } },
+            transaction: t,
+          });
+
+          if (!fallbackKaprodi) {
+            await t.rollback();
+            return response(res, false, `Otomatisasi Gagal: Akun Kaprodi dari program studi ${unitName} tidak terdeteksi di database. Silakan gunakan tombol Disposisi Manual.`);
+          }
+          target_penerima_id = fallbackKaprodi.user_id;
+        } else {
+          target_penerima_id = kaprodiRecords[0].user_id;
+        }
+        
+        if (!catatan_disposisi) {
+          catatan_disposisi = "Mohon evaluasi dan tanda tangan persetujuan untuk dokumen ini.";
+        }
       }
       
       const adminRoles = ["admin", "staf", "staff", "tu", "pegawai"];
