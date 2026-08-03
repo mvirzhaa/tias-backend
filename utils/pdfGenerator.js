@@ -21,8 +21,8 @@ const getLogoBase64 = () => {
 
 const generateQrBase64 = async (suratId) => {
   try {
-    const baseUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-    const url = `${baseUrl}/tracking-surat/${suratId}`;
+    const baseUrl = process.env.FRONTEND_REDIRECT_URL || "http://localhost:3000";
+    const url = `${baseUrl}/validasi-surat/${suratId}`;
     const dataUrl = await QRCode.toDataURL(url, { width: 90, margin: 1 });
     return dataUrl;
   } catch {

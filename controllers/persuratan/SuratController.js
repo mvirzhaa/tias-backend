@@ -203,8 +203,8 @@ class SuratController {
               {
                 model: Unit,
                 as: "unit",
-                where: { nama_unit: { [Op.iLike]: `%${userDept}%` } },
-                attributes: ["nama_unit"],
+                where: { code: userDept },
+                attributes: ["nama_unit", "code"],
               },
             ],
             attributes: ["user_id"],
