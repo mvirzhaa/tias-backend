@@ -6,6 +6,7 @@ const {
   getUserRoleScopes,
   updateRoleScope,
   deactivateRoleScope,
+  listAcademicUnits,
 } = require("../../lib/lms/roleScopeService");
 
 const actorId = (req) => (req.user && req.user.user_id ? req.user.user_id : null);
@@ -60,5 +61,14 @@ exports.deactivateRoleScope = asyncHandler(async (req, res) => {
     return response(res, true, "Scope LMS berhasil dinonaktifkan.", result);
   } catch (error) {
     return response(res, false, `Gagal menonaktifkan scope LMS: ${error.message}`, null, 422);
+  }
+});
+
+exports.listAcademicUnits = asyncHandler(async (req, res) => {
+  try {
+    const result = await listAcademicUnits();
+    return response(res, true, "Success", result);
+  } catch (error) {
+    return response(res, false, `Gagal membaca data akademik: ${error.message}`, null, 422);
   }
 });
