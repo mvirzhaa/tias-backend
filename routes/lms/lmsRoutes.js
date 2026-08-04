@@ -56,6 +56,7 @@ const {
   createRoleScope,
   updateRoleScope,
   deactivateRoleScope,
+  listAcademicUnits,
 } = require("../../controllers/lms/roleScopeController");
 
 const router = express.Router();
@@ -68,6 +69,7 @@ router.get("/classes", protected, listClasses);
 
 // --- Scope role LMS: Admin Univ/Fakultas/Prodi berbasis data SIAK lokal ---
 router.get("/role-scopes/me", protected, getMyRoleScopes);
+router.get("/role-scopes/academic-units", protected, adminOnly, listAcademicUnits);
 router.get("/role-scopes", protected, adminOnly, listRoleScopes);
 router.post("/role-scopes", protected, adminOnly, createRoleScope);
 router.patch("/role-scopes/:id", protected, adminOnly, updateRoleScope);
