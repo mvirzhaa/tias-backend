@@ -20,6 +20,7 @@ router.post("/sync/:resource", protected, adminOnly, SyncController.syncOne);
 router.get("/user-mappings", protected, adminOnly, SyncController.listUserMappings);
 router.get("/user-mappings/unmatched", protected, adminOnly, SyncController.listUnmatchedUsers);
 router.post("/user-mappings", protected, adminOnly, SyncController.createUserMapping);
+router.post("/user-mappings/bulk", protected, adminOnly, SyncController.bulkCreateUserMappings);
 router.patch("/user-mappings/:id", protected, adminOnly, SyncController.updateUserMapping);
 
 module.exports = router;

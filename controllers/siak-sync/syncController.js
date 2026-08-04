@@ -13,6 +13,7 @@ const {
   listUserMappings,
   listUnmatchedUsers,
   createUserMapping,
+  bulkCreateUserMappings,
   updateUserMapping,
 } = require("../../lib/siak-sync/userMappingService");
 
@@ -143,7 +144,12 @@ exports.listUserMappings = asyncHandler(async (req, res) => {
 
 exports.listUnmatchedUsers = asyncHandler(async (req, res) => {
   try {
-    const result = await listUnmatchedUsers();
+    const result = await listUnmatchedUsers({
+      scope: req.query.scope,
+      mahasiswaSearch: req.query.mahasiswa_search,
+      mahasiswaPage: req.query.mahasiswa_page,
+      mahasiswaLimit: req.query.mahasiswa_limit,
+    });
     return response(res, true, "Success", result);
   } catch (error) {
     return response(res, false, `Gagal membaca unmatched users: ${error.message}`, null, 502);
@@ -159,6 +165,18 @@ exports.createUserMapping = asyncHandler(async (req, res) => {
     return response(res, true, "Mapping user berhasil dibuat.", result, 201);
   } catch (error) {
     return response(res, false, `Gagal membuat user mapping: ${error.message}`, null, 422);
+  }
+});
+
+exports.bulkCreateUserMappings = asyncHandler(async (req, res) => {
+  try {
+    const result = await bulkCreateUserMappings(
+      req.body?.pairs,
+      req.user && req.user.user_id
+    );
+    return response(res, true, `${result.created_count} mapping berhasil dibuat, ${result.failed_count} gagal.`, result, 201);
+  } catch (error) {
+    return response(res, false, `Gagal membuat bulk user mapping: ${error.message}`, null, 422);
   }
 });
 
