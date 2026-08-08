@@ -29,6 +29,25 @@ exports.protected = asyncHandler(async (req, res, next) => {
         throw new Error('Session telah berakhir. Silakan login kembali.');
     }
 
+    const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    
+    if (!uuidRegex.test(verified.id)) {
+      // Possible parent, as their IDs are not UUIDs (integer)
+      const parentUser = await DB.query("SELECT * FROM tb_parents WHERE id = $1", [verified.id]);
+      if (!parentUser.rows.length) {
+        res.status(404);
+        throw new Error("User (Parent) not found.");
+      }
+      
+      req.user = {
+        ...parentUser.rows[0],
+        user_id: parentUser.rows[0].id,
+        role: "Parent"
+      };
+      
+      return next();
+    }
+
     const user = await DB.query(
       `SELECT tb_data_pribadi.*, tb_users.* 
        FROM tb_users 
@@ -123,18 +142,14 @@ exports.protectedParents = asyncHandler(async (req, res, next) => {
 
     const verified = jwt.verify(token, process.env.JWT_SECRET);
 
-    const user = await Parents.findOne({
-      where: {
-        id: verified.id,
-      },
-    });
+    const user = await DB.query("SELECT * FROM tb_parents WHERE id = $1", [verified.id]);
 
-    if (!user) {
+    if (!user.rows.length) {
       res.status(404);
       throw new Error("User not found.");
     }
 
-    req.user = user;
+    req.user = user.rows[0];
     next();
   } catch (error) {
     res.status(401);

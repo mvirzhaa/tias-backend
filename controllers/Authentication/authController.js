@@ -560,7 +560,13 @@ exports.loginUser = asyncHandler(async (req, res) => {
     throw new Error("Pleas add email and password.");
   }
 
-  const user = await DB.query("SELECT * FROM tb_users WHERE email = $1", [email]);
+  let user = await DB.query("SELECT * FROM tb_users WHERE email = $1", [email]);
+  let isParent = false;
+
+  if (!user.rows.length) {
+    user = await DB.query("SELECT * FROM tb_parents WHERE email = $1", [email]);
+    isParent = true;
+  }
 
   if (!user.rows.length) {
     res.status(404);
@@ -574,43 +580,50 @@ exports.loginUser = asyncHandler(async (req, res) => {
     throw new Error("Invalid Email Or Password.");
   }
 
-  if (!user.rows[0].isverified) {
-    if (user.rows[0].role == "Mahasiswa" || user.rows[0].role == "Dosen") {
-      // Delete token if it exists in DB
-      const token = await DB.query("SELECT * FROM token WHERE user_id = $1", [user.rows[0].user_id]);
+  const isVerified = isParent ? user.rows[0].is_verified : user.rows[0].isverified;
 
-      if (token.rows.length) {
-        await DB.query("DELETE FROM token WHERE user_id = $1", [user.rows[0].user_id]);
-      }
-      // Create verification token
-      const verificationToken = crypto.randomBytes(32).toString("hex") + user.rows[0].user_id;
-      // console.log(verificationToken);
-      const hashedToken = hashToken(verificationToken);
-
-      const unix = unixTimestamp;
-      const createdAt = await convertDate(unix);
-      const unixExpires = expires_at;
-      const expiresAt = await convertDate(unixExpires);
-
-      await DB.query("INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [user.rows[0].user_id, hashedToken, createdAt, expiresAt]);
-
-      // Construct Verification Token
-      const verificationUrl = `${process.env.API_URL}/auth/verifyUser/${verificationToken}`;
-
-      // Send verification email
-      const subject = "Verify Your Account";
-      const send_to = user.rows[0].email;
-      const send_from = process.env.EMAIL_USER;
-      const template = "verifyEmail";
-      const link = verificationUrl;
-
-      await sendMail(subject, send_to, send_from, template, link);
-
+  if (!isVerified) {
+    if (isParent) {
       res.status(399);
       throw new Error("Account not verified. Check your email for verification.");
-    } else if (user.rows[0].role == "Dosen_Ext") {
-      res.status(399);
-      throw new Error("Account not verified. verification is being processed");
+    } else {
+      if (user.rows[0].role == "Mahasiswa" || user.rows[0].role == "Dosen") {
+        // Delete token if it exists in DB
+        const token = await DB.query("SELECT * FROM token WHERE user_id = $1", [user.rows[0].user_id]);
+
+        if (token.rows.length) {
+          await DB.query("DELETE FROM token WHERE user_id = $1", [user.rows[0].user_id]);
+        }
+        // Create verification token
+        const verificationToken = crypto.randomBytes(32).toString("hex") + user.rows[0].user_id;
+        // console.log(verificationToken);
+        const hashedToken = hashToken(verificationToken);
+
+        const unix = unixTimestamp;
+        const createdAt = await convertDate(unix);
+        const unixExpires = expires_at;
+        const expiresAt = await convertDate(unixExpires);
+
+        await DB.query("INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [user.rows[0].user_id, hashedToken, createdAt, expiresAt]);
+
+        // Construct Verification Token
+        const verificationUrl = `${process.env.API_URL}/auth/verifyUser/${verificationToken}`;
+
+        // Send verification email
+        const subject = "Verify Your Account";
+        const send_to = user.rows[0].email;
+        const send_from = process.env.EMAIL_USER;
+        const template = "verifyEmail";
+        const link = verificationUrl;
+
+        await sendMail(subject, send_to, send_from, template, link);
+
+        res.status(399);
+        throw new Error("Account not verified. Check your email for verification.");
+      } else if (user.rows[0].role == "Dosen_Ext") {
+        res.status(399);
+        throw new Error("Account not verified. verification is being processed");
+      }
     }
   }
 
@@ -618,63 +631,46 @@ exports.loginUser = asyncHandler(async (req, res) => {
   const ua = parser(req.headers["user-agent"]);
   const thisUserAgent = ua.ua;
 
-  const allowedAgent = user.rows[0].user_agent?.includes(thisUserAgent) || false;
+  if (!isParent) {
+    const allowedAgent = user.rows[0].user_agent?.includes(thisUserAgent) || false;
 
-  if (!allowedAgent) {
-    await DB.query("UPDATE tb_users SET user_agent = array_append(user_agent, $1) WHERE user_id = $2", [thisUserAgent, user.rows[0].user_id]);
+    if (!allowedAgent) {
+      await DB.query("UPDATE tb_users SET user_agent = array_append(user_agent, $1) WHERE user_id = $2", [thisUserAgent, user.rows[0].user_id]);
 
-    const convert = convertDate(unixTimestamp);
-    const text = `Your account has been logged in to the device/browser ${thisUserAgent} at ${convert.toUTCString()}`;
-    // Send Notice Email
-    const subject = "Notice For Your Account TIAS";
-    const send_to = user.rows[0].email;
-    const send_from = process.env.EMAIL_USER;
-    const template = "noticeAccount";
-    const link = text;
+      const convert = convertDate(unixTimestamp);
+      const text = `Your account has been logged in to the device/browser ${thisUserAgent} at ${convert.toUTCString()}`;
+      // Send Notice Email
+      const subject = "Notice For Your Account TIAS";
+      const send_to = user.rows[0].email;
+      const send_from = process.env.EMAIL_USER;
+      const template = "noticeAccount";
+      const link = text;
 
-    try {
-      await sendMail(subject, send_to, send_from, template, link);
-    } catch (error) {
-      // Email notice gagal tidak memblokir login
-      console.warn("[LOGIN] Gagal kirim email notifikasi perangkat baru:", error.message);
+      try {
+        await sendMail(subject, send_to, send_from, template, link);
+      } catch (error) {
+        // Email notice gagal tidak memblokir login
+        console.warn("[LOGIN] Gagal kirim email notifikasi perangkat baru:", error.message);
+      }
     }
   }
   // END
 
-  const id = user.rows[0].user_id;
+  const id = isParent ? user.rows[0].id : user.rows[0].user_id;
   // // Generate Token
   const token = generateToken(id);
 
   if (user.rows.length && passwordIsCorrect) {
-    const { user_id, npm, nidn, username, email, role, isverified, created_at } = user.rows[0];
-
     const unix = unixTimestamp;
     const createdAt = await convertDate(unix);
     const unixExpires = expires_at;
     const expiresAt = await convertDate(unixExpires);
 
-    await DB.query("INSERT INTO token(user_id, login_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [id, token, createdAt, expiresAt]);
-
-    const getPersonalData = await DB.query("SELECT * FROM tb_data_pribadi WHERE user_id = $1", [user_id]);
-
-const queryLencana = await DB.query(`SELECT * FROM achievements WHERE gamify = $1`, [getPersonalData.rows[0]?.rank || ""]);
-
-    const jabatanStruktural = await TrxUserJabatanUnit.findAll({
-      where: {
-        user_id: user_id,
-      },
-      attributes: ["user_id", "jabatan_id", "unit_id"],
-      include: [
-        {
-          model: Jabatan,
-          as: "jabatan",
-        },
-        {
-          model: Unit,
-          as: "unit",
-        },
-      ],
-    });
+    if (isParent) {
+      await DB.query("UPDATE tb_parents SET login_token = $1 WHERE id = $2", [token, id]);
+    } else {
+      await DB.query("INSERT INTO token(user_id, login_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [id, token, createdAt, expiresAt]);
+    }
 
     const oneMonth = 30 * 24 * 60 * 60 * 1000;
 
@@ -686,33 +682,78 @@ const queryLencana = await DB.query(`SELECT * FROM achievements WHERE gamify = $
       secure: true,
     });
 
-    res.status(200).json({
-      message: "Login Success.",
-      data: {
-        user_id,
-        npm,
-        nidn,
-        username,
-        email,
-        role,
-        nip: getPersonalData.rows[0]?.nip || "",
-        nama_lengkap: getPersonalData.rows[0]?.nama_lengkap || "",
-        image: getPersonalData.rows[0]?.image || "",
-        no_hp: getPersonalData.rows[0]?.no_hp || "",
-        imageUrl: `${process.env.API_URL}/foto-profile/${getPersonalData.rows[0]?.image}` || "",
-        kode_mhs: getPersonalData.rows[0]?.kode_mhs || "",
-        isverified,
-        created_at,
-        personalData: getPersonalData.rows[0],
-        jabatanStruktural,
-        lencana:
-          queryLencana.rows.length &&
-          queryLencana.rows.map((iterate) => ({
-            lencana: `${process.env.API_URL}/gamify/lencana/${iterate.lencana}`,
-          })),
-        token,
-      },
-    });
+    if (isParent) {
+      const { id, npm, nik, email, role, is_verified, created_at, nama_lengkap, no_hp, ttd } = user.rows[0];
+      
+      res.status(200).json({
+        message: "Login Success.",
+        data: {
+          user_id: id,
+          npm,
+          email,
+          role,
+          nik,
+          nama_lengkap,
+          no_hp,
+          isverified: is_verified,
+          created_at,
+          ttd,
+          token,
+        }
+      });
+    } else {
+      const { user_id, npm, nidn, username, email, role, isverified, created_at, department_code } = user.rows[0];
+
+      const getPersonalData = await DB.query("SELECT * FROM tb_data_pribadi WHERE user_id = $1", [user_id]);
+
+      const queryLencana = await DB.query(`SELECT * FROM achievements WHERE gamify = $1`, [getPersonalData.rows[0]?.rank || ""]);
+
+      const jabatanStruktural = await TrxUserJabatanUnit.findAll({
+        where: {
+          user_id: user_id,
+        },
+        attributes: ["user_id", "jabatan_id", "unit_id"],
+        include: [
+          {
+            model: Jabatan,
+            as: "jabatan",
+          },
+          {
+            model: Unit,
+            as: "unit",
+          },
+        ],
+      });
+
+      res.status(200).json({
+        message: "Login Success.",
+        data: {
+          user_id,
+          npm,
+          nidn,
+          username,
+          email,
+          role,
+          department_code,
+          nip: getPersonalData.rows[0]?.nip || "",
+          nama_lengkap: getPersonalData.rows[0]?.nama_lengkap || "",
+          image: getPersonalData.rows[0]?.image || "",
+          no_hp: getPersonalData.rows[0]?.no_hp || "",
+          imageUrl: `${process.env.API_URL}/foto-profile/${getPersonalData.rows[0]?.image}` || "",
+          kode_mhs: getPersonalData.rows[0]?.kode_mhs || "",
+          isverified,
+          created_at,
+          personalData: getPersonalData.rows[0],
+          jabatanStruktural,
+          lencana:
+            queryLencana.rows.length &&
+            queryLencana.rows.map((iterate) => ({
+              lencana: `${process.env.API_URL}/gamify/lencana/${iterate.lencana}`,
+            })),
+          token,
+        },
+      });
+    }
   } else {
     res.status(500);
     throw new Error("Somthing went wrong, Pleas try again.");
@@ -1496,4 +1537,4 @@ exports.verifyByAdmin = asyncHandler(async (req, res) => {
       created_at,
     },
   });
-});
+});
