@@ -46,6 +46,9 @@ class SuratController {
       page = page ? parseInt(page) : 1;
       const pagelimit = getPagination(limit, page);
 
+      const userRole = req.user.role?.toLowerCase();
+      const adminRoles = ["admin", "staf", "staff", "tu", "pegawai"];
+
       const condition = {
         deleted_at: null,
         parent_id: null,
@@ -56,9 +59,6 @@ class SuratController {
       } else if (mode === "outbox") {
         condition.user_id = req.user.user_id;
       } else {
-        const userRole = req.user.role?.toLowerCase();
-        const adminRoles = ["admin", "staf", "staff", "tu", "pegawai"];
-        
         if (userRole === "parent") {
           const children = await TrxParentMhs.findAll({
             where: { parent_id: req.user.user_id }
@@ -90,14 +90,23 @@ class SuratController {
         include: [{ model: DataPribadi, as: "personal_data", attributes: ["nama_lengkap"] }],
       };
 
-      const userRole = req.user.role?.toLowerCase();
-      const adminRoles = ["admin", "staf", "staff", "tu", "pegawai"];
-
       if (adminRoles.includes(userRole) && req.user.department_code && mode !== "inbox" && mode !== "outbox") {
-        pengirimInclude.where = {
-          department_code: req.user.department_code,
-        };
-        pengirimInclude.required = true; // INNER JOIN
+        // Ambil semua user_id yang department_code-nya sama dengan user yang login
+        const deptUsers = await User.findAll({
+          where: { department_code: req.user.department_code },
+          attributes: ["user_id"],
+        });
+        const deptUserIds = deptUsers.map((u) => String(u.user_id));
+
+        condition[Op.and] = [
+          {
+            [Op.or]: [
+              { user_id: { [Op.in]: deptUserIds } }, // surat dari mahasiswa di dept yang sama
+              { user_id: req.user.user_id },          // surat yang dikirim oleh pegawai ini sendiri
+              { penerima_id: req.user.user_id },      // surat yang ditujukan langsung ke pegawai ini
+            ],
+          },
+        ];
       }
 
       const data = await Surat.findAndCountAll({
