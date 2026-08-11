@@ -19,6 +19,18 @@ const sendMail = require("../../utils/sendMail");
 const { formRegisterParentValidation } = require("../../validation/formValidation");
 const fs = require("fs-extra");
 const path = require("path");
+const { Surat, DokumenLampiran, RiwayatSurat } = require("../../models/Persuratan");
+
+const safeJsonParse = (data) => {
+  if (!data) return {};
+  if (typeof data === "object") return data;
+  try {
+    return JSON.parse(data);
+  } catch (error) {
+    console.error("[SafeParse Error]:", error.message);
+    return {};
+  }
+};
 
 class ParentsController {
   // =====================================================================
@@ -787,6 +799,104 @@ class ParentsController {
 
       return response(res, true, "Success get data.", findDosen.rows);
     } catch (error) {
+      return response(res, false, "Error", error.message, 500);
+    }
+  };
+
+  // =====================================================================
+  // SURAT PENGUNDURAN DIRI
+  // =====================================================================
+  static getSuratPengunduranDiri = async (req, res) => {
+    try {
+      const { npm } = req.params;
+      const findMhs = await User.findOne({ where: { npm, role: "Mahasiswa" } });
+      if (!findMhs) return response(res, false, "Mahasiswa tidak ditemukan", null, 404);
+      
+      const mhsId = findMhs.user_id;
+
+      // Pastikan mahasiswa tersebut adalah anak dari parent yang sedang login
+      const isParent = await TrxParentMhs.findOne({
+        where: { parent_id: req.user.id, mhs_id: mhsId }
+      });
+      if (!isParent) {
+        return response(res, false, "Akses ditolak. Mahasiswa ini bukan merupakan anak Anda.", null, 403);
+      }
+
+      const dataSurat = await Surat.findAll({
+        where: { 
+          user_id: mhsId, 
+          jenis_surat: { [Op.iLike]: "%pengunduran diri%" },
+          deleted_at: null 
+        },
+        include: [
+          { model: DokumenLampiran },
+          { model: RiwayatSurat }
+        ],
+        order: [["created_at", "DESC"]],
+      });
+
+      return response(res, true, "Success get data", dataSurat);
+    } catch (error) {
+      return response(res, false, "Error", error.message, 500);
+    }
+  };
+
+  static approvePengunduranDiri = async (req, res) => {
+    // using db.transaction() since 'db' is the config object in this file instead of DB which is pg.Client
+    const t = await db.transaction();
+    try {
+      const { id } = req.params;
+      const parent = await Parents.findByPk(req.user.id);
+
+      if (!parent) {
+        await t.rollback();
+        return response(res, false, "Parent not found", null, 404);
+      }
+
+      const dataSurat = await Surat.findOne({ 
+        where: { id, deleted_at: null },
+        transaction: t 
+      });
+
+      if (!dataSurat) {
+        await t.rollback();
+        return response(res, false, "Surat tidak ditemukan", null, 404);
+      }
+
+      // Verifikasi kepemilikan surat (apakah milik anak)
+      const isParent = await TrxParentMhs.findOne({
+        where: { parent_id: req.user.id, mhs_id: dataSurat.user_id },
+        transaction: t
+      });
+
+      if (!isParent) {
+        await t.rollback();
+        return response(res, false, "Akses ditolak. Surat ini bukan milik anak Anda.", null, 403);
+      }
+
+      let currentFormData = { ...safeJsonParse(dataSurat.form_data) };
+      
+      currentFormData.nama_ortu_wali = parent.nama_lengkap;
+
+      dataSurat.changed("form_data", true);
+      await dataSurat.update({ 
+        form_data: currentFormData, 
+        is_approved_by_parent: true 
+      }, { transaction: t });
+
+      await RiwayatSurat.create(
+        {
+          surat_id: id,
+          status: dataSurat.status,
+          catatan: `Persetujuan Orang Tua/Wali berhasil diberikan oleh: ${parent.nama_lengkap}`,
+        },
+        { transaction: t }
+      );
+
+      await t.commit();
+      return response(res, true, "Berhasil menyetujui pengajuan pengunduran diri.");
+    } catch (error) {
+      if (!t.finished) await t.rollback();
       return response(res, false, "Error", error.message, 500);
     }
   };

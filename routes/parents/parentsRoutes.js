@@ -27,6 +27,10 @@ router.get("/skripsi/:npm", protectedParents, ParentsController.getSkripsiMhs);
 router.get("/absensi-matkul/:npm/:kode", protectedParents, ParentsController.getAbsensiMatkul);
 router.get("/all-dosen", protectedParents, ParentsController.getAllDosen);
 
+// --- SURAT PENGUNDURAN DIRI ---
+router.get("/surat-pengunduran-diri/:npm", protectedParents, ParentsController.getSuratPengunduranDiri);
+router.put("/surat-pengunduran-diri/:id/approve", protectedParents, ParentsController.approvePengunduranDiri);
+
 // --- ADMIN MANAGEMENT ROUTES ---
 router.get("/admin/list", protected, adminOnly, ParentsController.getAllParents);
 router.get("/admin/detail/:id", protected, adminOnly, ParentsController.getDetailParentByAdmin);

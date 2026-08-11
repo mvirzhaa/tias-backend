@@ -398,9 +398,9 @@ class SuratController {
 
       if (status === "Selesai") {
          if (data.jenis_surat?.toLowerCase() === "surat pengunduran diri") {
-             if (!currentFormData.ttd_ortu) {
+             if (!data.is_approved_by_parent && !currentFormData.ttd_ortu) {
                  await t.rollback();
-                 return response(res, false, "Gagal memproses: Tanda Tangan Orang Tua/Wali belum dibubuhkan. Mohon pastikan Orang Tua mahasiswa bersangkutan telah login dan menandatangani dokumen ini.");
+                 return response(res, false, "Gagal memproses: Persetujuan Orang Tua/Wali belum diberikan. Mohon pastikan Orang Tua mahasiswa bersangkutan telah login dan menyetujui dokumen ini.");
              }
          } else if (data.jenis_surat?.toLowerCase() === "surat pengajuan cuti") {
              if (!currentFormData.ttd_kaprodi) {
