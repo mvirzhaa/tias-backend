@@ -29,6 +29,10 @@ Surat.init(
       type: DataTypes.JSONB,
       allowNull: true,
     },
+    is_approved_by_parent: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
     nomor_surat: {
       type: DataTypes.STRING,
       allowNull: true,
