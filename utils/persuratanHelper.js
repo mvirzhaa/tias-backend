@@ -31,7 +31,7 @@ const getLogoBase64 = () => {
   }
 };
 
-const compileSuratPengunduranDiri = async (dataSurat, tanggalSelesai, ttdBase64 = null, ttdOrtuBase64 = null) => {
+const compileSuratPengunduranDiri = async (dataSurat, tanggalSelesai, ttdBase64 = null, isApprovedByParent = false) => {
   try {
     const templateHtml = fs.readFileSync(path.join(__dirname, "../views/persuratan/pengunduranDiri.hbs"), "utf-8");
     const compiledTemplate = handlebars.compile(templateHtml);
@@ -42,7 +42,7 @@ const compileSuratPengunduranDiri = async (dataSurat, tanggalSelesai, ttdBase64 
       tanggal_selesai: tanggalSelesai,
       qrCodeSvg: generateQrSvg(dataSurat.id),
       ttdBase64: ttdBase64 || null,
-      ttdOrtuBase64: ttdOrtuBase64 || null,
+      isApprovedByParent: isApprovedByParent || false,
     });
   } catch (error) {
     console.error("[Compile Pengunduran Diri Error]:", error.message);

@@ -60,7 +60,7 @@ const writePdf = async (docDefinition, outputFilePath) => {
   await doc.write(outputFilePath);
 };
 
-const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, ttdOrtuBase64, namaOrtuDB, outputPath) => {
+const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, isApprovedByParent, namaOrtuDB, outputPath) => {
   const fd = dataSurat.form_data || {};
   const pengirim = dataSurat.Pengirim || {};
   const pd = pengirim.personal_data || {};
@@ -77,8 +77,49 @@ const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, tt
     ? [{ image: ttdBase64, width: 110, alignment: "center", margin: [0, 0, 0, 2] }]
     : [{ text: "", margin: [0, 30, 0, 2] }];
 
-  const ttdOrtuSection = ttdOrtuBase64
-    ? [{ image: ttdOrtuBase64, width: 110, alignment: "center", margin: [0, 0, 0, 2] }]
+  // Mekanisme baru: orang tua hanya melakukan approve digital, tidak lagi upload TTD
+  const ttdOrtuSection = isApprovedByParent
+    ? [
+        { text: "", margin: [0, 8, 0, 0] },
+        {
+          table: {
+            widths: ["*"],
+            body: [
+              [
+                {
+                  stack: [
+                    {
+                      text: "DISETUJUI",
+                      fontSize: 9,
+                      bold: true,
+                      color: "#14532d",
+                      alignment: "center",
+                      margin: [0, 5, 0, 1],
+                    },
+                    {
+                      text: "Persetujuan Digital Orang Tua/Wali",
+                      fontSize: 7.5,
+                      italics: true,
+                      color: "#166534",
+                      alignment: "center",
+                      margin: [0, 0, 0, 5],
+                    },
+                  ],
+                  fillColor: "#dcfce7",
+                  border: [true, true, true, true],
+                },
+              ],
+            ],
+          },
+          layout: {
+            hLineColor: () => "#166534",
+            vLineColor: () => "#166534",
+            hLineWidth: () => 0.8,
+            vLineWidth: () => 0.8,
+          },
+          margin: [10, 0, 10, 6],
+        },
+      ]
     : [{ text: "", margin: [0, 30, 0, 2] }];
 
 

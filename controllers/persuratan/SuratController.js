@@ -451,10 +451,10 @@ class SuratController {
 
         if (data.jenis_surat?.toLowerCase() === "surat pengunduran diri") {
           const ttdMhsBase64 = currentFormData.ttd_mhs || null;
-          const ttdOrtuBase64 = currentFormData.ttd_ortu || null;
+          const isApprovedByParent = data.is_approved_by_parent || false;
           const namaOrtu = currentFormData.nama_ortu_wali || "-";
 
-          await generateSuratPengunduranDiri(data, formatTanggal, ttdMhsBase64, ttdOrtuBase64, namaOrtu, fileOutputPath);
+          await generateSuratPengunduranDiri(data, formatTanggal, ttdMhsBase64, isApprovedByParent, namaOrtu, fileOutputPath);
 
           currentFormData.pdf_url = `/generated-pdf/${fileName}`;
           await DB.query("UPDATE tb_surat SET form_data = $1 WHERE id = $2", [currentFormData, data.id]);
