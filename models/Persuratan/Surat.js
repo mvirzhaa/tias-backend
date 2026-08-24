@@ -38,7 +38,7 @@ Surat.init(
       allowNull: true,
     },
     status: {
-      type: DataTypes.ENUM("Sent", "Read", "Replied", "Selesai", "Archived"),
+      type: DataTypes.ENUM("Sent", "Read", "Replied", "Selesai", "Ditolak", "Archived"),
       defaultValue: "Sent",
     },
     catatan_pejabat: {
