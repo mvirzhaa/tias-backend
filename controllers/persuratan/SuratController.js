@@ -185,6 +185,68 @@ class SuratController {
 
           parsedFormData.nama_ortu_wali = parentRelation.parent.nama_lengkap;
         }
+
+        // ─────────────────────────────────────────────────────────────────
+        // VALIDASI 1: Surat Pengunduran Diri hanya boleh diajukan 1 kali
+        // (dikecualikan jika pengajuan sebelumnya berstatus 'Ditolak')
+        // ─────────────────────────────────────────────────────────────────
+        if (jenis_surat?.toLowerCase() === "surat pengunduran diri") {
+          const sudahAda = await Surat.findOne({
+            where: {
+              user_id: req.user.user_id,
+              jenis_surat: { [Op.iLike]: "surat pengunduran diri" },
+              status: { [Op.notIn]: ["Ditolak"] },
+              deleted_at: null,
+            },
+            transaction: t,
+          });
+          if (sudahAda) {
+            await t.rollback();
+            return response(
+              res,
+              false,
+              "Pengajuan ditolak: Surat Pengunduran Diri hanya dapat diajukan satu kali. Anda sudah memiliki pengajuan yang sedang atau telah diproses."
+            );
+          }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // VALIDASI 2: Data pengajuan tidak boleh sama persis (duplikat)
+        // untuk Cuti maupun Pengunduran Diri
+        // (dikecualikan jika pengajuan sebelumnya berstatus 'Ditolak')
+        // ─────────────────────────────────────────────────────────────────
+        const suratAktifSebelumnya = await Surat.findOne({
+          where: {
+            user_id: req.user.user_id,
+            jenis_surat: { [Op.iLike]: jenis_surat },
+            status: { [Op.notIn]: ["Ditolak"] },
+            deleted_at: null,
+          },
+          transaction: t,
+        });
+
+        if (suratAktifSebelumnya) {
+          const existingFd = safeJsonParse(suratAktifSebelumnya.form_data);
+          const incomingFd = parsedFormData;
+
+          const fieldsToCheck =
+            jenis_surat?.toLowerCase() === "surat pengajuan cuti"
+              ? ["semester_cuti", "tahun_akademik_cuti", "semester_aktif", "tahun_akademik_aktif"]
+              : ["semester", "tanggal_pengarahan"];
+
+          const isDuplicate = fieldsToCheck.every(
+            (f) => String(existingFd[f] ?? "").trim() === String(incomingFd[f] ?? "").trim()
+          );
+
+          if (isDuplicate) {
+            await t.rollback();
+            return response(
+              res,
+              false,
+              "Pengajuan ditolak: Data yang Anda masukkan sama persis dengan pengajuan yang sudah ada dan sedang/telah diproses."
+            );
+          }
+        }
      
         const userDept = req.user.department_code || "informatika";
 
