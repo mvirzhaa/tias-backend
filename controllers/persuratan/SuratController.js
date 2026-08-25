@@ -736,18 +736,18 @@ class SuratController {
       //    form_data tidak pernah di-query (bukan sekadar disembunyikan).
       const data = await Surat.findOne({
         where: { id, deleted_at: null },
-        attributes: ["id", "jenis_surat", "nomor_surat", "status", "created_at", "updated_at"],
+        attributes: ["id", "jenis_surat", "status", "created_at", "updated_at"],
         include: [
           {
             model: User,
             as: "Pengirim",
-            attributes: [],
+            attributes: ["user_id"],
             include: [{ model: DataPribadi, as: "personal_data", attributes: ["nama_lengkap"] }],
           },
           {
             model: User,
             as: "Penerima",
-            attributes: [],
+            attributes: ["user_id"],
             include: [{ model: DataPribadi, as: "personal_data", attributes: ["nama_lengkap"] }],
           },
         ],
@@ -768,12 +768,11 @@ class SuratController {
       const safeData = {
         id: plain.id,
         jenis_surat: plain.jenis_surat,
-        nomor_surat: plain.nomor_surat,
         status: plain.status,
         created_at: plain.created_at,
         updated_at: plain.updated_at,
-        nama_pengirim: plain.Pengirim?.personal_data?.nama_lengkap || "-",
-        nama_penerima: plain.Penerima?.personal_data?.nama_lengkap || "-",
+        nama_pengirim: plain.Pengirim?.personal_data?.nama_lengkap || null,
+        nama_penerima: plain.Penerima?.personal_data?.nama_lengkap || null,
       };
 
       // ── 6. Cache header — data jarang berubah, cache 60 detik di browser ─
