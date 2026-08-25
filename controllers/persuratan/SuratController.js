@@ -38,6 +38,36 @@ const safeJsonParse = (data) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────
+// Rate limiter in-memory untuk endpoint publik (tanpa package eksternal)
+// Struktur: Map<ip, { count, resetAt }>
+// ─────────────────────────────────────────────────────────────────────────
+const _qrRateLimitMap = new Map();
+const QR_RATE_LIMIT = 30;          // maks request per window per IP
+const QR_RATE_WINDOW_MS = 60_000;  // window 1 menit
+
+const checkQrRateLimit = (ip) => {
+  const now = Date.now();
+  const entry = _qrRateLimitMap.get(ip);
+
+  if (!entry || now > entry.resetAt) {
+    _qrRateLimitMap.set(ip, { count: 1, resetAt: now + QR_RATE_WINDOW_MS });
+    return false; // tidak kena limit
+  }
+
+  entry.count += 1;
+  if (entry.count > QR_RATE_LIMIT) return true; // kena limit
+  return false;
+};
+
+// Bersihkan Map setiap 5 menit agar tidak bocor memori
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of _qrRateLimitMap.entries()) {
+    if (now > entry.resetAt) _qrRateLimitMap.delete(ip);
+  }
+}, 5 * 60_000);
+
 class SuratController {
   static index = async (req, res) => {
     try {
@@ -211,39 +241,79 @@ class SuratController {
         }
 
         // ─────────────────────────────────────────────────────────────────
-        // VALIDASI 2: Data pengajuan tidak boleh sama persis (duplikat)
-        // untuk Cuti maupun Pengunduran Diri
-        // (dikecualikan jika pengajuan sebelumnya berstatus 'Ditolak')
+        // VALIDASI 2: Cegah duplikat pengajuan — dua lapisan
+        //
+        // Lapisan A → surat masih aktif/proses (Sent/Read/Replied):
+        //   Langsung blok. Tidak perlu cek isi field — satu mahasiswa tidak
+        //   boleh punya dua pengajuan sejenis yang sedang berjalan bersamaan.
+        //
+        // Lapisan B → surat sudah Selesai/Archived:
+        //   Blok hanya kalau field kunci identik. Kalau beda semester/tahun
+        //   → izinkan (mahasiswa boleh ajukan cuti semester berikutnya).
+        //
+        // "Ditolak" dikecualikan dari kedua lapisan — mahasiswa boleh
+        // mengajukan ulang setelah ditolak.
         // ─────────────────────────────────────────────────────────────────
-        const suratAktifSebelumnya = await Surat.findOne({
+
+        // ── Lapisan A: ada surat sejenis yang masih dalam proses? ────────
+        const suratSedangProses = await Surat.findOne({
           where: {
             user_id: req.user.user_id,
             jenis_surat: { [Op.iLike]: jenis_surat },
-            status: { [Op.notIn]: ["Ditolak"] },
+            status: { [Op.in]: ["Sent", "Read", "Replied"] },
             deleted_at: null,
           },
           transaction: t,
         });
 
-        if (suratAktifSebelumnya) {
-          const existingFd = safeJsonParse(suratAktifSebelumnya.form_data);
+        if (suratSedangProses) {
+          await t.rollback();
+          return response(
+            res,
+            false,
+            "Pengajuan ditolak: Anda masih memiliki pengajuan sejenis yang sedang diproses. Silakan tunggu hingga pengajuan sebelumnya selesai atau ditolak sebelum mengajukan yang baru."
+          );
+        }
+
+        // ── Lapisan B: ada surat sejenis yang sudah Selesai/Archived dengan data sama? ──
+        const fieldsToCheck =
+          jenis_surat?.toLowerCase() === "surat pengajuan cuti"
+            ? ["semester_cuti", "tahun_akademik_cuti", "semester_aktif", "tahun_akademik_aktif"]
+            : ["semester", "tanggal_pengarahan"];
+
+        const suratSelesaiSebelumnya = await Surat.findOne({
+          where: {
+            user_id: req.user.user_id,
+            jenis_surat: { [Op.iLike]: jenis_surat },
+            status: { [Op.in]: ["Selesai", "Archived"] },
+            deleted_at: null,
+          },
+          order: [["updated_at", "DESC"]],
+          transaction: t,
+        });
+
+        if (suratSelesaiSebelumnya) {
+          const existingFd = safeJsonParse(suratSelesaiSebelumnya.form_data);
           const incomingFd = parsedFormData;
 
-          const fieldsToCheck =
-            jenis_surat?.toLowerCase() === "surat pengajuan cuti"
-              ? ["semester_cuti", "tahun_akademik_cuti", "semester_aktif", "tahun_akademik_aktif"]
-              : ["semester", "tanggal_pengarahan"];
-
-          const isDuplicate = fieldsToCheck.every(
-            (f) => String(existingFd[f] ?? "").trim() === String(incomingFd[f] ?? "").trim()
+          // Semua field kunci harus ada dan tidak kosong di DB,
+          // baru bandingkan — cegah false-negative akibat inkonsistensi key.
+          const existingFieldsValid = fieldsToCheck.every(
+            (f) => existingFd[f] !== undefined && String(existingFd[f]).trim() !== ""
           );
+
+          const isDuplicate =
+            existingFieldsValid &&
+            fieldsToCheck.every(
+              (f) => String(existingFd[f] ?? "").trim() === String(incomingFd[f] ?? "").trim()
+            );
 
           if (isDuplicate) {
             await t.rollback();
             return response(
               res,
               false,
-              "Pengajuan ditolak: Data yang Anda masukkan sama persis dengan pengajuan yang sudah ada dan sedang/telah diproses."
+              "Pengajuan ditolak: Data yang Anda masukkan identik dengan pengajuan yang sudah pernah diproses sebelumnya."
             );
           }
         }
@@ -637,8 +707,19 @@ class SuratController {
 
   static getQr = async (req, res) => {
     try {
-      const { id } = req.params;
+      // ── 1. Rate limiting (30 req / 1 menit / IP) ─────────────────────────
+      const clientIp = req.ip || req.headers["x-forwarded-for"] || "unknown";
+      if (checkQrRateLimit(clientIp)) {
+        return res.status(429).json({
+          isSuccess: false,
+          statusCode: 429,
+          responseMessage: "Terlalu banyak permintaan. Silakan coba lagi dalam 1 menit.",
+          data: null,
+        });
+      }
 
+      // ── 2. Validasi format UUID sebelum sentuh DB ────────────────────────
+      const { id } = req.params;
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(id)) {
         return res.status(400).json({
@@ -649,25 +730,30 @@ class SuratController {
         });
       }
 
+      // ── 3. Query DB — hanya ambil field yang diperlukan ──────────────────
+      //    attributes:[] pada User = JOIN untuk personal_data tapi tidak
+      //    menarik npm/email/role dari tabel users sama sekali.
+      //    form_data tidak pernah di-query (bukan sekadar disembunyikan).
       const data = await Surat.findOne({
         where: { id, deleted_at: null },
-        attributes: ["id", "jenis_surat", "nomor_surat", "status", "created_at", "updated_at", "form_data"],
+        attributes: ["id", "jenis_surat", "nomor_surat", "status", "created_at", "updated_at"],
         include: [
           {
             model: User,
             as: "Pengirim",
-            attributes: ["npm", "email"],
+            attributes: [],
             include: [{ model: DataPribadi, as: "personal_data", attributes: ["nama_lengkap"] }],
           },
           {
             model: User,
             as: "Penerima",
-            attributes: ["npm", "email", "role"],
+            attributes: [],
             include: [{ model: DataPribadi, as: "personal_data", attributes: ["nama_lengkap"] }],
           },
         ],
       });
 
+      // ── 4. HTTP 404 jika tidak ditemukan ─────────────────────────────────
       if (!data) {
         return res.status(404).json({
           isSuccess: false,
@@ -677,13 +763,32 @@ class SuratController {
         });
       }
 
+      // ── 5. Whitelist response — hanya field yang boleh publik ─────────────
       const plain = data.toJSON();
-      plain.form_data = safeJsonParse(plain.form_data);
+      const safeData = {
+        id: plain.id,
+        jenis_surat: plain.jenis_surat,
+        nomor_surat: plain.nomor_surat,
+        status: plain.status,
+        created_at: plain.created_at,
+        updated_at: plain.updated_at,
+        nama_pengirim: plain.Pengirim?.personal_data?.nama_lengkap || "-",
+        nama_penerima: plain.Penerima?.personal_data?.nama_lengkap || "-",
+      };
 
-      return response(res, true, "Data QR berhasil dimuat", plain);
+      // ── 6. Cache header — data jarang berubah, cache 60 detik di browser ─
+      res.set("Cache-Control", "public, max-age=60");
+
+      return response(res, true, "Data QR berhasil dimuat", safeData);
     } catch (error) {
-      console.error("[getQr Error]:", error.message);
-      return response(res, false, error.message);
+      // Log detail di server, jangan expose ke client publik
+      console.error("[getQr Error]:", error);
+      return res.status(500).json({
+        isSuccess: false,
+        statusCode: 500,
+        responseMessage: "Terjadi kesalahan pada server. Silakan coba lagi.",
+        data: null,
+      });
     }
   };
 
