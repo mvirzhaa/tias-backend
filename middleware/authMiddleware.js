@@ -146,7 +146,7 @@ exports.adminOnly = asyncHandler(async (req, res, next) => {
   if (req.user && req.user.role === "Admin") {
     next();
   } else {
-    res.status(401);
+    res.status(403);
     throw new Error("Not Authorized as an admin.");
   }
 });
@@ -158,7 +158,7 @@ exports.dosenOnly = asyncHandler(async (req, res, next) => {
   ) {
     next();
   } else {
-    res.status(401);
+    res.status(403);
     throw new Error("Not Authorized as an Dosen.");
   }
 });
@@ -167,7 +167,7 @@ exports.mhsOnly = asyncHandler(async (req, res, next) => {
   if (req.user && req.user.role === "Mahasiswa") {
     next();
   } else {
-    res.status(401);
+    res.status(403);
     throw new Error("Not Authorized as an Dosen.");
   }
 });
@@ -180,7 +180,7 @@ exports.adminDosenOnly = asyncHandler(async (req, res, next) => {
   ) {
     next();
   } else {
-    res.status(401);
+    res.status(403);
     throw new Error("Not Authorized as an Dosen/Admin.");
   }
 });
@@ -192,7 +192,7 @@ exports.adminMhsOnly = asyncHandler(async (req, res, next) => {
   ) {
     next();
   } else {
-    res.status(401);
+    res.status(403);
     throw new Error("Not Authorized as an Mahasiswa.");
   }
 });
