@@ -14,6 +14,7 @@ const CONTENT_TYPES = [
   "forum",
   "exam",
   "assignment",
+  "attendance",
 ];
 
 class LmsContentItem extends Model {}
