@@ -8,7 +8,7 @@ const {
 } = require("../../middleware/lms/lecturerOwnsClass");
 const { syncSiak } = require("../../controllers/lms/syncController");
 const { listClasses } = require("../../controllers/lms/classController");
-const { createUploadItem, replaceUploadItem, serveFile } = require("../../controllers/lms/fileController");
+const { createUploadItem, replaceUploadItem, serveFile, servePreview } = require("../../controllers/lms/fileController");
 const { lmsUpload } = require("../../middleware/lms/lmsUpload");
 const {
   listSections,
@@ -136,6 +136,7 @@ router.delete("/items/:id", protected, lecturerOwnsContentSection, deleteItem);
 
 // --- Serve file berotorisasi (stream, BUKAN redirect ke URL publik) ---
 router.get("/files/:id", protected, classViewContentAccess, serveFile);
+router.get("/files/:id/preview", protected, classViewContentAccess, servePreview);
 
 // --- Forum (Fase 5) — content item bertipe `forum`. Otorisasi via keanggotaan kelas.
 //     forumMember = admin|dosen-pengampu|mhs-terdaftar; forumModerator = dosen-pengampu|admin.
