@@ -12,6 +12,20 @@ const { haversineDistanceMeters } = require("../../lib/lms/geo");
 const { isOnlineMethod } = require("../../lib/lms/attendanceMethod");
 const faceApiClient = require("../../lib/lms/faceApi/client");
 const { getRekapByClass } = require("../../lib/lms/attendanceRekapService");
+const { lecturerOwns } = require("../../middleware/lms/lecturerOwnsClass");
+
+const HARI_ID = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+
+// Pilih jadwal yang `hari`-nya cocok hari ini (kelas bisa punya banyak slot, mis. Senin+Rabu,
+// dgn metode_pembelajaran berbeda per slot) — fallback ke baris pertama kalau tak ada yang
+// cocok (mis. dibuka di luar hari jadwal biasa). Sebelumnya ambil baris pertama TANPA urutan
+// sama sekali, bisa salah tentukan apakah GPS wajib.
+async function findRelevantJadwal(kelasKuliahId) {
+  const rows = await SiakV2Jadwal.findAll({ where: { kelasKuliahId } });
+  if (!rows.length) return null;
+  const today = HARI_ID[new Date().getDay()];
+  return rows.find((j) => (j.hari || "").trim().toLowerCase() === today.toLowerCase()) || rows[0];
+}
 
 const DEFAULT_RADIUS_M = parseInt(process.env.GEOFENCE_DEFAULT_RADIUS_M || "100", 10);
 const MAX_ATTEMPTS = parseInt(process.env.ATTENDANCE_MAX_ATTEMPTS || "5", 10);
@@ -38,7 +52,7 @@ exports.openSession = asyncHandler(async (req, res) => {
   if (jadwal_id) {
     jadwal = await SiakV2Jadwal.findByPk(jadwal_id);
   } else {
-    jadwal = await SiakV2Jadwal.findOne({ where: { kelasKuliahId } });
+    jadwal = await findRelevantJadwal(kelasKuliahId);
   }
 
   const metodeSnapshot = jadwal ? jadwal.metode_pembelajaran : null;
@@ -327,4 +341,53 @@ exports.rekap = asyncHandler(async (req, res) => {
   }
   const rekap = await getRekapByClass({ kelasKuliahId });
   return response(res, true, "success", rekap);
+});
+
+// GET /lms/attendance/sessions/current?kelasKuliahId=&pertemuan_ke= — dosen pengampu/admin
+// cek apakah sudah ada sesi 'open' utk pertemuan ini (UI hindari selalu nawarin buka baru).
+exports.getCurrentSession = asyncHandler(async (req, res) => {
+  const { kelasKuliahId, pertemuan_ke } = req.query;
+  if (!kelasKuliahId || !pertemuan_ke) {
+    return response(res, false, "Parameter kelasKuliahId dan pertemuan_ke wajib diisi.", null, 400);
+  }
+  if (!req.user) {
+    return response(res, false, "Anda tidak mengampu kelas ini.", null, 403);
+  }
+  const allowed = req.user.role === "Admin" || (await lecturerOwns(req, kelasKuliahId));
+  if (!allowed) {
+    return response(res, false, "Anda tidak mengampu kelas ini.", null, 403);
+  }
+
+  const session = await LmsAttendanceSession.findOne({
+    where: { kelasKuliahId, pertemuan_ke: parseInt(pertemuan_ke, 10), status: "open" },
+  });
+  return response(res, true, "success", { session });
+});
+
+// GET /lms/attendance/sessions/:id/records — roster (middleware lecturerOwnsSession sudah
+// memuat & memverifikasi kepemilikan req.lmsAttendanceSession).
+exports.getSessionRecords = asyncHandler(async (req, res) => {
+  const session = req.lmsAttendanceSession;
+
+  const records = await LmsAttendanceRecord.findAll({
+    where: { session_id: session.id },
+    order: [["submitted_at", "ASC"]],
+  });
+
+  const participants = records.length
+    ? await SiakV2Participant.findAll({
+        where: {
+          kelasKuliahId: session.kelasKuliahId,
+          siak_mahasiswa_id: records.map((r) => r.siak_mahasiswa_id),
+        },
+      })
+    : [];
+  const byId = new Map(participants.map((p) => [p.siak_mahasiswa_id, p]));
+
+  const rows = records.map((r) => {
+    const p = byId.get(r.siak_mahasiswa_id);
+    return { ...r.toJSON(), npm: p ? p.npm : null, nama: p ? p.nama : null };
+  });
+
+  return response(res, true, "success", rows);
 });
