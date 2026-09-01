@@ -75,6 +75,10 @@ LmsAttendanceSession.init(
       type: DataTypes.DATE,
       allowNull: false,
     },
+    expires_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
     closed_at: {
       type: DataTypes.DATE,
       allowNull: true,

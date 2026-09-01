@@ -9,7 +9,7 @@ const SiakV2Participant = require("../../models/lms/SiakV2Participant");
 const SiakV2Class = require("../../models/lms/SiakV2Class");
 const storage = require("../../lib/lms/storage");
 const { haversineDistanceMeters } = require("../../lib/lms/geo");
-const { isOnlineMethod } = require("../../lib/lms/attendanceMethod");
+const { isOnlineMethod, isSessionActive } = require("../../lib/lms/attendanceMethod");
 const faceApiClient = require("../../lib/lms/faceApi/client");
 const { getRekapByClass } = require("../../lib/lms/attendanceRekapService");
 const { lecturerOwns } = require("../../middleware/lms/lecturerOwnsClass");
@@ -41,22 +41,49 @@ const generateToken = () => String(Math.floor(100000 + Math.random() * 900000));
 
 // POST /lms/attendance/sessions — dosen membuka sesi presensi untuk satu pertemuan.
 exports.openSession = asyncHandler(async (req, res) => {
-  const { kelasKuliahId, jadwal_id, pertemuan_ke, session_date, lat, lng, accuracy_m, radius_m } =
-    req.body;
+  const {
+    kelasKuliahId,
+    jadwal_id,
+    pertemuan_ke,
+    session_date,
+    lat,
+    lng,
+    accuracy_m,
+    radius_m,
+    metode,
+    durasi_menit,
+  } = req.body;
 
   if (!pertemuan_ke || !session_date) {
     return response(res, false, "pertemuan_ke dan session_date wajib diisi.", null, 400);
+  }
+  if (metode !== undefined && metode !== null && metode !== "online" && metode !== "offline") {
+    return response(res, false, "metode harus 'online' atau 'offline'.", null, 400);
   }
 
   let jadwal = null;
   if (jadwal_id) {
     jadwal = await SiakV2Jadwal.findByPk(jadwal_id);
-  } else {
+  } else if (!metode) {
+    // Cuma perlu tebak dari jadwal SIAK kalau item presensi belum menentukan metode
+    // eksplisit (item lama, dibuat sebelum ItemEditorModal punya pilihan metode).
     jadwal = await findRelevantJadwal(kelasKuliahId);
   }
 
-  const metodeSnapshot = jadwal ? jadwal.metode_pembelajaran : null;
-  const isOffline = !isOnlineMethod(metodeSnapshot);
+  // Eksplisit dari payload item (dosen pilih saat membuat aktivitas) SELALU diprioritaskan
+  // di atas tebakan jadwal SIAK — sebelumnya dosen sama sekali tidak punya kendali di sini.
+  const metodeSnapshot = metode || (jadwal ? jadwal.metode_pembelajaran : null);
+  const isOffline = metode ? metode === "offline" : !isOnlineMethod(metodeSnapshot);
+
+  let durasi = null;
+  if (durasi_menit != null && String(durasi_menit).trim() !== "") {
+    const n = Number(durasi_menit);
+    if (!Number.isFinite(n) || n <= 0) {
+      return response(res, false, "durasi_menit harus angka > 0.", null, 400);
+    }
+    durasi = Math.round(n);
+  }
+  const expiresAt = durasi ? new Date(Date.now() + durasi * 60000) : null;
 
   if (isOffline && (lat === undefined || lng === undefined || lat === null || lng === null)) {
     return response(
@@ -89,6 +116,7 @@ exports.openSession = asyncHandler(async (req, res) => {
         geofence_radius_m: isOffline ? parseInt(radius_m, 10) || DEFAULT_RADIUS_M : null,
         status: "open",
         opened_at: new Date(),
+        expires_at: expiresAt,
       });
     } catch (error) {
       if (error.name !== "SequelizeUniqueConstraintError") throw error;
@@ -120,9 +148,9 @@ exports.resolveToken = asyncHandler(async (req, res) => {
   }
 
   const session = await LmsAttendanceSession.findOne({
-    where: { token: String(token).trim(), status: "open" },
+    where: { token: String(token).trim() },
   });
-  if (!session) {
+  if (!isSessionActive(session)) {
     return response(res, false, "Token tidak valid atau sesi presensi sudah ditutup.", null, 404);
   }
 
@@ -361,7 +389,9 @@ exports.getCurrentSession = asyncHandler(async (req, res) => {
   const session = await LmsAttendanceSession.findOne({
     where: { kelasKuliahId, pertemuan_ke: parseInt(pertemuan_ke, 10), status: "open" },
   });
-  return response(res, true, "success", { session });
+  // Status di DB masih 'open' tapi sudah lewat expires_at (durasi dinamis dosen habis) ->
+  // JANGAN dianggap sesi "current" lagi, walau belum ada yang klik "Tutup Sesi" manual.
+  return response(res, true, "success", { session: isSessionActive(session) ? session : null });
 });
 
 // GET /lms/attendance/sessions/:id/records — roster (middleware lecturerOwnsSession sudah
