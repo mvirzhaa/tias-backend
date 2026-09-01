@@ -3,6 +3,7 @@ const path = require("path");
 const { response } = require("../../lib/response");
 const storage = require("../../lib/lms/storage");
 const { matchesType, pptVariant } = require("../../lib/lms/fileType");
+const officeConvert = require("../../lib/lms/officeConvert");
 const LmsContentItem = require("../../models/lms/LmsContentItem");
 
 /**
@@ -50,6 +51,20 @@ function sanitizeFileName(name) {
   return base.slice(0, 200) || "file";
 }
 
+// Utk item type=ppt, coba convert ke PDF supaya bisa di-preview inline (browser tak bisa
+// render pptx native, beda dgn pdf). GAGAL DI SINI TIDAK MENGGAGALKAN UPLOAD — preview
+// cuma fitur pelengkap, file asli (ppt/pptx) tetap tersimpan & bisa diunduh seperti biasa.
+async function buildPreviewStorageKey(type, buffer, ext) {
+  if (type !== "ppt") return null;
+  try {
+    const pdfBuffer = await officeConvert.convertToPdf(buffer, ext);
+    return await storage.save(pdfBuffer, "pdf");
+  } catch (error) {
+    console.error("PPT->PDF convert gagal (upload tetap lanjut tanpa preview):", error.message);
+    return null;
+  }
+}
+
 // POST /lms/sections/:sectionId/items/upload  (protected + lecturerOwnsContentSection + lmsUpload)
 exports.createUploadItem = asyncHandler(async (req, res) => {
   const file = req.file;
@@ -85,6 +100,7 @@ exports.createUploadItem = asyncHandler(async (req, res) => {
 
   // Simpan via layer storage (nama UUID server-side).
   const storage_key = await storage.save(file.buffer, cfg.ext);
+  const preview_storage_key = await buildPreviewStorageKey(type, file.buffer, cfg.ext);
 
   // Default posisi = urutan berikutnya (paling bawah), bukan 0 — 0 selalu menaruh
   // item baru di ATAS item yang sudah ada (diurutkan ASC by position).
@@ -115,6 +131,7 @@ exports.createUploadItem = asyncHandler(async (req, res) => {
       file_name: sanitizeFileName(file.originalname),
       size: file.size,
       mime: cfg.mime,
+      preview_storage_key,
     },
     created_at: now,
     updated_at: now,
@@ -161,6 +178,7 @@ exports.replaceUploadItem = asyncHandler(async (req, res) => {
 
   // Simpan file baru DULU — bila storage.save gagal, berkas lama tetap utuh (fail-safe).
   const storage_key = await storage.save(file.buffer, cfg.ext);
+  const preview_storage_key = await buildPreviewStorageKey(item.type, file.buffer, cfg.ext);
 
   const { title, description, is_published } = req.body;
   const updates = {
@@ -170,6 +188,7 @@ exports.replaceUploadItem = asyncHandler(async (req, res) => {
       file_name: sanitizeFileName(file.originalname),
       size: file.size,
       mime: cfg.mime,
+      preview_storage_key,
     },
   };
   if (title !== undefined && String(title).trim() !== "") updates.title = title;
@@ -184,6 +203,7 @@ exports.replaceUploadItem = asyncHandler(async (req, res) => {
   }
 
   const oldStorageKey = item.payload?.storage_key || null;
+  const oldPreviewKey = item.payload?.preview_storage_key || null;
   await item.update(updates);
 
   // Hapus berkas lama SETELAH update DB sukses (hindari orphan bila update gagal duluan).
@@ -191,6 +211,11 @@ exports.replaceUploadItem = asyncHandler(async (req, res) => {
   if (oldStorageKey && oldStorageKey !== storage_key) {
     storage.remove(oldStorageKey).catch((err) => {
       console.error("replaceUploadItem: gagal hapus berkas lama:", err.message);
+    });
+  }
+  if (oldPreviewKey && oldPreviewKey !== preview_storage_key) {
+    storage.remove(oldPreviewKey).catch((err) => {
+      console.error("replaceUploadItem: gagal hapus preview lama:", err.message);
     });
   }
 
@@ -220,6 +245,47 @@ exports.serveFile = asyncHandler(async (req, res) => {
   const stream = storage.createReadStream(payload.storage_key);
   stream.on("error", (err) => {
     console.error("serveFile stream error:", err.message);
+    if (!res.headersSent) res.status(500).end();
+  });
+  stream.pipe(res);
+});
+
+// GET /lms/files/:id/preview  (protected + classViewContentAccess → req.lmsContentItem sudah dimuat)
+// Representasi TERBAIK utk viewer inline: pdf asli utk item type=pdf, PDF hasil konversi
+// utk type=ppt (bila konversi sukses saat upload). TIDAK mengubah /lms/files/:id (serveFile)
+// yang sudah ada — itu tetap selalu file ASLI (kontrak download lama tidak berubah).
+exports.servePreview = asyncHandler(async (req, res) => {
+  const item = req.lmsContentItem || (await LmsContentItem.findByPk(req.params.id));
+  if (!item) {
+    return response(res, false, "Item tidak ditemukan.", null, 404);
+  }
+  const payload = item.payload || {};
+  const key = item.type === "pdf" ? payload.storage_key : payload.preview_storage_key;
+
+  if (!key) {
+    return response(
+      res,
+      false,
+      item.type === "ppt"
+        ? "Preview belum tersedia untuk file ini, silakan unduh."
+        : "Item ini tidak memiliki file.",
+      null,
+      404
+    );
+  }
+  if (!(await storage.exists(key))) {
+    return response(res, false, "File tidak ditemukan di storage.", null, 404);
+  }
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    `inline; filename="${payload.file_name || "preview"}.pdf"`
+  );
+
+  const stream = storage.createReadStream(key);
+  stream.on("error", (err) => {
+    console.error("servePreview stream error:", err.message);
     if (!res.headersSent) res.status(500).end();
   });
   stream.pipe(res);

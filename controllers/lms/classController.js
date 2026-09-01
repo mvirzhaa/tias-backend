@@ -9,6 +9,7 @@ exports.listClasses = asyncHandler(async (req, res) => {
       limit: req.query.limit,
       page: req.query.page,
       search: req.query.search,
+      includeEmpty: req.query.include_empty === "true",
     });
 
     return response(res, true, "Success", result);

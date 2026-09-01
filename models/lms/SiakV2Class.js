@@ -35,6 +35,9 @@ SiakV2Class.init(
     status_kelas: {
       type: DataTypes.STRING(32),
     },
+    nama_periode: {
+      type: DataTypes.STRING,
+    },
     kapasitas: {
       type: DataTypes.INTEGER,
     },
