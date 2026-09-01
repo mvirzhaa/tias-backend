@@ -41,6 +41,7 @@ const parentsRoutes = require("./parents/parentsRoutes");
 const absensiExternalRoutes = require("./absensi-external/indexRouter");
 const suratRoutes = require("./persuratan/surat");
 const lmsRoutes = require("./lms/lmsRoutes");
+const lmsAttendanceRoutes = require("./lms/attendanceRoutes");
 const ssoRoutes = require("./Authentication/ssoRoutes");
 const router = exporess.Router();
 
@@ -84,6 +85,7 @@ router.use("/parents", parentsRoutes);
 router.use("/absensi-external", absensiExternalRoutes);
 router.use("/surat", suratRoutes);
 router.use("/lms", lmsRoutes);
+router.use("/lms/attendance", lmsAttendanceRoutes);
 
 router.use("/help", helpRoutes);
 router.get("/", (req, res) => {
