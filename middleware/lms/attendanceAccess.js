@@ -3,6 +3,7 @@ const { response } = require("../../lib/response");
 const { lecturerOwns, studentIsEnrolled } = require("./lecturerOwnsClass");
 const LmsAttendanceSession = require("../../models/lms/LmsAttendanceSession");
 const LmsAttendanceRecord = require("../../models/lms/LmsAttendanceRecord");
+const { isSessionActive } = require("../../lib/lms/attendanceMethod");
 
 /**
  * Otorisasi presensi. Reuse langsung `lecturerOwns`/`studentIsEnrolled` dari
@@ -23,9 +24,9 @@ const resolveKelasFromToken = async (req, res) => {
     return undefined;
   }
   const session = await LmsAttendanceSession.findOne({
-    where: { token: String(token).trim(), status: "open" },
+    where: { token: String(token).trim() },
   });
-  if (!session) {
+  if (!isSessionActive(session)) {
     response(res, false, "Token tidak valid atau sesi presensi sudah ditutup.", null, 404);
     return undefined;
   }
@@ -75,9 +76,8 @@ exports.studentCanSubmitAttendance = asyncHandler(async (req, res, next) => {
   if (!(await studentIsEnrolled(req, kelasKuliahId))) {
     return response(res, false, "Anda tidak terdaftar di kelas ini.", null, 403);
   }
-  if (req.lmsAttendanceSession.status !== "open") {
-    return response(res, false, "Sesi presensi sudah ditutup.", null, 400);
-  }
+  // Sesi aktif/belum expired sudah dipastikan oleh resolveKelasFromToken (isSessionActive)
+  // di atas — tidak perlu cek status lagi di sini.
 
   const dup = await LmsAttendanceRecord.findOne({
     where: {
