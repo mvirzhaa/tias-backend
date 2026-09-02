@@ -2337,6 +2337,289 @@ exports.uploadFinalSkripsiController = asyncHandler(async (req, res) => {
   });
 });
 
+exports.getBeritaAcaraKolo = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // Fetch main kolo data from ta_pendaftaran_kolokium
+  const dataPengajuanKolo = await DB.query(
+    `SELECT * FROM ta_pendaftaran_kolokium WHERE pengajuan_sk_id = $1`,
+    [id]
+  );
+
+  if (!dataPengajuanKolo.rows.length) {
+    res.status(404);
+    throw new Error("Data pendaftaran kolokium tidak ditemukan.");
+  }
+
+  const kolo = dataPengajuanKolo.rows[0];
+
+  // Fetch student & SK data
+  const dataSk = await DB.query(
+    `SELECT ta_pengajuan_sk.*, tb_data_pribadi.nama_lengkap, tb_data_pribadi.no_hp, tb_users.email, tb_users.npm
+     FROM ta_pengajuan_sk
+     JOIN tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id
+     JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id
+     WHERE ta_pengajuan_sk.id = $1`,
+    [id]
+  );
+
+  if (!dataSk.rows.length) {
+    res.status(404);
+    throw new Error("Data pengajuan SK tidak ditemukan.");
+  }
+
+  // Fetch nilai akhir kolo
+  const nilaiAkhirResult = await DB.query(
+    `SELECT * FROM ta_nilai_akhir_kolo WHERE kolo_id = $1`,
+    [kolo.id]
+  );
+
+  // Fetch all penilaian kolo
+  const penilaianResult = await DB.query(
+    `SELECT * FROM ta_penilaian_kolokium WHERE kolo_id = $1`,
+    [kolo.id]
+  );
+
+  // Collect all dosen IDs to fetch names
+  const dosenIds = [
+    kolo.kolo_pembimbing_1,
+    kolo.kolo_pembimbing_2,
+    kolo.kolo_pembimbing_3,
+    kolo.evaluator_1,
+    kolo.evaluator_2,
+    kolo.kolo_kepala_lab,
+  ].filter(Boolean);
+
+  let dosenMap = {};
+  if (dosenIds.length > 0) {
+    const dosenResult = await DB.query(
+      `SELECT user_id, nama_lengkap, nip FROM tb_data_pribadi WHERE user_id::text IN (${dosenIds
+        .map((_, i) => `$${i + 1}`)
+        .join(",")})`,
+      dosenIds.map(String)
+    );
+    dosenResult.rows.forEach((d) => {
+      dosenMap[d.user_id] = { nama_lengkap: d.nama_lengkap, nip: d.nip };
+    });
+  }
+
+  // Fetch Kaprodi info (via trx_user_jabatan_unit/m_jabatan/m_unit — tb_jabatan_struktural
+  // tidak eksis baik di staging maupun production, lihat rencana-penggabungan-ucl Tahap 0)
+  let kaprodiData = null;
+  try {
+    const kaprodiResult = await DB.query(
+      `SELECT tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.ttd
+       FROM trx_user_jabatan_unit
+       JOIN m_jabatan ON trx_user_jabatan_unit.jabatan_id = m_jabatan.id
+       JOIN m_unit ON trx_user_jabatan_unit.unit_id = m_unit.id
+       JOIN tb_data_pribadi ON trx_user_jabatan_unit.user_id = tb_data_pribadi.user_id
+       WHERE trx_user_jabatan_unit.deleted_at IS NULL
+         AND LOWER(m_jabatan.nama_jabatan) LIKE '%ketua program studi%'
+         AND m_unit.code = 'FT_TI'
+       LIMIT 1`
+    );
+    if (kaprodiResult.rows.length) {
+      kaprodiData = kaprodiResult.rows[0];
+    }
+  } catch (err) {
+    // kaprodi not found, continue without it
+  }
+
+  const sk = dataSk.rows[0];
+  const nilaiAkhir = nilaiAkhirResult.rows[0] || null;
+
+  res.status(200).json({
+    data: {
+      // Student info
+      nama_lengkap: sk.nama_lengkap,
+      npm: sk.npm,
+      email: sk.email,
+      no_hp: sk.no_hp,
+      judul_skripsi: sk.judul_skripsi,
+      semester: sk.semester,
+      // Kolokium schedule
+      jadwal_pelaksanaan: kolo.jadwal_pelaksanaan,
+      waktu: nilaiAkhir?.waktu || kolo.waktu || "",
+      tempat: nilaiAkhir?.tempat || kolo.tempat || "",
+      // Dosen info (IDs + names)
+      kolo_pembimbing_1: kolo.kolo_pembimbing_1,
+      kolo_pembimbing_2: kolo.kolo_pembimbing_2,
+      kolo_pembimbing_3: kolo.kolo_pembimbing_3,
+      evaluator_1: kolo.evaluator_1,
+      evaluator_2: kolo.evaluator_2,
+      nama_pembimbing_1: kolo.kolo_pembimbing_1
+        ? dosenMap[kolo.kolo_pembimbing_1]?.nama_lengkap || ""
+        : "",
+      nama_pembimbing_2: kolo.kolo_pembimbing_2
+        ? dosenMap[kolo.kolo_pembimbing_2]?.nama_lengkap || ""
+        : "",
+      nama_pembimbing_3: kolo.kolo_pembimbing_3
+        ? dosenMap[kolo.kolo_pembimbing_3]?.nama_lengkap || ""
+        : "",
+      nama_evaluator_1: kolo.evaluator_1
+        ? dosenMap[kolo.evaluator_1]?.nama_lengkap || ""
+        : "",
+      nama_evaluator_2: kolo.evaluator_2
+        ? dosenMap[kolo.evaluator_2]?.nama_lengkap || ""
+        : "",
+      // Nilai akhir
+      nilai_akhir: nilaiAkhir,
+      // Individual penilaian per dosen
+      penilaian_list: penilaianResult.rows,
+      // Kaprodi
+      kaprodi: kaprodiData,
+      // Komentar
+      komentar: nilaiAkhir?.komentar || "",
+    },
+  });
+});
+
+exports.getBeritaAcaraSidang = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // Fetch main sidang data from ta_pendaftaran_sidang
+  const dataPengajuanSidang = await DB.query(
+    `SELECT * FROM ta_pendaftaran_sidang WHERE pengajuan_sk_id = $1`,
+    [id]
+  );
+
+  if (!dataPengajuanSidang.rows.length) {
+    res.status(404);
+    throw new Error("Data pendaftaran sidang tidak ditemukan.");
+  }
+
+  const sidang = dataPengajuanSidang.rows[0];
+
+  // Fetch student & SK data
+  const dataSk = await DB.query(
+    `SELECT ta_pengajuan_sk.*, tb_data_pribadi.nama_lengkap, tb_data_pribadi.no_hp, tb_data_pribadi.tempat_lahir, tb_data_pribadi.tanggal_lahir, tb_users.email, tb_users.npm
+     FROM ta_pengajuan_sk
+     JOIN tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id
+     JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id
+     WHERE ta_pengajuan_sk.id = $1`,
+    [id]
+  );
+
+  if (!dataSk.rows.length) {
+    res.status(404);
+    throw new Error("Data pengajuan SK tidak ditemukan.");
+  }
+
+  // Fetch nilai akhir sidang
+  const nilaiAkhirResult = await DB.query(
+    `SELECT * FROM ta_nilai_akhir_sidang WHERE sidang_id = $1`,
+    [sidang.id]
+  );
+
+  // Fetch all penilaian sidang
+  const penilaianResult = await DB.query(
+    `SELECT * FROM ta_penilaian_sidang WHERE sidang_id = $1`,
+    [sidang.id]
+  );
+
+  const sk = dataSk.rows[0];
+  const nilaiAkhir = nilaiAkhirResult.rows[0] || null;
+
+  // ta_pendaftaran_sidang tidak punya kolom ketua_penguji/sekertaris_sidang (baik di
+  // staging maupun production) — kolom itu ada di ta_nilai_akhir_sidang, dengan fallback
+  // ke pembimbing_1/penguji_1 kalau belum diisi dosen.
+  const ketuaPengujiId = sidang.ketua_penguji || nilaiAkhir?.ketua_penguji || sidang.sidang_pembimbing_1 || nilaiAkhir?.pembimbing_1;
+  const sekertarisSidangId = sidang.sekertaris_sidang || nilaiAkhir?.sekertaris_sidang || sidang.penguji_1 || nilaiAkhir?.penguji_1;
+
+  // Collect all dosen IDs to fetch names
+  const dosenIds = [
+    sidang.sidang_pembimbing_1,
+    sidang.sidang_pembimbing_2,
+    sidang.sidang_pembimbing_3,
+    sidang.penguji_1,
+    sidang.penguji_2,
+    sidang.sekertaris_sidang,
+    sidang.ketua_penguji,
+    ketuaPengujiId,
+    sekertarisSidangId,
+    nilaiAkhir?.pembimbing_1,
+    nilaiAkhir?.pembimbing_2,
+    nilaiAkhir?.penguji_1,
+    nilaiAkhir?.penguji_2,
+  ].filter(Boolean);
+
+  let dosenMap = {};
+  if (dosenIds.length > 0) {
+    const dosenResult = await DB.query(
+      `SELECT user_id, nama_lengkap, nip FROM tb_data_pribadi WHERE user_id::text IN (${dosenIds
+        .map((_, i) => `$${i + 1}`)
+        .join(",")})`,
+      dosenIds.map(String)
+    );
+    dosenResult.rows.forEach((d) => {
+      dosenMap[d.user_id] = { nama_lengkap: d.nama_lengkap, nip: d.nip };
+    });
+  }
+
+  // Fetch Kaprodi info (via trx_user_jabatan_unit/m_jabatan/m_unit — tb_jabatan_struktural
+  // tidak eksis baik di staging maupun production, lihat rencana-penggabungan-ucl Tahap 0)
+  let kaprodiData = null;
+  try {
+    const kaprodiResult = await DB.query(
+      `SELECT tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.ttd
+       FROM trx_user_jabatan_unit
+       JOIN m_jabatan ON trx_user_jabatan_unit.jabatan_id = m_jabatan.id
+       JOIN m_unit ON trx_user_jabatan_unit.unit_id = m_unit.id
+       JOIN tb_data_pribadi ON trx_user_jabatan_unit.user_id = tb_data_pribadi.user_id
+       WHERE trx_user_jabatan_unit.deleted_at IS NULL
+         AND LOWER(m_jabatan.nama_jabatan) LIKE '%ketua program studi%'
+         AND m_unit.code = 'FT_TI'
+       LIMIT 1`
+    );
+    if (kaprodiResult.rows.length) {
+      kaprodiData = kaprodiResult.rows[0];
+    }
+  } catch (err) {
+    // kaprodi not found, continue without it
+  }
+
+  res.status(200).json({
+    data: {
+      // Student info
+      nama_lengkap: sk.nama_lengkap,
+      npm: sk.npm,
+      email: sk.email,
+      no_hp: sk.no_hp,
+      judul_skripsi: sk.judul_skripsi,
+      semester: sk.semester,
+      tempat_lahir: sk.tempat_lahir || "",
+      tanggal_lahir: sk.tanggal_lahir || "",
+      // Sidang schedule
+      jadwal_pelaksanaan: sidang.jadwal_pelaksanaan,
+      waktu: nilaiAkhir?.waktu || sidang.waktu || "",
+      tempat: nilaiAkhir?.tempat || sidang.tempat || "",
+      // Dosen info (IDs + names)
+      sidang_pembimbing_1: sidang.sidang_pembimbing_1 || nilaiAkhir?.pembimbing_1,
+      sidang_pembimbing_2: sidang.sidang_pembimbing_2 || nilaiAkhir?.pembimbing_2,
+      sidang_pembimbing_3: sidang.sidang_pembimbing_3,
+      penguji_1: sidang.penguji_1 || nilaiAkhir?.penguji_1,
+      penguji_2: sidang.penguji_2 || nilaiAkhir?.penguji_2,
+      sekertaris_sidang: sekertarisSidangId,
+      ketua_penguji: ketuaPengujiId,
+      nama_pembimbing_1: (sidang.sidang_pembimbing_1 || nilaiAkhir?.pembimbing_1) ? dosenMap[sidang.sidang_pembimbing_1 || nilaiAkhir?.pembimbing_1]?.nama_lengkap || "" : "",
+      nama_pembimbing_2: (sidang.sidang_pembimbing_2 || nilaiAkhir?.pembimbing_2) ? dosenMap[sidang.sidang_pembimbing_2 || nilaiAkhir?.pembimbing_2]?.nama_lengkap || "" : "",
+      nama_pembimbing_3: sidang.sidang_pembimbing_3 ? dosenMap[sidang.sidang_pembimbing_3]?.nama_lengkap || "" : "",
+      nama_penguji_1: (sidang.penguji_1 || nilaiAkhir?.penguji_1) ? dosenMap[sidang.penguji_1 || nilaiAkhir?.penguji_1]?.nama_lengkap || "" : "",
+      nama_penguji_2: (sidang.penguji_2 || nilaiAkhir?.penguji_2) ? dosenMap[sidang.penguji_2 || nilaiAkhir?.penguji_2]?.nama_lengkap || "" : "",
+      nama_sekertaris_sidang: sekertarisSidangId ? dosenMap[sekertarisSidangId]?.nama_lengkap || "" : "",
+      nama_ketua_penguji: ketuaPengujiId ? dosenMap[ketuaPengujiId]?.nama_lengkap || "" : "",
+      // Nilai akhir
+      nilai_akhir: nilaiAkhir,
+      // Individual penilaian per dosen
+      penilaian_list: penilaianResult.rows,
+      // Kaprodi
+      kaprodi: kaprodiData,
+      // Komentar
+      komentar: nilaiAkhir?.komentar || "",
+    },
+  });
+});
+
 exports.getNomorNota = asyncHandler(async (req, res) => {
   const { nomorNota, data } = req.body;
 
