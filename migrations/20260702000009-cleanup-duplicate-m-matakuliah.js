@@ -1,5 +1,7 @@
 'use strict';
 
+const { assertNotProduction } = require('./_guards/devOnlySeedGuard');
+
 /**
  * Hapus baris duplikat di m_matakuliah (kode sama).
  * Simpan 1 baris per kode: yang paling banyak dipakai di pembelajaran_dosen_ext,
@@ -8,6 +10,7 @@
 
 module.exports = {
   async up(queryInterface) {
+    assertNotProduction(__filename);
     const [dupBefore] = await queryInterface.sequelize.query(`
       SELECT kode_matakuliah, COUNT(*)::int AS cnt
       FROM m_matakuliah

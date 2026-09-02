@@ -1,9 +1,12 @@
 // create_kompetensi (diperbanyak - 5 data per user)
 'use strict';
 
+const { assertNotProduction } = require('./_guards/devOnlySeedGuard');
+
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
+    assertNotProduction(__filename);
     // Ambil semua user_id mahasiswa dan dosen
     const [users] = await queryInterface.sequelize.query(
       "SELECT user_id, role FROM tb_users WHERE role IN ('Mahasiswa', 'Dosen')"

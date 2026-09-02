@@ -1,5 +1,7 @@
 'use strict';
 
+const { assertNotProduction } = require('./_guards/devOnlySeedGuard');
+
 /**
  * Trim seed absensi/pembelajaran dari 16 pertemuan → 14 pertemuan per MK.
  * Idempotent: aman dijalankan berulang.
@@ -11,6 +13,7 @@ const SEMESTER = '2025 Ganjil';
 
 module.exports = {
   async up(queryInterface) {
+    assertNotProduction(__filename);
     const mkRows = await queryInterface.sequelize.query(
       `SELECT id FROM m_matakuliah WHERE kode_matakuliah IN ('${MATAKULIAH_KODES.join("','")}')`,
       { type: queryInterface.sequelize.QueryTypes.SELECT }

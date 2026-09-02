@@ -1,5 +1,7 @@
 'use strict';
 
+const { assertNotProduction } = require('./_guards/devOnlySeedGuard');
+
 /**
  * Hard-delete baris m_matakuliah soft-deleted yang sudah digantikan
  * baris aktif dengan kode sama (orphan dari seed lama).
@@ -7,6 +9,7 @@
 
 module.exports = {
   async up(queryInterface) {
+    assertNotProduction(__filename);
     const [deleted] = await queryInterface.sequelize.query(`
       DELETE FROM m_matakuliah mk
       WHERE mk.deleted_at IS NOT NULL

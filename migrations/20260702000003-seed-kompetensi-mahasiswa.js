@@ -1,5 +1,7 @@
 'use strict';
 
+const { assertNotProduction } = require('./_guards/devOnlySeedGuard');
+
 const { v4: uuidv4 } = require('uuid');
 
 /**
@@ -107,6 +109,7 @@ const TES_TEMPLATES = [
 
 module.exports = {
   async up(queryInterface, Sequelize) {
+    assertNotProduction(__filename);
     const now = new Date();
 
     // ──────────────────────────────────────────────────────────────

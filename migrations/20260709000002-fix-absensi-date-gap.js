@@ -1,5 +1,7 @@
 'use strict';
 
+const { assertNotProduction } = require('./_guards/devOnlySeedGuard');
+
 /**
  * Perbaiki tanggal seed absensi: setiap pertemuan berjarak 1 minggu.
  * Jalankan jika migration 20260702000002 sudah pernah di-execute sebelumnya.
@@ -25,6 +27,7 @@ const getPertemuanDate = (matkulIndex, pertemuan) => {
 
 module.exports = {
   async up(queryInterface) {
+    assertNotProduction(__filename);
     const mkRows = await queryInterface.sequelize.query(
       `SELECT id, kode_matakuliah FROM m_matakuliah
        WHERE kode_matakuliah IN ('IHK110','PAI111','PBI106X','TIF101','TIF103') AND deleted_at IS NULL`,

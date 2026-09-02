@@ -1,5 +1,7 @@
 'use strict';
 
+const { assertNotProduction } = require('./_guards/devOnlySeedGuard');
+
 /**
  * Migration: Seed absensi mahasiswa berdasarkan jadwal SIAK
  *
@@ -59,6 +61,7 @@ const getPertemuanDate = (matkulIndex, pertemuan) => {
 
 module.exports = {
   async up(queryInterface, Sequelize) {
+    assertNotProduction(__filename);
     const tables = await queryInterface.showAllTables();
 
     // ──────────────────────────────────────────────────────────────────

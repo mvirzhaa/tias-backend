@@ -1,8 +1,11 @@
 'use strict';
 
+const { assertNotProduction } = require('./_guards/devOnlySeedGuard');
+
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
+    assertNotProduction(__filename);
     const [mhs] = await queryInterface.sequelize.query(
       "SELECT user_id FROM tb_users WHERE role = 'Mahasiswa' LIMIT 1"
     );

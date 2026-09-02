@@ -38,6 +38,8 @@ const {
   exportsRekapPenilainKolokium,
   exportRekapPenilaianSidang,
   updateKelulusan,
+  getBeritaAcaraKolo,
+  getBeritaAcaraSidang,
 } = require("../../controllers/bimbingan/tugasAkhirController");
 const {
   makalahKolokiumUpload,
@@ -148,6 +150,14 @@ router.get(
   protected,
   adminOnly,
   exportRekapPenilaianSidang
+);
+
+router.get("/berita-acara-kolo/:id", protected, adminOnly, getBeritaAcaraKolo);
+router.get(
+  "/berita-acara-sidang/:id",
+  protected,
+  adminOnly,
+  getBeritaAcaraSidang
 );
 
 module.exports = router;

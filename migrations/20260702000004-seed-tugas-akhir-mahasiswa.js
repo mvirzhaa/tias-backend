@@ -1,5 +1,7 @@
 'use strict';
 
+const { assertNotProduction } = require('./_guards/devOnlySeedGuard');
+
 /**
  * Migration: Seed Tugas Akhir (Skripsi) data for 12 students with varied statuses
  *
@@ -48,6 +50,7 @@ const SKRIPSI_TITLES = [
 
 module.exports = {
   async up(queryInterface, Sequelize) {
+    assertNotProduction(__filename);
     const now = new Date();
 
     // 1. Ambil user_id mahasiswa dari tb_users

@@ -1,5 +1,7 @@
 'use strict';
 
+const { assertNotProduction } = require('./_guards/devOnlySeedGuard');
+
 /**
  * Migration: Calculate and update gamification points, ranks, and achievements
  * for the 12 target students based on their seeded activity records.
@@ -22,6 +24,7 @@ const VALID_NPMS = [
 
 module.exports = {
   async up(queryInterface, Sequelize) {
+    assertNotProduction(__filename);
     const npmListStr = VALID_NPMS.map(n => `'${n}'`).join(',');
     const mahasiswaRows = await queryInterface.sequelize.query(
       `SELECT user_id, npm FROM tb_users WHERE npm IN (${npmListStr})`,
