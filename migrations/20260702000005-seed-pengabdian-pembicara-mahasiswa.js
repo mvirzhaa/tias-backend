@@ -1,5 +1,7 @@
 'use strict';
 
+const { assertNotProduction } = require('./_guards/devOnlySeedGuard');
+
 const { v4: uuidv4 } = require('uuid');
 
 /**
@@ -114,6 +116,7 @@ const PEMBICARA_TEMPLATES = [
 
 module.exports = {
   async up(queryInterface, Sequelize) {
+    assertNotProduction(__filename);
     const now = new Date();
 
     // 1. Ambil user_id mahasiswa dari tb_users

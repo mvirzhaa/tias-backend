@@ -1,8 +1,11 @@
 'use strict';
 
+const { assertNotProduction } = require('./_guards/devOnlySeedGuard');
+
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
+    assertNotProduction(__filename);
     // Drop existing if any to ensure clean state
     await queryInterface.dropTable('kategori_publikasi', { cascade: true }).catch(() => {});
     await queryInterface.dropTable('kategori_profesi', { cascade: true }).catch(() => {});
