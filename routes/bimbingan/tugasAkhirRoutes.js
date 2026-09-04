@@ -28,7 +28,6 @@ const {
   getFinalSkripsi,
   uploadFinalSkripsiController,
   getNomorNota,
-  getBeritaAcaraKolo,
   updatePenilaian,
   deleteData,
   updateNilaiAkhirKolo,
@@ -39,6 +38,7 @@ const {
   exportsRekapPenilainKolokium,
   exportRekapPenilaianSidang,
   updateKelulusan,
+  getBeritaAcaraKolo,
   getBeritaAcaraSidang,
 } = require("../../controllers/bimbingan/tugasAkhirController");
 const {
@@ -114,8 +114,6 @@ router.patch(
 );
 
 router.post("/get-nomor-nota", protected, getNomorNota);
-router.get("/berita-acara-kolo/:id", protected, getBeritaAcaraKolo);
-router.get("/berita-acara-sidang/:id", protected, getBeritaAcaraSidang);
 router.put("/update-nilai/:id", protected, adminDosenOnly, updatePenilaian);
 router.put(
   "/update-nilai-sidang/:id",
@@ -152,6 +150,14 @@ router.get(
   protected,
   adminOnly,
   exportRekapPenilaianSidang
+);
+
+router.get("/berita-acara-kolo/:id", protected, adminOnly, getBeritaAcaraKolo);
+router.get(
+  "/berita-acara-sidang/:id",
+  protected,
+  adminOnly,
+  getBeritaAcaraSidang
 );
 
 module.exports = router;

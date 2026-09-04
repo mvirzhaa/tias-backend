@@ -2,8 +2,10 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 
 // generate token
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "1d" });
+const generateToken = (id, eportalUserId = null) => {
+  const payload = { id };
+  if (eportalUserId) payload.eportal_user_id = eportalUserId;
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1d" });
 };
 
 // hash token

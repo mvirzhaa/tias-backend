@@ -1,0 +1,29 @@
+{
+  "data": [
+    {
+      "kelasKuliahId": "11111111-1111-1111-1111-111111111111",
+      "npm": "0110220001",
+      "namaMahasiswa": "Mahasiswa Contoh 1",
+      "email": "0110220001@student.uika-bogor.ac.id",
+      "status": "aktif",
+      "isActive": true,
+      "updatedAt": "2026-06-14T08:00:00+07:00"
+    },
+    {
+      "kelasKuliahId": "11111111-1111-1111-1111-111111111111",
+      "npm": "0110220002",
+      "namaMahasiswa": "Mahasiswa Contoh 2",
+      "email": "0110220002@student.uika-bogor.ac.id",
+      "status": "aktif",
+      "isActive": true,
+      "updatedAt": "2026-06-14T08:00:00+07:00"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "perPage": 2,
+    "total": 3,
+    "lastPage": 2,
+    "hasNext": true
+  }
+}

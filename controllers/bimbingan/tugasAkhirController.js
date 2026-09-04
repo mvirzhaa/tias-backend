@@ -2403,15 +2403,19 @@ exports.getBeritaAcaraKolo = asyncHandler(async (req, res) => {
     });
   }
 
-  // Fetch Kaprodi info
+  // Fetch Kaprodi info (via trx_user_jabatan_unit/m_jabatan/m_unit — tb_jabatan_struktural
+  // tidak eksis baik di staging maupun production, lihat rencana-penggabungan-ucl Tahap 0)
   let kaprodiData = null;
   try {
     const kaprodiResult = await DB.query(
       `SELECT tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.ttd
-       FROM tb_jabatan_struktural
-       JOIN tb_data_pribadi ON tb_jabatan_struktural.user_id = tb_data_pribadi.user_id
-       WHERE LOWER(tb_jabatan_struktural.nama_jabatan) LIKE '%ka prodi%'
-         AND LOWER(tb_jabatan_struktural.prodi) LIKE '%ti%'
+       FROM trx_user_jabatan_unit
+       JOIN m_jabatan ON trx_user_jabatan_unit.jabatan_id = m_jabatan.id
+       JOIN m_unit ON trx_user_jabatan_unit.unit_id = m_unit.id
+       JOIN tb_data_pribadi ON trx_user_jabatan_unit.user_id = tb_data_pribadi.user_id
+       WHERE trx_user_jabatan_unit.deleted_at IS NULL
+         AND LOWER(m_jabatan.nama_jabatan) LIKE '%ketua program studi%'
+         AND m_unit.code = 'FT_TI'
        LIMIT 1`
     );
     if (kaprodiResult.rows.length) {
@@ -2516,6 +2520,9 @@ exports.getBeritaAcaraSidang = asyncHandler(async (req, res) => {
   const sk = dataSk.rows[0];
   const nilaiAkhir = nilaiAkhirResult.rows[0] || null;
 
+  // ta_pendaftaran_sidang tidak punya kolom ketua_penguji/sekertaris_sidang (baik di
+  // staging maupun production) — kolom itu ada di ta_nilai_akhir_sidang, dengan fallback
+  // ke pembimbing_1/penguji_1 kalau belum diisi dosen.
   const ketuaPengujiId = sidang.ketua_penguji || nilaiAkhir?.ketua_penguji || sidang.sidang_pembimbing_1 || nilaiAkhir?.pembimbing_1;
   const sekertarisSidangId = sidang.sekertaris_sidang || nilaiAkhir?.sekertaris_sidang || sidang.penguji_1 || nilaiAkhir?.penguji_1;
 
@@ -2549,15 +2556,19 @@ exports.getBeritaAcaraSidang = asyncHandler(async (req, res) => {
     });
   }
 
-  // Fetch Kaprodi info
+  // Fetch Kaprodi info (via trx_user_jabatan_unit/m_jabatan/m_unit — tb_jabatan_struktural
+  // tidak eksis baik di staging maupun production, lihat rencana-penggabungan-ucl Tahap 0)
   let kaprodiData = null;
   try {
     const kaprodiResult = await DB.query(
       `SELECT tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.ttd
-       FROM tb_jabatan_struktural
-       JOIN tb_data_pribadi ON tb_jabatan_struktural.user_id = tb_data_pribadi.user_id
-       WHERE LOWER(tb_jabatan_struktural.nama_jabatan) LIKE '%ka prodi%'
-         AND LOWER(tb_jabatan_struktural.prodi) LIKE '%ti%'
+       FROM trx_user_jabatan_unit
+       JOIN m_jabatan ON trx_user_jabatan_unit.jabatan_id = m_jabatan.id
+       JOIN m_unit ON trx_user_jabatan_unit.unit_id = m_unit.id
+       JOIN tb_data_pribadi ON trx_user_jabatan_unit.user_id = tb_data_pribadi.user_id
+       WHERE trx_user_jabatan_unit.deleted_at IS NULL
+         AND LOWER(m_jabatan.nama_jabatan) LIKE '%ketua program studi%'
+         AND m_unit.code = 'FT_TI'
        LIMIT 1`
     );
     if (kaprodiResult.rows.length) {

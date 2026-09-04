@@ -2,7 +2,7 @@ const { DataTypes, Model } = require("sequelize");
 const db = require("../../config");
 const Matakuliah = require("../master/Matakuliah");
 
-class Pembelajaran extends Model {}
+class Pembelajaran extends Model { }
 Pembelajaran.init(
   {
     id: {

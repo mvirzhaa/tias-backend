@@ -7,23 +7,37 @@ const errorHandler = require("./helper/errorHandler");
 const session = require("express-session");
 const passport = require("./utils/passport");
 const router = require("./routes/routes");
-
+// const { whatsapp } = require("./utils/whatsapp");
+// const {
+//   cleanupExpiredTokens,
+//   cleanupExpiredTokensUsers,
+// } = require("./utils/cronjobs");
 // const moment = require("moment-timezone");
 // const cron = require("node-cron");
 // const { deleteExpiredToken } = require("./utils/deleteToken");
 
 const app = express();
+
+// whatsapp.initialize();
+// cleanupExpiredTokens();
+// cleanupExpiredTokensUsers();
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(express.static("public"));
+
+// --- PERBAIKAN CORS ---
 app.use(
   cors({
-    origin: "*",
+    origin: process.env.FRONTEND_URL || "https://ucl.uika-bogor.ac.id",
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     credentials: true,
   })
 );
+// ----------------------
+
 app.use(
   session({
     secret: process.env.SECRET,

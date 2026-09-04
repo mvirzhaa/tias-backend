@@ -32,13 +32,23 @@ const validasiRoutes = require("./validasi/validasiRoutes");
 const laporanRoutes = require("./laporan/laporanRoutes");
 const ruanganRoutes = require("./ruangan/ruanganRoutes");
 const ujianRoutes = require("./ujian/ujianRoutes");
+const cbtRoutes = require("./Authentication/cbtRoutes");
 const siakRoutes = require("./siak/siakRoute");
-// const parentsRoutes = require("./parents/parentsRoutes");
+// BRIEF v2 — /siak-sync = admin tools (mapping matakuliah, user mapping, validasi sync).
+// Berbeda dari /lms (LMS sections, content, forum, sync pull SIAK v2).
+const siakSyncRoutes = require("./siak-sync/siakSyncRoutes");
+const parentsRoutes = require("./parents/parentsRoutes");
 const absensiExternalRoutes = require("./absensi-external/indexRouter");
+const suratRoutes = require("./persuratan/surat");
+const lmsRoutes = require("./lms/lmsRoutes");
+const lmsAttendanceRoutes = require("./lms/attendanceRoutes");
+const ssoRoutes = require("./Authentication/ssoRoutes");
 const router = exporess.Router();
 
 router.use("/auth", authRoutes);
 router.use("/admin", adminRoutes);
+router.use("/cbt", cbtRoutes);
+router.use("/sso", ssoRoutes);
 router.use("/users", usersRoutes);
 router.use("/profile", profileRoutes);
 router.use("/kualifikasi", kualifikasiRoutes);
@@ -70,8 +80,12 @@ router.use("/laporan", laporanRoutes);
 router.use("/ruangan", ruanganRoutes);
 router.use("/ujian", ujianRoutes);
 router.use("/siak", siakRoutes);
-// router.use("/parents", parentsRoutes);
+router.use("/siak-sync", siakSyncRoutes); // Task 6: admin tools — user mapping, course mapping, validasi sync
+router.use("/parents", parentsRoutes);
 router.use("/absensi-external", absensiExternalRoutes);
+router.use("/surat", suratRoutes);
+router.use("/lms", lmsRoutes);
+router.use("/lms/attendance", lmsAttendanceRoutes);
 
 router.use("/help", helpRoutes);
 router.get("/", (req, res) => {

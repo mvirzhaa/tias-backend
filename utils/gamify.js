@@ -19,13 +19,11 @@ async function GamifyPoints(user_id, npm){
       const reqInsertIp = await getIp(user_id, npm);
     
       if(reqDeleteIp != 200 && reqInsertIp != 200){
-        res.status(400);
         throw new Error("failed to delete and add ip data.");
       }
     } else if(jumlahData.rows[0].count <= 0){
         const reqInsertIp = await getIp(user_id, npm);
         if(reqInsertIp != 200){
-          res.status(400);
           throw new Error("failed to delete and add ip data.");
         }
     }
@@ -44,19 +42,19 @@ async function GamifyPoints(user_id, npm){
     const gamify = await gamifyAchievements();
 
 
-    let rank;
-    if(Total == 1100 && Total <= 2300){
-      rank = gamify.gm1.gamify
-    } else if(Total >= 2400 && Total <= 3800){
-      rank = gamify.gm2.gamify
-    } else if(Total >= 3900 && Total <= 5300){
-      rank = gamify.gm3.gamify
-    } else if(Total >= 5400 && Total <= 7400){
-      rank = gamify.gm4.gamify
-    } else if(Total >= 7500 && Total <= 9999){
-      rank = gamify.gm5.gamify
-    } else if(Total === 10000 && Total >= 10000){
-      rank = gamify.gm6.gamify
+    let rank = gamify.gm1?.gamify || null;
+    if(Total >= 0 && Total <= 2300){
+      rank = gamify.gm1?.gamify || null;
+    } else if(Total > 2300 && Total <= 3800){
+      rank = gamify.gm2?.gamify || null;
+    } else if(Total > 3800 && Total <= 5300){
+      rank = gamify.gm3?.gamify || null;
+    } else if(Total > 5300 && Total <= 7400){
+      rank = gamify.gm4?.gamify || null;
+    } else if(Total > 7400 && Total <= 9999){
+      rank = gamify.gm5?.gamify || null;
+    } else if(Total >= 10000){
+      rank = gamify.gm6?.gamify || null;
     }
 
     const update = await DB.query(
@@ -66,7 +64,6 @@ async function GamifyPoints(user_id, npm){
 
 
     if(!update.rows.length){
-      res.status(400);
       throw new Error("Error Gamification!!!");
     }
     return 200;

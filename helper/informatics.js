@@ -196,6 +196,25 @@ async function getMatkulByNpm(npm, semester = "GASAL", tahun = "2024/2025") {
   }
 }
 
+async function getMatkulKknByNpm(npm) {
+  const DB = require("../database"); // Use Postgres DB
+  const query = `
+    SELECT d.student_code, e.name AS mahasiswa, b.name, b.credit, b.semester, b.type
+    FROM siak_frs d
+    INNER JOIN siak_course b ON b.code=d.course_code 
+    INNER JOIN siak_student e ON e.code=d.student_code
+    WHERE d.student_code=$1 
+      AND (b.name LIKE '%KKN%' OR b.name LIKE '%Kuliah Kerja Nyata%' OR b.name LIKE '%Pengabdian%')
+  `;
+
+  try {
+    const data = await DB.query(query, [npm]);
+    return data.rows;
+  } catch (error) {
+    throw new Error("failed to retrieve matkul kkn by npm: " + error.message);
+  }
+}
+
 module.exports = {
   executeQuery,
   getInformaticsStudent,
@@ -207,4 +226,5 @@ module.exports = {
   getAllMatkulByMhs,
   getInformaticsStudentBeasiswa,
   getMatkulByNpm,
+  getMatkulKknByNpm,
 };
