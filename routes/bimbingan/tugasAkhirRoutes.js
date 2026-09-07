@@ -152,11 +152,16 @@ router.get(
   exportRekapPenilaianSidang
 );
 
-router.get("/berita-acara-kolo/:id", protected, adminOnly, getBeritaAcaraKolo);
+// Dosen juga bisa cetak Berita Acara & Form Penilaian Kolokium (FE me-render
+// kedua bagian, sama seperti versi admin) - lihat pages/dosen/.../pelaks_kolo/[id].jsx.
+router.get("/berita-acara-kolo/:id", protected, adminDosenOnly, getBeritaAcaraKolo);
+// Dosen juga bisa cetak Berita Acara Sidang (FE membatasi hanya render
+// bagian Berita Acara + Rekapitulasi Nilai, tanpa Lembar Penilaian/Perbaikan
+// milik dosen lain) - lihat pages/dosen/.../pelaks_sidang/[id].jsx.
 router.get(
   "/berita-acara-sidang/:id",
   protected,
-  adminOnly,
+  adminDosenOnly,
   getBeritaAcaraSidang
 );
 
