@@ -79,12 +79,22 @@ exports.scanQr = asyncHandler(async (req, res) => {
     formData.append("status_absen", status_absen);
     formData.append("npm", npm);
 
-    const response = await axios.post(API_URL, formData);
+    const response = await axios.post(API_URL, formData, {
+      headers: formData.getHeaders(),
+    });
 
     res.status(201).json(response.data);
   } catch (error) {
-    console.error("Error retrieving add pembelajaran Absensi:", error);
-    res.status(500).send("Internal Server Error");
+    console.error("Error scan-qr Absensi:", error.message);
+    // Teruskan error response dari PHP (fts-absen) jika ada, agar pesan asli
+    // (mis. "token tidak valid", "sudah absen") sampai ke client, bukan 500 generik.
+    if (error.response) {
+      return res.status(error.response.status).json(error.response.data);
+    }
+    res.status(502).json({
+      message: "Tidak dapat terhubung ke server absensi (fts-absen).",
+      error: error.message,
+    });
   }
 });
 
