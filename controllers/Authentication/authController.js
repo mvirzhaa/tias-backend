@@ -730,68 +730,58 @@ exports.loginUser = asyncHandler(async (req, res) => {
   await completeLogin(user.rows[0], req, res);
 });
 
+// Ambang skor cosine similarity minimum supaya hasil recognize (1:N) dianggap
+// kecocokan yang meyakinkan, bukan cuma "yang paling mirip di antara yang buruk".
+// Pakai FACE_API_THRESHOLD yang sama dengan verify() (satu model/pipeline embedding
+// yang sama) supaya kalibrasinya konsisten; default 0.5 kalau env belum diisi.
+const RECOGNIZE_MIN_SCORE = FACE_API_THRESHOLD ?? 0.5;
+
 /**
  * Login memakai verifikasi wajah sebagai alternatif dari email+password (bukan langkah
- * tambahan setelah password). Hanya untuk Mahasiswa karena pendaftaran wajah (faceEnroll)
- * saat ini hanya menyimpan subject_id = npm. Identitas ditentukan oleh NPM + kecocokan
- * wajah terhadap foto yang sudah di-enroll, lalu memakai jalur completeLogin yang sama
- * dengan login password supaya token & payload konsisten.
+ * tambahan setelah password) — TANPA perlu input NPM/NIP dulu. Identitas ditentukan dari
+ * hasil pencarian 1:N (faceApiClient.recognize) terhadap seluruh wajah yang sudah
+ * di-enroll, jadi berlaku untuk semua role (Mahasiswa maupun Dosen), bukan cuma NPM.
+ * Setelah subject_id ketemu, lanjut ke completeLogin yang sama dengan login password
+ * supaya token & payload konsisten.
  */
 exports.loginWithFace = asyncHandler(async (req, res) => {
-  const { npm } = req.body;
-
-  if (!npm) {
-    res.status(400);
-    throw new Error("NPM wajib diisi.");
-  }
-
   if (!req.file) {
     res.status(400);
     throw new Error("Foto wajah wajib diunggah.");
   }
 
-  const user = await DB.query("SELECT * FROM tb_users WHERE npm = $1", [npm]);
-
-  if (!user.rows.length) {
-    res.status(404);
-    throw new Error("NPM tidak ditemukan.");
-  }
-
-  if (user.rows[0].role !== "Mahasiswa") {
-    res.status(403);
-    throw new Error("Login dengan wajah hanya tersedia untuk Mahasiswa.");
-  }
-
   const client = faceApiClient.createClient();
 
-  let enrolled;
+  let matches;
   try {
-    enrolled = await faceApiClient.isEnrolled(client, npm);
-  } catch (error) {
-    res.status(502);
-    throw new Error("Layanan verifikasi wajah tidak tersedia. Silakan coba lagi atau gunakan login password.");
-  }
-
-  if (!enrolled) {
-    res.status(404);
-    throw new Error("Wajah Anda belum terdaftar. Silakan login dengan password lalu daftarkan wajah di menu Profil.");
-  }
-
-  let verifyResult;
-  try {
-    verifyResult = await faceApiClient.verify(client, {
-      subjectId: npm,
+    matches = await faceApiClient.recognize(client, {
       imageBuffer: req.file.buffer,
-      threshold: FACE_API_THRESHOLD,
+      topK: 1,
     });
   } catch (error) {
     res.status(502);
     throw new Error("Verifikasi wajah gagal, silakan coba lagi.");
   }
 
-  if (!verifyResult.match) {
+  const best = matches[0];
+
+  if (!best || best.score < RECOGNIZE_MIN_SCORE) {
     res.status(401);
-    throw new Error("Wajah tidak cocok. Login ditolak.");
+    throw new Error("Wajah tidak dikenali. Silakan login dengan password atau coba lagi.");
+  }
+
+  const user = await DB.query(
+    `SELECT u.* FROM tb_users u
+     LEFT JOIN tb_data_pribadi dp ON dp.user_id = u.user_id
+     WHERE (u.npm = $1 OR u.nidn = $1 OR dp.nip = $1 OR u.user_id::text = $1)
+       AND u.deleted_at IS NULL
+     LIMIT 1`,
+    [best.subjectId]
+  );
+
+  if (!user.rows.length) {
+    res.status(404);
+    throw new Error("Wajah dikenali tapi akun terkait tidak ditemukan. Hubungi admin.");
   }
 
   await completeLogin(user.rows[0], req, res);
