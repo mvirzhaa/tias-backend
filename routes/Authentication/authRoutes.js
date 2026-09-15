@@ -2,6 +2,7 @@ const express = require("express");
 const {
   register,
   loginUser,
+  loginWithFace,
   logout,
   updateUserLogin,
   deleteUser,
@@ -26,6 +27,7 @@ const {
   verifyByAdmin,
 } = require("../../controllers/Authentication/authController");
 const { protected, adminOnly } = require("../../middleware/authMiddleware");
+const { attendanceUpload } = require("../../middleware/lms/attendanceUpload");
 const passport = require("../../utils/passport");
 const { generateToken } = require("../../utils");
 const DB = require("../../database");
@@ -37,6 +39,7 @@ router.post("/register-pmm", registerMhsPmm);
 router.post("/register-dosen-ext", registerDosenExt);
 router.post("/register-pegawai", registerPegawai);
 router.post("/login", loginUser);
+router.post("/login-face", attendanceUpload, loginWithFace);
 router.get("/cekDataPribadi/:id", cekDataPribadi);
 router.post("/sendLoginCode/:email", sendLoginCode);
 router.post("/loginWithCode/:email", loginWithCode);
