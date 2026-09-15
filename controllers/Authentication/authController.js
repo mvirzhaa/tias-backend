@@ -19,6 +19,13 @@ const { default: axios } = require("axios");
 const TrxUserJabatanUnit = require("../../models/TrxUserJabatanUnit");
 const Jabatan = require("../../models/master/Jabatan");
 const Unit = require("../../models/master/Unit");
+const faceApiClient = require("../../lib/lms/faceApi/client");
+
+// Threshold sama dengan yang dipakai presensi wajah (lib/lms/faceApi), supaya kecocokan
+// wajah untuk login memakai standar yang sama dengan kecocokan wajah untuk presensi.
+const FACE_API_THRESHOLD = process.env.FACE_API_THRESHOLD
+  ? parseFloat(process.env.FACE_API_THRESHOLD)
+  : undefined;
 
 exports.register = asyncHandler(async (req, res) => {
   const { error } = formRegisterValidation(req.body);
@@ -552,6 +559,152 @@ exports.registerPegawai = asyncHandler(async (req, res) => {
   }
 });
 
+/**
+ * Menyelesaikan sesi login untuk `userRow` (baris tb_users) yang identitasnya sudah
+ * terverifikasi oleh pemanggil — baik lewat password (loginUser) maupun wajah
+ * (loginWithFace). Dipisah dari pengecekan kredensial supaya kedua metode login
+ * menghasilkan token & payload response yang identik.
+ */
+async function completeLogin(userRow, req, res) {
+  if (!userRow.isverified) {
+    if (userRow.role == "Mahasiswa" || userRow.role == "Dosen") {
+      // Delete token if it exists in DB
+      const token = await DB.query("SELECT * FROM token WHERE user_id = $1", [userRow.user_id]);
+
+      if (token.rows.length) {
+        await DB.query("DELETE FROM token WHERE user_id = $1", [userRow.user_id]);
+      }
+      // Create verification token
+      const verificationToken = crypto.randomBytes(32).toString("hex") + userRow.user_id;
+      const hashedToken = hashToken(verificationToken);
+
+      const unix = unixTimestamp;
+      const createdAt = await convertDate(unix);
+      const unixExpires = expires_at;
+      const expiresAt = await convertDate(unixExpires);
+
+      await DB.query("INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [userRow.user_id, hashedToken, createdAt, expiresAt]);
+
+      // Construct Verification Token
+      const verificationUrl = `${process.env.API_URL}/auth/verifyUser/${verificationToken}`;
+
+      // Send verification email
+      const subject = "Verify Your Account";
+      const send_to = userRow.email;
+      const send_from = process.env.EMAIL_USER;
+      const template = "verifyEmail";
+      const link = verificationUrl;
+
+      await sendMail(subject, send_to, send_from, template, link);
+
+      res.status(399);
+      throw new Error("Account not verified. Check your email for verification.");
+    } else if (userRow.role == "Dosen_Ext") {
+      res.status(399);
+      throw new Error("Account not verified. verification is being processed");
+    }
+  }
+
+  // Generate token before login
+  const ua = parser(req.headers["user-agent"]);
+  const thisUserAgent = ua.ua;
+
+  const allowedAgent = userRow.user_agent?.includes(thisUserAgent) || false;
+
+  if (!allowedAgent) {
+    await DB.query("UPDATE tb_users SET user_agent = array_append(user_agent, $1) WHERE user_id = $2", [thisUserAgent, userRow.user_id]);
+
+    const convert = convertDate(unixTimestamp);
+    const text = `Your account has been logged in to the device/browser ${thisUserAgent} at ${convert.toUTCString()}`;
+    // Send Notice Email
+    const subject = "Notice For Your Account TIAS";
+    const send_to = userRow.email;
+    const send_from = process.env.EMAIL_USER;
+    const template = "noticeAccount";
+    const link = text;
+
+    try {
+      await sendMail(subject, send_to, send_from, template, link);
+    } catch (error) {
+      // Email notice gagal tidak memblokir login
+      console.warn("[LOGIN] Gagal kirim email notifikasi perangkat baru:", error.message);
+    }
+  }
+  // END
+
+  const id = userRow.user_id;
+  // // Generate Token
+  const token = generateToken(id);
+
+  const { user_id, npm, nidn, username, email, role, isverified, created_at } = userRow;
+
+  const unix = unixTimestamp;
+  const createdAt = await convertDate(unix);
+  const unixExpires = expires_at;
+  const expiresAt = await convertDate(unixExpires);
+
+  await DB.query("INSERT INTO token(user_id, login_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [id, token, createdAt, expiresAt]);
+
+  const getPersonalData = await DB.query("SELECT * FROM tb_data_pribadi WHERE user_id = $1", [user_id]);
+
+  const queryLencana = await DB.query(`SELECT * FROM achievements WHERE gamify = $1`, [getPersonalData.rows[0]?.rank || ""]);
+
+  const jabatanStruktural = await TrxUserJabatanUnit.findAll({
+    where: {
+      user_id: user_id,
+    },
+    attributes: ["user_id", "jabatan_id", "unit_id"],
+    include: [
+      {
+        model: Jabatan,
+        as: "jabatan",
+      },
+      {
+        model: Unit,
+        as: "unit",
+      },
+    ],
+  });
+
+  const oneMonth = 30 * 24 * 60 * 60 * 1000;
+
+  res.cookie("token", token, {
+    path: "/",
+    httpOnly: true,
+    expires: new Date(Date.now() + oneMonth),
+    sameSite: "none",
+    secure: true,
+  });
+
+  res.status(200).json({
+    message: "Login Success.",
+    data: {
+      user_id,
+      npm,
+      nidn,
+      username,
+      email,
+      role,
+      nip: getPersonalData.rows[0]?.nip || "",
+      nama_lengkap: getPersonalData.rows[0]?.nama_lengkap || "",
+      image: getPersonalData.rows[0]?.image || "",
+      no_hp: getPersonalData.rows[0]?.no_hp || "",
+      imageUrl: `${process.env.API_URL}/foto-profile/${getPersonalData.rows[0]?.image}` || "",
+      kode_mhs: getPersonalData.rows[0]?.kode_mhs || "",
+      isverified,
+      created_at,
+      personalData: getPersonalData.rows[0],
+      jabatanStruktural,
+      lencana:
+        queryLencana.rows.length &&
+        queryLencana.rows.map((iterate) => ({
+          lencana: `${process.env.API_URL}/gamify/lencana/${iterate.lencana}`,
+        })),
+      token,
+    },
+  });
+}
+
 exports.loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -574,149 +727,74 @@ exports.loginUser = asyncHandler(async (req, res) => {
     throw new Error("Invalid Email Or Password.");
   }
 
-  if (!user.rows[0].isverified) {
-    if (user.rows[0].role == "Mahasiswa" || user.rows[0].role == "Dosen") {
-      // Delete token if it exists in DB
-      const token = await DB.query("SELECT * FROM token WHERE user_id = $1", [user.rows[0].user_id]);
+  await completeLogin(user.rows[0], req, res);
+});
 
-      if (token.rows.length) {
-        await DB.query("DELETE FROM token WHERE user_id = $1", [user.rows[0].user_id]);
-      }
-      // Create verification token
-      const verificationToken = crypto.randomBytes(32).toString("hex") + user.rows[0].user_id;
-      // console.log(verificationToken);
-      const hashedToken = hashToken(verificationToken);
+/**
+ * Login memakai verifikasi wajah sebagai alternatif dari email+password (bukan langkah
+ * tambahan setelah password). Hanya untuk Mahasiswa karena pendaftaran wajah (faceEnroll)
+ * saat ini hanya menyimpan subject_id = npm. Identitas ditentukan oleh NPM + kecocokan
+ * wajah terhadap foto yang sudah di-enroll, lalu memakai jalur completeLogin yang sama
+ * dengan login password supaya token & payload konsisten.
+ */
+exports.loginWithFace = asyncHandler(async (req, res) => {
+  const { npm } = req.body;
 
-      const unix = unixTimestamp;
-      const createdAt = await convertDate(unix);
-      const unixExpires = expires_at;
-      const expiresAt = await convertDate(unixExpires);
-
-      await DB.query("INSERT INTO token(user_id, verif_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [user.rows[0].user_id, hashedToken, createdAt, expiresAt]);
-
-      // Construct Verification Token
-      const verificationUrl = `${process.env.API_URL}/auth/verifyUser/${verificationToken}`;
-
-      // Send verification email
-      const subject = "Verify Your Account";
-      const send_to = user.rows[0].email;
-      const send_from = process.env.EMAIL_USER;
-      const template = "verifyEmail";
-      const link = verificationUrl;
-
-      await sendMail(subject, send_to, send_from, template, link);
-
-      res.status(399);
-      throw new Error("Account not verified. Check your email for verification.");
-    } else if (user.rows[0].role == "Dosen_Ext") {
-      res.status(399);
-      throw new Error("Account not verified. verification is being processed");
-    }
+  if (!npm) {
+    res.status(400);
+    throw new Error("NPM wajib diisi.");
   }
 
-  // Generate token before login
-  const ua = parser(req.headers["user-agent"]);
-  const thisUserAgent = ua.ua;
-
-  const allowedAgent = user.rows[0].user_agent?.includes(thisUserAgent) || false;
-
-  if (!allowedAgent) {
-    await DB.query("UPDATE tb_users SET user_agent = array_append(user_agent, $1) WHERE user_id = $2", [thisUserAgent, user.rows[0].user_id]);
-
-    const convert = convertDate(unixTimestamp);
-    const text = `Your account has been logged in to the device/browser ${thisUserAgent} at ${convert.toUTCString()}`;
-    // Send Notice Email
-    const subject = "Notice For Your Account TIAS";
-    const send_to = user.rows[0].email;
-    const send_from = process.env.EMAIL_USER;
-    const template = "noticeAccount";
-    const link = text;
-
-    try {
-      await sendMail(subject, send_to, send_from, template, link);
-    } catch (error) {
-      // Email notice gagal tidak memblokir login
-      console.warn("[LOGIN] Gagal kirim email notifikasi perangkat baru:", error.message);
-    }
+  if (!req.file) {
+    res.status(400);
+    throw new Error("Foto wajah wajib diunggah.");
   }
-  // END
 
-  const id = user.rows[0].user_id;
-  // // Generate Token
-  const token = generateToken(id);
+  const user = await DB.query("SELECT * FROM tb_users WHERE npm = $1", [npm]);
 
-  if (user.rows.length && passwordIsCorrect) {
-    const { user_id, npm, nidn, username, email, role, isverified, created_at } = user.rows[0];
-
-    const unix = unixTimestamp;
-    const createdAt = await convertDate(unix);
-    const unixExpires = expires_at;
-    const expiresAt = await convertDate(unixExpires);
-
-    await DB.query("INSERT INTO token(user_id, login_token, created_at, expires_at) VALUES ($1, $2, $3, $4)", [id, token, createdAt, expiresAt]);
-
-    const getPersonalData = await DB.query("SELECT * FROM tb_data_pribadi WHERE user_id = $1", [user_id]);
-
-const queryLencana = await DB.query(`SELECT * FROM achievements WHERE gamify = $1`, [getPersonalData.rows[0]?.rank || ""]);
-
-    const jabatanStruktural = await TrxUserJabatanUnit.findAll({
-      where: {
-        user_id: user_id,
-      },
-      attributes: ["user_id", "jabatan_id", "unit_id"],
-      include: [
-        {
-          model: Jabatan,
-          as: "jabatan",
-        },
-        {
-          model: Unit,
-          as: "unit",
-        },
-      ],
-    });
-
-    const oneMonth = 30 * 24 * 60 * 60 * 1000;
-
-    res.cookie("token", token, {
-      path: "/",
-      httpOnly: true,
-      expires: new Date(Date.now() + oneMonth),
-      sameSite: "none",
-      secure: true,
-    });
-
-    res.status(200).json({
-      message: "Login Success.",
-      data: {
-        user_id,
-        npm,
-        nidn,
-        username,
-        email,
-        role,
-        nip: getPersonalData.rows[0]?.nip || "",
-        nama_lengkap: getPersonalData.rows[0]?.nama_lengkap || "",
-        image: getPersonalData.rows[0]?.image || "",
-        no_hp: getPersonalData.rows[0]?.no_hp || "",
-        imageUrl: `${process.env.API_URL}/foto-profile/${getPersonalData.rows[0]?.image}` || "",
-        kode_mhs: getPersonalData.rows[0]?.kode_mhs || "",
-        isverified,
-        created_at,
-        personalData: getPersonalData.rows[0],
-        jabatanStruktural,
-        lencana:
-          queryLencana.rows.length &&
-          queryLencana.rows.map((iterate) => ({
-            lencana: `${process.env.API_URL}/gamify/lencana/${iterate.lencana}`,
-          })),
-        token,
-      },
-    });
-  } else {
-    res.status(500);
-    throw new Error("Somthing went wrong, Pleas try again.");
+  if (!user.rows.length) {
+    res.status(404);
+    throw new Error("NPM tidak ditemukan.");
   }
+
+  if (user.rows[0].role !== "Mahasiswa") {
+    res.status(403);
+    throw new Error("Login dengan wajah hanya tersedia untuk Mahasiswa.");
+  }
+
+  const client = faceApiClient.createClient();
+
+  let enrolled;
+  try {
+    enrolled = await faceApiClient.isEnrolled(client, npm);
+  } catch (error) {
+    res.status(502);
+    throw new Error("Layanan verifikasi wajah tidak tersedia. Silakan coba lagi atau gunakan login password.");
+  }
+
+  if (!enrolled) {
+    res.status(404);
+    throw new Error("Wajah Anda belum terdaftar. Silakan login dengan password lalu daftarkan wajah di menu Profil.");
+  }
+
+  let verifyResult;
+  try {
+    verifyResult = await faceApiClient.verify(client, {
+      subjectId: npm,
+      imageBuffer: req.file.buffer,
+      threshold: FACE_API_THRESHOLD,
+    });
+  } catch (error) {
+    res.status(502);
+    throw new Error("Verifikasi wajah gagal, silakan coba lagi.");
+  }
+
+  if (!verifyResult.match) {
+    res.status(401);
+    throw new Error("Wajah tidak cocok. Login ditolak.");
+  }
+
+  await completeLogin(user.rows[0], req, res);
 });
 
 exports.cekDataPribadi = asyncHandler(async (req, res) => {
