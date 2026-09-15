@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const DB = require('../../database');
 const { generateToken } = require('../../utils');
 const { addUserToBlacklist, removeUserFromBlacklist } = require('../../utils/tokenBlacklist');
+const { autoProvisionFromSiak } = require('../../helper/ssoAutoProvision');
 
 const EPORTAL_API = process.env.EPORTAL_URL || 'http://localhost:8000';
 
@@ -89,10 +90,31 @@ router.get('/callback', async (req, res) => {
         const t4 = Date.now();
         console.log(`[TIMING] DB query: ${t4 - t3}ms`);
 
+        // Belum terdaftar di TIAS? Coba auto-provision dari data akademik SIAK/SIMPEG
+        // sebelum menolak — supaya login SSO pertama kali langsung jalan tanpa perlu
+        // didaftarkan manual dulu oleh admin. Kalau identifier-nya juga tidak ditemukan
+        // di SIAK/SIMPEG (bukan sivitas akademik sah), baru benar-benar ditolak di bawah.
+        if (!userResult || !userResult.rows.length) {
+            try {
+                const provisioned = await autoProvisionFromSiak(eportalUser);
+                if (provisioned) {
+                    userResult = await DB.query(
+                        `SELECT u.*, dp.nama_lengkap, dp.nip, dp.image, dp.total_point, dp.kode_mhs
+                         FROM tb_users u
+                         JOIN tb_data_pribadi dp ON dp.user_id = u.user_id
+                         WHERE u.user_id = $1 AND u.deleted_at IS NULL`,
+                        [provisioned.user_id]
+                    );
+                }
+            } catch (err) {
+                console.error('[SSO-AUTOPROVISION] Gagal provisioning:', err.message);
+            }
+        }
+
         if (!userResult || !userResult.rows.length) {
             return res.status(404).json({
                 status: 404,
-                message: `User dengan email ${eportalUser.email} tidak ditemukan di TIAS.`,
+                message: `Akun ${eportalUser.email} ditemukan di E-Portal, tapi tidak terdaftar sebagai sivitas akademik UIKA di TIAS. Hubungi admin.`,
             });
         }
 
