@@ -52,6 +52,13 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     assertNotProduction(__filename);
     const now = new Date();
+    
+    // Sync sequences first, start from 1000 to avoid any collision with manually inserted seed data
+    await queryInterface.sequelize.query(`SELECT setval('ta_pengajuan_sk_id_seq', (SELECT COALESCE(GREATEST(MAX(id), 1000), 1000) FROM ta_pengajuan_sk))`);
+    await queryInterface.sequelize.query(`SELECT setval('ta_pendaftaran_kolokium_id_seq', (SELECT COALESCE(GREATEST(MAX(id), 1000), 1000) FROM ta_pendaftaran_kolokium))`);
+    await queryInterface.sequelize.query(`SELECT setval('ta_pendaftaran_sidang_id_seq', (SELECT COALESCE(GREATEST(MAX(id), 1000), 1000) FROM ta_pendaftaran_sidang))`);
+    await queryInterface.sequelize.query(`SELECT setval('ta_penilaian_kolokium_id_seq', (SELECT COALESCE(GREATEST(MAX(id), 1000), 1000) FROM ta_penilaian_kolokium))`);
+    await queryInterface.sequelize.query(`SELECT setval('ta_penilaian_sidang_id_seq', (SELECT COALESCE(GREATEST(MAX(id), 1000), 1000) FROM ta_penilaian_sidang))`);
 
     // 1. Ambil user_id mahasiswa dari tb_users
     const npmListStr = VALID_NPMS.map(n => `'${n}'`).join(',');
@@ -137,16 +144,11 @@ module.exports = {
         `INSERT INTO ta_pengajuan_sk (
            mhs_id, judul_skripsi, lokasi_kegiatan, semester, 
            sk_pembimbing_1, sk_pembimbing_2, kepala_lab, status, 
-           created_at, status_approved, status_approved_kolo, 
-           status_approved_sidang, status_kelulusan, nomor_sk, tgl_sk, 
-           sk_status_pem_1, sk_status_pem_2, status_kepala_lab
+           created_at
          ) VALUES (
            '${mhsId}', '${judul}', 'Lab Rekayasa Perangkat Lunak', '8',
            '${d1}', '${d2}', '${d3}', '${status}', 
-           NOW(), ${isApproved}, ${step !== 'sk-approved' && step !== ''}, 
-           ${step === 'lulus' || step === 'sidang-revisi'}, ${statusKelulusan},
-           ${isApproved ? `'SK/FTS/${config.npm}/${2025}'` : 'NULL'}, ${isApproved ? 'NOW()' : 'NULL'},
-           ${isApproved ? 'true' : 'NULL'}, ${isApproved ? 'true' : 'NULL'}, ${isApproved ? 'true' : 'NULL'}
+           NOW()
          ) RETURNING id`
       );
       const skId = skResult[0].id;
@@ -162,12 +164,12 @@ module.exports = {
              mhs_id, pengajuan_sk_id, status_kp, status_sks_ipk, 
              jumlah_sks, ipk, kolo_pembimbing_1, kolo_pembimbing_2, 
              evaluator_1, evaluator_2, kolo_status_pem_1, kolo_status_pem_2, 
-             nilai, judul, created_at
+             judul, created_at
            ) VALUES (
              '${mhsId}', ${skId}, true, true, 
              '138', '3.62', '${d1}', '${d2}', 
              '${d3}', '${d4}', true, true,
-             ${isKoloCompleted ? `'Lulus'` : 'NULL'}, '${judul}', NOW()
+             '${judul}', NOW()
            ) RETURNING id`
         );
         const koloId = koloResult[0].id;
@@ -177,31 +179,11 @@ module.exports = {
           await queryInterface.bulkInsert('ta_penilaian_kolokium', [
             {
               kolo_id: koloId,
-              dosen_id: d3,
-              peran: 'Evaluator 1',
-              penilaian_1: 85,
-              penilaian_2: 80,
-              penilaian_3: 90,
-              penilaian_4: 85,
-              penilaian_5: 88,
-              final_nilai: 86,
-              huruf_mutu: 'A',
-              created_at: now,
-              komentar_singkat: 'Topik sangat relevan, lanjutkan ke bab berikutnya.'
+              dosen_id: d3
             },
             {
               kolo_id: koloId,
-              dosen_id: d4,
-              peran: 'Evaluator 2',
-              penilaian_1: 80,
-              penilaian_2: 82,
-              penilaian_3: 85,
-              penilaian_4: 80,
-              penilaian_5: 83,
-              final_nilai: 82,
-              huruf_mutu: 'A-',
-              created_at: now,
-              komentar_singkat: 'Tambahkan landasan teori tentang algoritma pembanding.'
+              dosen_id: d4
             }
           ]);
         }
@@ -226,38 +208,14 @@ module.exports = {
 
           // Jika sidang sudah selesai, masukkan penilaian sidang
           if (isSidangCompleted) {
-            const finalScore = step === 'lulus' ? 90 : 72;
-            const letterGrade = step === 'lulus' ? 'A' : 'B';
-            const comment = step === 'lulus' ? 'Lulus memuaskan, presentasi sangat baik.' : 'Revisi bab analisis dan kesimpulan.';
-
             await queryInterface.bulkInsert('ta_penilaian_sidang', [
               {
                 sidang_id: sidangId,
-                dosen_id: d3,
-                peran: 'Penguji 1',
-                penilaian_1: finalScore,
-                penilaian_2: finalScore + 2,
-                penilaian_3: finalScore - 1,
-                penilaian_4: finalScore + 1,
-                penilaian_5: finalScore,
-                final_nilai: finalScore,
-                huruf_mutu: letterGrade,
-                created_at: now,
-                komentar_singkat: comment
+                dosen_id: d3
               },
               {
                 sidang_id: sidangId,
-                dosen_id: d4,
-                peran: 'Penguji 2',
-                penilaian_1: finalScore - 2,
-                penilaian_2: finalScore,
-                penilaian_3: finalScore + 1,
-                penilaian_4: finalScore - 1,
-                penilaian_5: finalScore,
-                final_nilai: finalScore,
-                huruf_mutu: letterGrade,
-                created_at: now,
-                komentar_singkat: comment
+                dosen_id: d4
               }
             ]);
           }
