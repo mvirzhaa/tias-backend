@@ -15,6 +15,7 @@ const {
   rekap,
   getCurrentSession,
   getSessionRecords,
+  getLegacySessionQr,
 } = require("../../controllers/lms/attendanceController");
 
 const router = express.Router();
@@ -24,6 +25,7 @@ router.get("/sessions/current", protected, getCurrentSession);
 router.patch("/sessions/:id/close", protected, lecturerOwnsSession, closeSession);
 router.get("/sessions/resolve", protected, resolveToken);
 router.get("/sessions/:id/records", protected, lecturerOwnsSession, getSessionRecords);
+router.get("/sessions/:id/legacy-qr", protected, lecturerOwnsSession, getLegacySessionQr);
 router.post("/submit", protected, attendanceUpload, studentCanSubmitAttendance, submitAttendance);
 router.get("/me", protected, myAttendanceHistory);
 router.get("/rekap", protected, adminOnly, rekap);
