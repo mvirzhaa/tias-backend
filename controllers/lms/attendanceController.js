@@ -35,7 +35,7 @@ const FACE_API_THRESHOLD = process.env.FACE_API_THRESHOLD
   : undefined;
 
 const logAttempt = (fields) =>
-  LmsAttendanceAttempt.create({ attempted_at: new Date(), ...fields });
+  LmsAttendanceAttempt.create({ attempted_at: new Date(), created_at: new Date(), ...fields });
 
 const generateToken = () => String(Math.floor(100000 + Math.random() * 900000));
 
@@ -117,6 +117,8 @@ exports.openSession = asyncHandler(async (req, res) => {
         status: "open",
         opened_at: new Date(),
         expires_at: expiresAt,
+        created_at: new Date(),
+        updated_at: new Date(),
       });
     } catch (error) {
       if (error.name !== "SequelizeUniqueConstraintError") throw error;
@@ -135,7 +137,7 @@ exports.openSession = asyncHandler(async (req, res) => {
 exports.closeSession = asyncHandler(async (req, res) => {
   const session = req.lmsAttendanceSession;
   if (session.status === "open") {
-    await session.update({ status: "closed", closed_at: new Date() });
+    await session.update({ status: "closed", closed_at: new Date(), updated_at: new Date() });
   }
   return response(res, true, "Sesi presensi ditutup.", session, 200);
 });
@@ -323,6 +325,8 @@ exports.submitAttendance = asyncHandler(async (req, res) => {
       face_match: true,
       face_photo_storage_key: storageKey,
       submitted_at: new Date(),
+      created_at: new Date(),
+      updated_at: new Date(),
     });
   } catch (error) {
     if (error.name === "SequelizeUniqueConstraintError") {
