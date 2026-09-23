@@ -134,6 +134,14 @@ exports.openSession = asyncHandler(async (req, res) => {
     console.error("[lms/attendance] legacy bridge gagal:", legacyError);
   }
 
+  // Tutup dulu sesi 'open' LAMA (kalau ada, mis. sesi kemarin yang lupa ditutup dosen) utk
+  // pertemuan yang sama -- mencegah >1 baris 'open' menumpuk & bikin getCurrentSession
+  // ambigu (lihat ORDER BY di getCurrentSession).
+  await LmsAttendanceSession.update(
+    { status: "closed", closed_at: new Date(), updated_at: new Date() },
+    { where: { kelasKuliahId, pertemuan_ke: parseInt(pertemuan_ke, 10), status: "open" } }
+  );
+
   let token;
   let created = null;
   for (let attempt = 0; attempt < 5 && !created; attempt += 1) {
@@ -432,8 +440,12 @@ exports.getCurrentSession = asyncHandler(async (req, res) => {
     return response(res, false, "Anda tidak mengampu kelas ini.", null, 403);
   }
 
+  // ORDER BY wajib: bisa ada >1 baris 'open' utk kelasKuliahId+pertemuan_ke yang sama (mis.
+  // sesi lama yang lupa ditutup dosen) -- tanpa urutan, findOne bisa mengambil baris LAMA yang
+  // sudah lewat expires_at (dianggap tidak aktif) padahal ada sesi BARU yang masih valid.
   const session = await LmsAttendanceSession.findOne({
     where: { kelasKuliahId, pertemuan_ke: parseInt(pertemuan_ke, 10), status: "open" },
+    order: [["opened_at", "DESC"]],
   });
   // Status di DB masih 'open' tapi sudah lewat expires_at (durasi dinamis dosen habis) ->
   // JANGAN dianggap sesi "current" lagi, walau belum ada yang klik "Tutup Sesi" manual.
