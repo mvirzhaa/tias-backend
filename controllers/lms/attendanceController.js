@@ -13,6 +13,7 @@ const { isOnlineMethod, isSessionActive } = require("../../lib/lms/attendanceMet
 const faceApiClient = require("../../lib/lms/faceApi/client");
 const { getRekapByClass } = require("../../lib/lms/attendanceRekapService");
 const { lecturerOwns } = require("../../middleware/lms/lecturerOwnsClass");
+const { resolveIdMatkul, createLegacyPembelajaran } = require("../../lib/lms/legacyAttendanceBridge");
 
 const HARI_ID = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
@@ -95,6 +96,38 @@ exports.openSession = asyncHandler(async (req, res) => {
     );
   }
 
+  // Jembatan best-effort ke sistem presensi lama (Laravel fts-absen) — permintaan Pak
+  // Fitrah: QR dari LMS harus bisa di-scan + diverifikasi wajah lewat UCL Mobile (alur yang
+  // sudah ada di sana), dan presensinya otomatis tercatat di sistem Presensi luar LMS TANPA
+  // sinkronisasi tambahan (baris yang sama, bukan salinan). Kegagalan di sini TIDAK BOLEH
+  // menggagalkan pembukaan sesi LMS — sesi tetap dibuat dengan token/alur native LMS sebagai
+  // fallback. Lihat lib/lms/legacyAttendanceBridge.js untuk rasional lengkap.
+  let legacyToken = null;
+  let legacySyncStatus = null;
+  try {
+    const cls = await SiakV2Class.findByPk(kelasKuliahId, {
+      attributes: ["kode_matakuliah", "nama"],
+    });
+    const idMatkul = cls ? await resolveIdMatkul(cls.kode_matakuliah) : null;
+    if (!idMatkul) {
+      legacySyncStatus = "unmapped";
+    } else if (!req.user.nip) {
+      legacySyncStatus = "failed";
+    } else {
+      const legacy = await createLegacyPembelajaran({
+        nikDosen: req.user.nip,
+        idMatkul,
+        kelasNama: cls.nama,
+        pertemuanKe: parseInt(pertemuan_ke, 10),
+        isOffline,
+      });
+      legacyToken = legacy.token;
+      legacySyncStatus = "linked";
+    }
+  } catch (error) {
+    legacySyncStatus = "failed";
+  }
+
   let token;
   let created = null;
   for (let attempt = 0; attempt < 5 && !created; attempt += 1) {
@@ -117,6 +150,8 @@ exports.openSession = asyncHandler(async (req, res) => {
         status: "open",
         opened_at: new Date(),
         expires_at: expiresAt,
+        legacy_token: legacyToken,
+        legacy_sync_status: legacySyncStatus,
         created_at: new Date(),
         updated_at: new Date(),
       });

@@ -83,6 +83,14 @@ LmsAttendanceSession.init(
       type: DataTypes.DATE,
       allowNull: true,
     },
+    legacy_token: {
+      type: DataTypes.STRING(16),
+      allowNull: true,
+    },
+    legacy_sync_status: {
+      type: DataTypes.STRING(16),
+      allowNull: true,
+    },
     created_at: {
       type: DataTypes.DATE,
     },
