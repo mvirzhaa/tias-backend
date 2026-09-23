@@ -14,7 +14,7 @@ const { isOnlineMethod, isSessionActive } = require("../../lib/lms/attendanceMet
 const faceApiClient = require("../../lib/lms/faceApi/client");
 const { getRekapByClass } = require("../../lib/lms/attendanceRekapService");
 const { lecturerOwns } = require("../../middleware/lms/lecturerOwnsClass");
-const { resolveIdMatkul, createLegacyPembelajaran } = require("../../lib/lms/legacyAttendanceBridge");
+const { createLegacyPembelajaran } = require("../../lib/lms/legacyAttendanceBridge");
 
 const HARI_ID = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
@@ -109,15 +109,14 @@ exports.openSession = asyncHandler(async (req, res) => {
     const cls = await SiakV2Class.findByPk(kelasKuliahId, {
       attributes: ["kode_matakuliah", "nama"],
     });
-    const idMatkul = cls ? await resolveIdMatkul(cls.kode_matakuliah) : null;
-    if (!idMatkul) {
+    if (!cls || !cls.kode_matakuliah) {
       legacySyncStatus = "unmapped";
     } else if (!req.user.nip) {
       legacySyncStatus = "failed";
     } else {
       const legacy = await createLegacyPembelajaran({
         nikDosen: req.user.nip,
-        idMatkul,
+        kodeMatakuliah: cls.kode_matakuliah,
         kelasNama: cls.nama,
         pertemuanKe: parseInt(pertemuan_ke, 10),
         isOffline,
