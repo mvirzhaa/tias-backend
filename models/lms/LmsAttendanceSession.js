@@ -91,6 +91,10 @@ LmsAttendanceSession.init(
       type: DataTypes.STRING(16),
       allowNull: true,
     },
+    legacy_error: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
     created_at: {
       type: DataTypes.DATE,
     },

@@ -105,6 +105,7 @@ exports.openSession = asyncHandler(async (req, res) => {
   // fallback. Lihat lib/lms/legacyAttendanceBridge.js untuk rasional lengkap.
   let legacyToken = null;
   let legacySyncStatus = null;
+  let legacyError = null;
   try {
     const cls = await SiakV2Class.findByPk(kelasKuliahId, {
       attributes: ["kode_matakuliah", "nama"],
@@ -113,6 +114,7 @@ exports.openSession = asyncHandler(async (req, res) => {
       legacySyncStatus = "unmapped";
     } else if (!req.user.nip) {
       legacySyncStatus = "failed";
+      legacyError = "req.user.nip kosong (nik_dosen wajib untuk fts-absen).";
     } else {
       const legacy = await createLegacyPembelajaran({
         nikDosen: req.user.nip,
@@ -126,6 +128,10 @@ exports.openSession = asyncHandler(async (req, res) => {
     }
   } catch (error) {
     legacySyncStatus = "failed";
+    legacyError = error.response
+      ? `HTTP ${error.response.status}: ${JSON.stringify(error.response.data)}`
+      : error.message;
+    console.error("[lms/attendance] legacy bridge gagal:", legacyError);
   }
 
   let token;
@@ -152,6 +158,7 @@ exports.openSession = asyncHandler(async (req, res) => {
         expires_at: expiresAt,
         legacy_token: legacyToken,
         legacy_sync_status: legacySyncStatus,
+        legacy_error: legacyError,
         created_at: new Date(),
         updated_at: new Date(),
       });
