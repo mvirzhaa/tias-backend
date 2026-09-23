@@ -1,4 +1,5 @@
 const asyncHandler = require("express-async-handler");
+const axios = require("axios");
 const { Op } = require("sequelize");
 const { response } = require("../../lib/response");
 const LmsAttendanceSession = require("../../models/lms/LmsAttendanceSession");
@@ -13,6 +14,7 @@ const { isOnlineMethod, isSessionActive } = require("../../lib/lms/attendanceMet
 const faceApiClient = require("../../lib/lms/faceApi/client");
 const { getRekapByClass } = require("../../lib/lms/attendanceRekapService");
 const { lecturerOwns } = require("../../middleware/lms/lecturerOwnsClass");
+const { resolveIdMatkul, createLegacyPembelajaran } = require("../../lib/lms/legacyAttendanceBridge");
 
 const HARI_ID = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
@@ -95,6 +97,38 @@ exports.openSession = asyncHandler(async (req, res) => {
     );
   }
 
+  // Jembatan best-effort ke sistem presensi lama (Laravel fts-absen) — permintaan Pak
+  // Fitrah: QR dari LMS harus bisa di-scan + diverifikasi wajah lewat UCL Mobile (alur yang
+  // sudah ada di sana), dan presensinya otomatis tercatat di sistem Presensi luar LMS TANPA
+  // sinkronisasi tambahan (baris yang sama, bukan salinan). Kegagalan di sini TIDAK BOLEH
+  // menggagalkan pembukaan sesi LMS — sesi tetap dibuat dengan token/alur native LMS sebagai
+  // fallback. Lihat lib/lms/legacyAttendanceBridge.js untuk rasional lengkap.
+  let legacyToken = null;
+  let legacySyncStatus = null;
+  try {
+    const cls = await SiakV2Class.findByPk(kelasKuliahId, {
+      attributes: ["kode_matakuliah", "nama"],
+    });
+    const idMatkul = cls ? await resolveIdMatkul(cls.kode_matakuliah) : null;
+    if (!idMatkul) {
+      legacySyncStatus = "unmapped";
+    } else if (!req.user.nip) {
+      legacySyncStatus = "failed";
+    } else {
+      const legacy = await createLegacyPembelajaran({
+        nikDosen: req.user.nip,
+        idMatkul,
+        kelasNama: cls.nama,
+        pertemuanKe: parseInt(pertemuan_ke, 10),
+        isOffline,
+      });
+      legacyToken = legacy.token;
+      legacySyncStatus = "linked";
+    }
+  } catch (error) {
+    legacySyncStatus = "failed";
+  }
+
   let token;
   let created = null;
   for (let attempt = 0; attempt < 5 && !created; attempt += 1) {
@@ -117,6 +151,8 @@ exports.openSession = asyncHandler(async (req, res) => {
         status: "open",
         opened_at: new Date(),
         expires_at: expiresAt,
+        legacy_token: legacyToken,
+        legacy_sync_status: legacySyncStatus,
         created_at: new Date(),
         updated_at: new Date(),
       });
@@ -424,4 +460,32 @@ exports.getSessionRecords = asyncHandler(async (req, res) => {
   });
 
   return response(res, true, "success", rows);
+});
+
+// GET /lms/attendance/sessions/:id/legacy-qr — proxy gambar QR (SVG) dari fts-absen untuk
+// `session.legacy_token` (lihat lib/lms/legacyAttendanceBridge.js). Diproxy dari server
+// (bukan browser langsung ke Laravel) karena base URL fts-absen (`API_LOCAL_ABSEN`) adalah
+// env server-side, bukan `NEXT_PUBLIC_*`. Middleware lecturerOwnsSession sudah memuat &
+// memverifikasi kepemilikan req.lmsAttendanceSession.
+exports.getLegacySessionQr = asyncHandler(async (req, res) => {
+  const session = req.lmsAttendanceSession;
+  if (!session.legacy_token) {
+    return response(
+      res,
+      false,
+      "Sesi ini belum terhubung ke sistem Presensi lama (matkul belum termapping).",
+      null,
+      404
+    );
+  }
+
+  try {
+    const apiRes = await axios.get(`${process.env.API_LOCAL_ABSEN}/absensi/show-qr`, {
+      params: { token: session.legacy_token },
+      timeout: 8000,
+    });
+    res.type("image/svg+xml").send(apiRes.data);
+  } catch (error) {
+    return response(res, false, "Gagal memuat QR dari sistem Presensi lama.", null, 502);
+  }
 });
