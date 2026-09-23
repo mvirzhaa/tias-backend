@@ -32,6 +32,9 @@ SiakV2Class.init(
     nama_matakuliah: {
       type: DataTypes.STRING,
     },
+    sks: {
+      type: DataTypes.INTEGER,
+    },
     status_kelas: {
       type: DataTypes.STRING(32),
     },
