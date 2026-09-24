@@ -7,7 +7,7 @@ const {
   classViewContentAccess,
 } = require("../../middleware/lms/lecturerOwnsClass");
 const { syncSiak } = require("../../controllers/lms/syncController");
-const { listClasses } = require("../../controllers/lms/classController");
+const { listClasses, listParticipants } = require("../../controllers/lms/classController");
 const { createUploadItem, replaceUploadItem, serveFile, servePreview } = require("../../controllers/lms/fileController");
 const { lmsUpload } = require("../../middleware/lms/lmsUpload");
 const {
@@ -66,6 +66,9 @@ router.post("/sync-siak", protected, adminOnly, syncSiak);
 
 // --- Daftar kelas LMS dari staging SIAK baru, difilter sesuai role/scope user ---
 router.get("/classes", protected, listClasses);
+
+// --- Roster kelas (dropdown "Komti Kelas" saat generate presensi) — dosen pengampu/admin ---
+router.get("/participants", protected, lecturerOwnsClass, listParticipants);
 
 // --- Scope role LMS: Admin Univ/Fakultas/Prodi berbasis data SIAK lokal ---
 router.get("/role-scopes/me", protected, getMyRoleScopes);
