@@ -3,6 +3,7 @@ const { protected, adminOnly } = require("../../middleware/authMiddleware");
 const {
   lecturerOwnsClassForAttendance,
   lecturerOwnsSession,
+  sessionViewAccess,
   studentCanSubmitAttendance,
 } = require("../../middleware/lms/attendanceAccess");
 const { attendanceUpload } = require("../../middleware/lms/attendanceUpload");
@@ -25,7 +26,7 @@ router.get("/sessions/current", protected, getCurrentSession);
 router.patch("/sessions/:id/close", protected, lecturerOwnsSession, closeSession);
 router.get("/sessions/resolve", protected, resolveToken);
 router.get("/sessions/:id/records", protected, lecturerOwnsSession, getSessionRecords);
-router.get("/sessions/:id/legacy-qr", protected, lecturerOwnsSession, getLegacySessionQr);
+router.get("/sessions/:id/legacy-qr", protected, sessionViewAccess, getLegacySessionQr);
 router.post("/submit", protected, attendanceUpload, studentCanSubmitAttendance, submitAttendance);
 router.get("/me", protected, myAttendanceHistory);
 router.get("/rekap", protected, adminOnly, rekap);

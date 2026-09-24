@@ -65,6 +65,30 @@ exports.lecturerOwnsSession = asyncHandler(async (req, res, next) => {
   return response(res, false, "Anda tidak mengampu kelas ini.", null, 403);
 });
 
+// Middleware: lihat QR sesi (bukan kelola) — dosen pengampu/admin ATAU mahasiswa terdaftar
+// di kelas sesi ini. Dipakai GET /sessions/:id/legacy-qr saja — mahasiswa perlu lihat QR
+// sesi aktif di LMS (permintaan user), tapi tetap TIDAK boleh tutup sesi/lihat roster
+// (lihat lecturerOwnsSession di atas, dosen/admin only).
+exports.sessionViewAccess = asyncHandler(async (req, res, next) => {
+  const session = await LmsAttendanceSession.findByPk(req.params.id);
+  if (!session) {
+    return response(res, false, "Sesi presensi tidak ditemukan.", null, 404);
+  }
+  req.lmsAttendanceSession = session;
+
+  if (!req.user) {
+    return response(res, false, "Anda tidak punya akses ke sesi ini.", null, 403);
+  }
+  if (req.user.role === "Admin") return next();
+  if ((req.user.role === "Dosen" || req.user.role === "Dosen_Ext") && (await lecturerOwns(req, session.kelasKuliahId))) {
+    return next();
+  }
+  if (req.user.role === "Mahasiswa" && (await studentIsEnrolled(req, session.kelasKuliahId))) {
+    return next();
+  }
+  return response(res, false, "Anda tidak punya akses ke sesi ini.", null, 403);
+});
+
 // Middleware: submit presensi — mahasiswa terdaftar, sesi masih terbuka, belum presensi.
 exports.studentCanSubmitAttendance = asyncHandler(async (req, res, next) => {
   const kelasKuliahId = await resolveKelasFromToken(req, res);
