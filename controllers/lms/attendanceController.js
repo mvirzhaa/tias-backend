@@ -54,6 +54,15 @@ exports.openSession = asyncHandler(async (req, res) => {
     radius_m,
     metode,
     durasi_menit,
+    // Field tambahan disamakan dgn form presensi lama (ucl.uika-bogor.ac.id/dosen/absen/
+    // daftar-hadir/generate): RPS Dasar, RPS Pelaksanaan, Dosen Pengganti, Dosen Tamu,
+    // Komti Kelas. Matakuliah/Kelas/NIK di form lama tidak diulang di sini karena LMS sudah
+    // menentukannya lewat kelasKuliahId + identitas dosen dari JWT (req.user).
+    rps_dasar,
+    rps_pelaksanaan,
+    dosen_pengganti_user_id,
+    dosen_tamu,
+    komti_siak_mahasiswa_id,
   } = req.body;
 
   if (!pertemuan_ke || !session_date) {
@@ -61,6 +70,9 @@ exports.openSession = asyncHandler(async (req, res) => {
   }
   if (metode !== undefined && metode !== null && metode !== "online" && metode !== "offline") {
     return response(res, false, "metode harus 'online' atau 'offline'.", null, 400);
+  }
+  if (!komti_siak_mahasiswa_id) {
+    return response(res, false, "Komti Kelas wajib diisi.", null, 400);
   }
 
   let jadwal = null;
@@ -167,6 +179,11 @@ exports.openSession = asyncHandler(async (req, res) => {
         legacy_token: legacyToken,
         legacy_sync_status: legacySyncStatus,
         legacy_error: legacyError,
+        rps_dasar: rps_dasar || null,
+        rps_pelaksanaan: rps_pelaksanaan || null,
+        dosen_pengganti_user_id: dosen_pengganti_user_id || null,
+        dosen_tamu: dosen_tamu || null,
+        komti_siak_mahasiswa_id,
         created_at: new Date(),
         updated_at: new Date(),
       });

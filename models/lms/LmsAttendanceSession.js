@@ -83,6 +83,9 @@ LmsAttendanceSession.init(
       type: DataTypes.DATE,
       allowNull: true,
     },
+    // Jembatan presensi LMS -> Laravel fts-absen (permintaan Pak Fitrah), lihat
+    // lib/lms/legacyAttendanceBridge.js. legacy_token null = jembatan gagal/tak tersedia,
+    // sesi LMS tetap jalan pakai token/alur native sebagai fallback (best-effort).
     legacy_token: {
       type: DataTypes.STRING(16),
       allowNull: true,
@@ -93,6 +96,28 @@ LmsAttendanceSession.init(
     },
     legacy_error: {
       type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    // Disamakan dgn form presensi lama (ucl.uika-bogor.ac.id/dosen/absen/daftar-hadir/generate) —
+    // ditangkap sejak generate supaya siap dipakai saat bridge ke Laravel fts-absen dibangun.
+    rps_dasar: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    rps_pelaksanaan: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    dosen_pengganti_user_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+    },
+    dosen_tamu: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    komti_siak_mahasiswa_id: {
+      type: DataTypes.UUID,
       allowNull: true,
     },
     created_at: {
