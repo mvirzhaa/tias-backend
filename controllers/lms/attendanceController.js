@@ -154,10 +154,16 @@ exports.openSession = asyncHandler(async (req, res) => {
     { where: { kelasKuliahId, pertemuan_ke: parseInt(pertemuan_ke, 10), status: "open" } }
   );
 
+  // Kalau jembatan berhasil (legacyToken ada), token LMS HARUS sama persis dengan token
+  // Laravel — supaya QR/kode yang dilihat dosen & mahasiswa cuma satu, bukan dua kode
+  // berbeda utk sesi yang sama (permintaan eksplisit user). Percobaan pertama pakai
+  // legacyToken; kalau ternyata bentrok dgn sesi lain yang masih open (harusnya nyaris
+  // mustahil), percobaan berikutnya fallback ke token acak SUPAYA dosen tidak macet
+  // (fallback ini artinya token LMS & legacy akan divergen di kasus tabrakan langka ini).
   let token;
   let created = null;
   for (let attempt = 0; attempt < 5 && !created; attempt += 1) {
-    token = generateToken();
+    token = attempt === 0 && legacyToken ? legacyToken : generateToken();
     try {
       created = await LmsAttendanceSession.create({
         kelasKuliahId,
