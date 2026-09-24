@@ -13,7 +13,7 @@ const { haversineDistanceMeters } = require("../../lib/lms/geo");
 const { isOnlineMethod, isSessionActive } = require("../../lib/lms/attendanceMethod");
 const faceApiClient = require("../../lib/lms/faceApi/client");
 const { getRekapByClass } = require("../../lib/lms/attendanceRekapService");
-const { lecturerOwns } = require("../../middleware/lms/lecturerOwnsClass");
+const { lecturerOwns, studentIsEnrolled } = require("../../middleware/lms/lecturerOwnsClass");
 const { createLegacyPembelajaran } = require("../../lib/lms/legacyAttendanceBridge");
 
 const HARI_ID = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
@@ -457,11 +457,17 @@ exports.getCurrentSession = asyncHandler(async (req, res) => {
     return response(res, false, "Parameter kelasKuliahId dan pertemuan_ke wajib diisi.", null, 400);
   }
   if (!req.user) {
-    return response(res, false, "Anda tidak mengampu kelas ini.", null, 403);
+    return response(res, false, "Anda tidak punya akses ke kelas ini.", null, 403);
   }
-  const allowed = req.user.role === "Admin" || (await lecturerOwns(req, kelasKuliahId));
+  // Dosen pengampu/admin (kelola sesi) ATAU mahasiswa terdaftar (lihat token/QR sesi aktif
+  // di LMS sendiri, tanpa perlu tanya manual ke dosen — permintaan user, lihat
+  // MahasiswaPanel di fe-ucl PresensiRenderer.jsx).
+  const allowed =
+    req.user.role === "Admin" ||
+    (await lecturerOwns(req, kelasKuliahId)) ||
+    (req.user.role === "Mahasiswa" && (await studentIsEnrolled(req, kelasKuliahId)));
   if (!allowed) {
-    return response(res, false, "Anda tidak mengampu kelas ini.", null, 403);
+    return response(res, false, "Anda tidak punya akses ke kelas ini.", null, 403);
   }
 
   // ORDER BY wajib: bisa ada >1 baris 'open' utk kelasKuliahId+pertemuan_ke yang sama (mis.
