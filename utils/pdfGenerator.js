@@ -4,8 +4,6 @@ const fs = require("fs");
 const path = require("path");
 const QRCode = require("qrcode");
 
-
-
 const getLogoBase64 = () => {
   try {
     const logoPath = path.join(__dirname, "../public/logo-uika.png");
@@ -77,7 +75,6 @@ const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, is
     ? [{ image: ttdBase64, width: 110, alignment: "center", margin: [0, 0, 0, 2] }]
     : [{ text: "", margin: [0, 30, 0, 2] }];
 
-  // Mekanisme baru: orang tua hanya melakukan approve digital, tidak lagi upload TTD
   const ttdOrtuSection = isApprovedByParent
     ? [
         { text: "", margin: [0, 8, 0, 0] },
@@ -121,8 +118,6 @@ const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, is
         },
       ]
     : [{ text: "", margin: [0, 30, 0, 2] }];
-
-
 
   const content = [];
 
@@ -202,7 +197,7 @@ const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, is
     {
       text: "Demikian permohonan pengunduran diri ini saya sampaikan. Besar harapan saya agar proses pengunduran diri dapat berjalan dengan lancar. Atas perhatian dan pengertiannya, saya ucapkan terima kasih.",
       alignment: "justify",
-      margin: [0, 0, 0, 20],
+      margin: [0, 0, 0, 10],
     },
 
     {
@@ -226,7 +221,13 @@ const generateSuratPengunduranDiri = async (dataSurat, tanggalStr, ttdBase64, is
             { text: namaOrtuDB, bold: true, alignment: "center", border: [false, false, false, false] },
             { stack: [
                 { text: namaLengkap, bold: true, alignment: "center", decoration: "underline" },
-                { text: `NPM: ${String(npmStr)}`, alignment: "center" }
+                { text: `NPM: ${String(npmStr)}`, alignment: "center" },
+                ...(qrBase64 ? [
+                  { image: qrBase64, width: 55, alignment: "center", margin: [0, 4, 0, 1] },
+                  { text: "Scan untuk verifikasi", fontSize: 7, alignment: "center", color: "#555555", margin: [0, 0, 0, 1] },
+                  { text: dataSurat.id ? dataSurat.id.substring(0, 18) : "", fontSize: 7.5, alignment: "center", color: "#888888", margin: [0, 0, 0, 0] },
+                  { text: dataSurat.id ? dataSurat.id.substring(18) : "", fontSize: 7.5, alignment: "center", color: "#888888", margin: [0, 0, 0, 0] }
+                ] : [])
               ], border: [false, false, false, false] }
           ]
         ]
@@ -463,7 +464,17 @@ const generateSuratCutiAkademik = async (dataSurat, tanggalStr, ttdBase64, namaK
           },
           {
             columns: [
-              { text: "", width: "50%" },
+              {
+                stack: [
+                  ...(qrBase64 ? [
+                    { image: qrBase64, width: 75, alignment: "center", margin: [0, 0, 0, 2] },
+                    { text: "Scan untuk verifikasi", fontSize: 7, alignment: "center", color: "#555555", margin: [0, 0, 0, 1] },
+                    { text: dataSurat.id ? dataSurat.id.substring(0, 18) : "", fontSize: 7.5, alignment: "center", color: "#888888", margin: [0, 0, 0, 0] },
+                    { text: dataSurat.id ? dataSurat.id.substring(18) : "", fontSize: 7.5, alignment: "center", color: "#888888", margin: [0, 0, 0, 0] }
+                  ] : [])
+                ],
+                width: "50%",
+              },
               {
                 stack: [
                   ...ttdSection,
