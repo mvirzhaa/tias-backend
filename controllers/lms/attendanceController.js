@@ -56,8 +56,12 @@ exports.openSession = asyncHandler(async (req, res) => {
     durasi_menit,
     // Field tambahan disamakan dgn form presensi lama (ucl.uika-bogor.ac.id/dosen/absen/
     // daftar-hadir/generate): RPS Dasar, RPS Pelaksanaan, Dosen Pengganti, Dosen Tamu,
-    // Komti Kelas. Matakuliah/Kelas/NIK di form lama tidak diulang di sini karena LMS sudah
-    // menentukannya lewat kelasKuliahId + identitas dosen dari JWT (req.user).
+    // Komti Kelas. Diisi SEKALI oleh dosen di payload aktivitas (item.payload, lihat
+    // lib/lms/payloadValidators.js#validateAttendance & ItemEditorModal.jsx di fe-ucl), FE
+    // meneruskannya apa adanya tiap kali generate sesi — TIDAK divalidasi wajib di sini lagi
+    // supaya item LAMA (dibuat sebelum field ini ada) tetap bisa buka sesi presensi.
+    // Matakuliah/Kelas/NIK di form lama tidak diulang di sini karena LMS sudah menentukannya
+    // lewat kelasKuliahId + identitas dosen dari JWT (req.user).
     rps_dasar,
     rps_pelaksanaan,
     dosen_pengganti_user_id,
@@ -70,9 +74,6 @@ exports.openSession = asyncHandler(async (req, res) => {
   }
   if (metode !== undefined && metode !== null && metode !== "online" && metode !== "offline") {
     return response(res, false, "metode harus 'online' atau 'offline'.", null, 400);
-  }
-  if (!komti_siak_mahasiswa_id) {
-    return response(res, false, "Komti Kelas wajib diisi.", null, 400);
   }
 
   let jadwal = null;
