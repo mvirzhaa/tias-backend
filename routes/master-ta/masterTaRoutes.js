@@ -15,6 +15,14 @@ const router = express.Router();
 // dipakai buat desain penyatuan dgn Pengajuan/Pelaksanaan TA baru. Hapus setelah
 // penyatuan selesai didesain & diimplementasikan.
 router.get("/_debug/legacy-schema", protected, adminOnly, LegacyDiagnosticController.legacySchema);
+// SEMENTARA - simulasi backfill 335 mhs lama ke Skema/Tahapan TA baru. Murni baca
+// (hitung & laporkan), TIDAK menulis apa pun. Hapus bareng endpoint di atas.
+router.get(
+  "/_debug/legacy-backfill-simulation",
+  protected,
+  adminOnly,
+  LegacyDiagnosticController.legacyBackfillSimulation
+);
 
 // Prodi (dari data SIAK v2) — dipakai dropdown di layar admin DAN form Pengajuan TA mahasiswa
 router.get("/prodi", protected, ProdiController.index);
