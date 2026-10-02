@@ -6,7 +6,7 @@ const {
   classViewAccess,
   classViewContentAccess,
 } = require("../../middleware/lms/lecturerOwnsClass");
-const { syncSiak } = require("../../controllers/lms/syncController");
+const { syncSiak, syncProgramStudi } = require("../../controllers/lms/syncController");
 const { listClasses, listParticipants } = require("../../controllers/lms/classController");
 const { createUploadItem, replaceUploadItem, serveFile, servePreview } = require("../../controllers/lms/fileController");
 const { lmsUpload } = require("../../middleware/lms/lmsUpload");
@@ -63,6 +63,9 @@ const router = express.Router();
 
 // --- Sinkronisasi SIAK v2 (FULL SYNC, admin) — SPEC v8 §4 ---
 router.post("/sync-siak", protected, adminOnly, syncSiak);
+
+// --- Backfill master prodi LENGKAP (independen dari kelas), lihat syncProgramStudiFull ---
+router.post("/sync-program-studi", protected, adminOnly, syncProgramStudi);
 
 // --- Daftar kelas LMS dari staging SIAK baru, difilter sesuai role/scope user ---
 router.get("/classes", protected, listClasses);
