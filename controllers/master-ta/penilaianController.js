@@ -25,7 +25,7 @@ class PenilaianController {
       const data = await TaKomponenPenilaian.findAll({
         where: condition,
         order: [["id", "ASC"]],
-        include: [{ model: TaTahapan, as: "tahapan" }],
+        include: [{ model: TaTahapan, as: "tahapan", required: false }],
       });
 
       return response(res, true, "success", data);
@@ -39,7 +39,7 @@ class PenilaianController {
       const { id } = req.params;
       const data = await TaKomponenPenilaian.findOne({
         where: { id },
-        include: [{ model: TaTahapan, as: "tahapan" }],
+        include: [{ model: TaTahapan, as: "tahapan", required: false }],
       });
 
       if (!data) {

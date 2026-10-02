@@ -36,8 +36,10 @@ router.delete("/penilaian/:id", protected, adminOnly, PenilaianController.destro
 // Pengajuan TA
 router.post("/pengajuan", protected, mhsOnly, PengajuanController.create);
 router.get("/pengajuan/me", protected, mhsOnly, PengajuanController.myList);
+router.put("/pengajuan/me/:id", protected, mhsOnly, PengajuanController.updateMine);
 router.get("/pengajuan", protected, adminOnly, PengajuanController.index);
 router.get("/pengajuan/:id", protected, adminOnly, PengajuanController.detail);
+router.put("/pengajuan/:id", protected, adminOnly, PengajuanController.update);
 router.put(
   "/pengajuan/:id/status",
   protected,
