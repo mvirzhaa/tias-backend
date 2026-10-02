@@ -43,6 +43,7 @@ const suratRoutes = require("./persuratan/surat");
 const lmsRoutes = require("./lms/lmsRoutes");
 const lmsAttendanceRoutes = require("./lms/attendanceRoutes");
 const ssoRoutes = require("./Authentication/ssoRoutes");
+const masterTaRoutes = require("./master-ta/masterTaRoutes");
 const router = exporess.Router();
 
 router.use("/auth", authRoutes);
@@ -86,6 +87,7 @@ router.use("/absensi-external", absensiExternalRoutes);
 router.use("/surat", suratRoutes);
 router.use("/lms", lmsRoutes);
 router.use("/lms/attendance", lmsAttendanceRoutes);
+router.use("/master-ta", masterTaRoutes);
 
 router.use("/help", helpRoutes);
 router.get("/", (req, res) => {
