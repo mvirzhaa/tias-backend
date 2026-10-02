@@ -72,7 +72,23 @@ async function fetchLegacyRowsGabungan(dosenId = null) {
       ta_pendaftaran_kolokium.kolo_status_pem_2,
       ta_pendaftaran_sidang.id AS sidang_id,
       ta_pendaftaran_sidang.sidang_status_pem_1,
-      ta_pendaftaran_sidang.sidang_status_pem_2
+      ta_pendaftaran_sidang.sidang_status_pem_2,
+      ta_pengajuan_sk.sk_pembimbing_1,
+      ta_pengajuan_sk.sk_pembimbing_2,
+      ta_pengajuan_sk.sk_pembimbing_3,
+      ta_pengajuan_sk.kepala_lab,
+      ta_pendaftaran_kolokium.kolo_pembimbing_1,
+      ta_pendaftaran_kolokium.kolo_pembimbing_2,
+      ta_pendaftaran_kolokium.kolo_pembimbing_3,
+      ta_pendaftaran_kolokium.kolo_kepala_lab,
+      ta_pendaftaran_kolokium.evaluator_1,
+      ta_pendaftaran_kolokium.evaluator_2,
+      ta_pendaftaran_sidang.sidang_pembimbing_1,
+      ta_pendaftaran_sidang.sidang_pembimbing_2,
+      ta_pendaftaran_sidang.sidang_pembimbing_3,
+      ta_pendaftaran_sidang.sidang_kepala_lab,
+      ta_pendaftaran_sidang.penguji_1,
+      ta_pendaftaran_sidang.penguji_2
     FROM ta_pengajuan_sk
     JOIN tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id
     JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id
@@ -142,6 +158,28 @@ async function fetchLegacyRowsGabungan(dosenId = null) {
       statusDospem = "ACC";
     }
 
+    let peran = null;
+    if (dosenId) {
+      const peranList = [];
+      if (row.sk_pembimbing_1 === dosenId) peranList.push("SK Pembimbing 1");
+      if (row.sk_pembimbing_2 === dosenId) peranList.push("SK Pembimbing 2");
+      if (row.sk_pembimbing_3 === dosenId) peranList.push("SK Pembimbing 3");
+      if (row.kepala_lab === dosenId) peranList.push("Kepala Lab");
+      if (row.kolo_pembimbing_1 === dosenId) peranList.push("Pembimbing Kolokium 1");
+      if (row.kolo_pembimbing_2 === dosenId) peranList.push("Pembimbing Kolokium 2");
+      if (row.kolo_pembimbing_3 === dosenId) peranList.push("Pembimbing Kolokium 3");
+      if (row.kolo_kepala_lab === dosenId) peranList.push("Kepala Lab Kolokium");
+      if (row.evaluator_1 === dosenId) peranList.push("Evaluator 1");
+      if (row.evaluator_2 === dosenId) peranList.push("Evaluator 2");
+      if (row.sidang_pembimbing_1 === dosenId) peranList.push("Pembimbing Sidang 1");
+      if (row.sidang_pembimbing_2 === dosenId) peranList.push("Pembimbing Sidang 2");
+      if (row.sidang_pembimbing_3 === dosenId) peranList.push("Pembimbing Sidang 3");
+      if (row.sidang_kepala_lab === dosenId) peranList.push("Kepala Lab Sidang");
+      if (row.penguji_1 === dosenId) peranList.push("Penguji 1");
+      if (row.penguji_2 === dosenId) peranList.push("Penguji 2");
+      peran = peranList.join(" | ");
+    }
+
     return {
       id: row.id,
       source: "legacy",
@@ -152,6 +190,7 @@ async function fetchLegacyRowsGabungan(dosenId = null) {
       semester: row.semester,
       judul: row.judul_skripsi,
       status_dospem: statusDospem,
+      peran,
       status_approved: row.status_approved,
       status_approved_kolo: row.status_approved_kolo,
       status_approved_sidang: row.status_approved_sidang,
@@ -174,23 +213,41 @@ async function fetchDynamicRowsGabungan(dosenId = null) {
     ];
   }
 
-  const rows = await TaPelaksanaan.findAll({
+  const allRows = await TaPelaksanaan.findAll({
     where: condition,
     include: includeRelations,
     order: [["id", "DESC"]],
   });
 
-  return rows.map((r) => ({
-    id: r.id,
-    source: "dinamis",
-    nama_lengkap: r.mahasiswa?.personal_data?.nama_lengkap || "-",
-    npm: r.pengajuan?.npm || "-",
-    skema: r.tahapan?.skema?.nama_skema || "-",
-    status: r.tahapan?.nama_tahapan || "-",
-    semester: r.pengajuan?.semester || "-",
-    judul: r.pengajuan?.judul || "-",
-    status_dospem: "-",
-  }));
+  // Jaga-jaga kalau Pengajuan terkait sudah dihapus (admin hapus Pengajuan
+  // TA tanpa membereskan Pelaksanaan TA-nya dulu) - baris begini tidak ada
+  // apa pun yang bisa ditampilkan, lebih baik disembunyikan drpd tampil "-"
+  // di semua kolom.
+  const rows = allRows.filter((r) => r.pengajuan);
+
+  return rows.map((r) => {
+    let peran = null;
+    if (dosenId) {
+      const peranList = [];
+      if (r.pengajuan?.pembimbing_1 === dosenId) peranList.push("Pembimbing 1");
+      if (r.pengajuan?.pembimbing_2 === dosenId) peranList.push("Pembimbing 2");
+      if (r.pengajuan?.kepala_lab === dosenId) peranList.push("Kepala Lab");
+      peran = peranList.join(" | ");
+    }
+
+    return {
+      id: r.id,
+      source: "dinamis",
+      nama_lengkap: r.mahasiswa?.personal_data?.nama_lengkap || "-",
+      npm: r.pengajuan?.npm || "-",
+      skema: r.tahapan?.skema?.nama_skema || "-",
+      status: r.tahapan?.nama_tahapan || "-",
+      semester: r.pengajuan?.semester || "-",
+      judul: r.pengajuan?.judul || "-",
+      status_dospem: "-",
+      peran,
+    };
+  });
 }
 
 // Kalau salah satu sisi gagal (mis. skema tabel lama berubah lagi), tabel
