@@ -66,6 +66,29 @@ class LegacyDiagnosticController {
         } catch (e) {
           result.ta_pengajuan_sk.status_breakdown_error = e.message;
         }
+
+        // Kolom `status` bertipe USER-DEFINED (ENUM Postgres) - cari nama tipe +
+        // SEMUA nilai yang diizinkan (bukan cuma yang kepakai sekarang), penting
+        // buat tahu apakah bisa nambah 1 nilai baru tanpa bentrok.
+        try {
+          const enumInfo = await DB.query(`
+            SELECT t.typname, e.enumlabel
+            FROM pg_type t
+            JOIN pg_enum e ON t.oid = e.enumtypid
+            JOIN pg_attribute a ON a.atttypid = t.oid
+            JOIN pg_class c ON c.oid = a.attrelid
+            WHERE c.relname = 'ta_pengajuan_sk' AND a.attname = 'status'
+            ORDER BY e.enumsortorder
+          `);
+          if (enumInfo.rows.length) {
+            result.ta_pengajuan_sk.status_enum_type = enumInfo.rows[0].typname;
+            result.ta_pengajuan_sk.status_enum_all_values = enumInfo.rows.map(
+              (r) => r.enumlabel
+            );
+          }
+        } catch (e) {
+          result.ta_pengajuan_sk.status_enum_error = e.message;
+        }
       }
 
       return response(res, true, "success", result);
