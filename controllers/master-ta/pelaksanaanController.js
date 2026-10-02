@@ -105,6 +105,88 @@ class PelaksanaanController {
     }
   };
 
+  // Dosen cuma boleh lihat mahasiswa yang dia bimbing (pembimbing_1/2 atau kepala
+  // lab di pengajuan TA terkait) - read-only, tidak bisa advance (itu wewenang admin).
+  static indexForDosen = async (req, res) => {
+    try {
+      const dosenId = req.user.user_id;
+      let { limit, page, order, orderBy, search, status } = req.query;
+      limit = parseInt(limit) > 0 ? parseInt(limit) : 10;
+      page = page ? parseInt(page) : 1;
+      order = order ? order : "id";
+      orderBy = orderBy ? orderBy : "DESC";
+      const pagelimit = getPagination(limit, page);
+
+      const condition = {
+        status: status || "berjalan",
+        [Op.or]: [
+          { "$pengajuan.pembimbing_1$": dosenId },
+          { "$pengajuan.pembimbing_2$": dosenId },
+          { "$pengajuan.kepala_lab$": dosenId },
+        ],
+      };
+
+      if (search) {
+        condition[Op.and] = [
+          {
+            [Op.or]: [
+              { "$mahasiswa.personal_data.nama_lengkap$": { [Op.iLike]: `%${search}%` } },
+              { "$pengajuan.npm$": { [Op.iLike]: `%${search}%` } },
+            ],
+          },
+        ];
+      }
+
+      const data = await TaPelaksanaan.findAndCountAll({
+        distinct: true,
+        where: condition,
+        order: [[order, orderBy]],
+        limit: pagelimit.limit,
+        offset: pagelimit.offset,
+        include: includeRelations,
+      });
+
+      return response(res, true, "success", {
+        limit,
+        page,
+        total: data.count,
+        total_page: Math.ceil(parseInt(data.count) / limit),
+        rows: data.rows,
+      });
+    } catch (error) {
+      return response(res, false, error.message, null, 500);
+    }
+  };
+
+  static detailForDosen = async (req, res) => {
+    try {
+      const dosenId = req.user.user_id;
+      const { id } = req.params;
+
+      const data = await TaPelaksanaan.findOne({
+        where: {
+          id,
+          [Op.or]: [
+            { "$pengajuan.pembimbing_1$": dosenId },
+            { "$pengajuan.pembimbing_2$": dosenId },
+            { "$pengajuan.kepala_lab$": dosenId },
+          ],
+        },
+        include: includeRelations,
+      });
+
+      if (!data) {
+        return response(res, false, "Data tidak ditemukan", null, 404);
+      }
+
+      const kelengkapan = await getKelengkapanWithIsian(data.tahapan_id, data.id);
+
+      return response(res, true, "success", { ...data.toJSON(), kelengkapan });
+    } catch (error) {
+      return response(res, false, error.message, null, 500);
+    }
+  };
+
   static advance = async (req, res) => {
     try {
       const { id } = req.params;

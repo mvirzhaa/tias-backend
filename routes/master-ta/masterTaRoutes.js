@@ -1,5 +1,5 @@
 const express = require("express");
-const { protected, adminOnly, mhsOnly } = require("../../middleware/authMiddleware");
+const { protected, adminOnly, mhsOnly, dosenOnly } = require("../../middleware/authMiddleware");
 const SkemaController = require("../../controllers/master-ta/skemaController");
 const TahapanController = require("../../controllers/master-ta/tahapanController");
 const PenilaianController = require("../../controllers/master-ta/penilaianController");
@@ -7,8 +7,14 @@ const ProdiController = require("../../controllers/master-ta/prodiController");
 const PengajuanController = require("../../controllers/master-ta/pengajuanController");
 const KelengkapanController = require("../../controllers/master-ta/kelengkapanController");
 const PelaksanaanController = require("../../controllers/master-ta/pelaksanaanController");
+const LegacyDiagnosticController = require("../../controllers/master-ta/legacyDiagnosticController");
 
 const router = express.Router();
+
+// SEMENTARA - diagnostik read-only skema tabel sistem TA lama (kolokium/sidang),
+// dipakai buat desain penyatuan dgn Pengajuan/Pelaksanaan TA baru. Hapus setelah
+// penyatuan selesai didesain & diimplementasikan.
+router.get("/_debug/legacy-schema", protected, adminOnly, LegacyDiagnosticController.legacySchema);
 
 // Prodi (dari data SIAK v2) — dipakai dropdown di layar admin DAN form Pengajuan TA mahasiswa
 router.get("/prodi", protected, ProdiController.index);
@@ -49,6 +55,8 @@ router.put(
   mhsOnly,
   PelaksanaanController.submitKelengkapan
 );
+router.get("/pelaksanaan/dosen", protected, dosenOnly, PelaksanaanController.indexForDosen);
+router.get("/pelaksanaan/dosen/:id", protected, dosenOnly, PelaksanaanController.detailForDosen);
 router.get("/pelaksanaan", protected, adminOnly, PelaksanaanController.index);
 router.get("/pelaksanaan/:id", protected, adminOnly, PelaksanaanController.detail);
 router.put("/pelaksanaan/:id/advance", protected, adminOnly, PelaksanaanController.advance);
