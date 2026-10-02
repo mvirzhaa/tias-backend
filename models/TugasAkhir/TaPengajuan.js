@@ -2,6 +2,7 @@ const { DataTypes, Model } = require("sequelize");
 const db = require("../../config");
 const User = require("../User");
 const TaSkema = require("../master-ta/TaSkema");
+const SiakV2ProgramStudi = require("../lms/SiakV2ProgramStudi");
 
 class TaPengajuan extends Model {}
 TaPengajuan.init(
@@ -19,6 +20,9 @@ TaPengajuan.init(
     },
     npm: {
       type: DataTypes.STRING,
+    },
+    prodi_id: {
+      type: DataTypes.UUID,
     },
     skema_id: {
       type: DataTypes.INTEGER,
@@ -76,6 +80,12 @@ TaPengajuan.hasOne(TaSkema, {
   foreignKey: "id",
   sourceKey: "skema_id",
   as: "skema",
+});
+
+TaPengajuan.hasOne(SiakV2ProgramStudi, {
+  foreignKey: "siakProgramStudiId",
+  sourceKey: "prodi_id",
+  as: "prodi",
 });
 
 TaPengajuan.hasOne(User, {

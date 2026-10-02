@@ -5,11 +5,13 @@ const TahapanController = require("../../controllers/master-ta/tahapanController
 const PenilaianController = require("../../controllers/master-ta/penilaianController");
 const ProdiController = require("../../controllers/master-ta/prodiController");
 const PengajuanController = require("../../controllers/master-ta/pengajuanController");
+const KelengkapanController = require("../../controllers/master-ta/kelengkapanController");
+const PelaksanaanController = require("../../controllers/master-ta/pelaksanaanController");
 
 const router = express.Router();
 
-// Prodi (dari data SIAK v2, hanya untuk dropdown di layar admin)
-router.get("/prodi", protected, adminOnly, ProdiController.index);
+// Prodi (dari data SIAK v2) — dipakai dropdown di layar admin DAN form Pengajuan TA mahasiswa
+router.get("/prodi", protected, ProdiController.index);
 
 // Skema TA
 router.get("/skema", protected, adminOnly, SkemaController.index);
@@ -33,11 +35,31 @@ router.post("/penilaian", protected, adminOnly, PenilaianController.create);
 router.put("/penilaian/:id", protected, adminOnly, PenilaianController.update);
 router.delete("/penilaian/:id", protected, adminOnly, PenilaianController.destroy);
 
+// Kelengkapan TA (per tahapan)
+router.get("/kelengkapan", protected, adminOnly, KelengkapanController.index);
+router.post("/kelengkapan", protected, adminOnly, KelengkapanController.create);
+router.put("/kelengkapan/:id", protected, adminOnly, KelengkapanController.update);
+router.delete("/kelengkapan/:id", protected, adminOnly, KelengkapanController.destroy);
+
+// Pelaksanaan TA (progres mahasiswa setelah pengajuan disetujui)
+router.get("/pelaksanaan/me", protected, mhsOnly, PelaksanaanController.myCurrent);
+router.put(
+  "/pelaksanaan/me/kelengkapan",
+  protected,
+  mhsOnly,
+  PelaksanaanController.submitKelengkapan
+);
+router.get("/pelaksanaan", protected, adminOnly, PelaksanaanController.index);
+router.get("/pelaksanaan/:id", protected, adminOnly, PelaksanaanController.detail);
+router.put("/pelaksanaan/:id/advance", protected, adminOnly, PelaksanaanController.advance);
+
 // Pengajuan TA
 router.post("/pengajuan", protected, mhsOnly, PengajuanController.create);
 router.get("/pengajuan/me", protected, mhsOnly, PengajuanController.myList);
+router.put("/pengajuan/me/:id", protected, mhsOnly, PengajuanController.updateMine);
 router.get("/pengajuan", protected, adminOnly, PengajuanController.index);
 router.get("/pengajuan/:id", protected, adminOnly, PengajuanController.detail);
+router.put("/pengajuan/:id", protected, adminOnly, PengajuanController.update);
 router.put(
   "/pengajuan/:id/status",
   protected,

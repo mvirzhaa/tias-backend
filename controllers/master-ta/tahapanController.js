@@ -17,8 +17,8 @@ class TahapanController {
         where: condition,
         order: [["id", "ASC"]],
         include: [
-          { model: TaSkema, as: "skema" },
-          { model: SiakV2ProgramStudi, as: "prodi" },
+          { model: TaSkema, as: "skema", required: false },
+          { model: SiakV2ProgramStudi, as: "prodi", required: false },
         ],
       });
 
@@ -34,8 +34,8 @@ class TahapanController {
       const data = await TaTahapan.findOne({
         where: { id },
         include: [
-          { model: TaSkema, as: "skema" },
-          { model: SiakV2ProgramStudi, as: "prodi" },
+          { model: TaSkema, as: "skema", required: false },
+          { model: SiakV2ProgramStudi, as: "prodi", required: false },
         ],
       });
 
