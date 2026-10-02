@@ -8,6 +8,7 @@ const TaPelaksanaan = require("../../models/master-ta/TaPelaksanaan");
 const SiakV2ProgramStudi = require("../../models/lms/SiakV2ProgramStudi");
 const User = require("../../models/User");
 const DataPribadi = require("../../models/DataPribadi");
+const { createLegacyPengajuanSk } = require("../../lib/masterTa/legacyBridge");
 
 const STATUS_OPTIONS = ["diajukan", "disetujui", "ditolak"];
 
@@ -78,7 +79,7 @@ class PengajuanController {
   static create = async (req, res) => {
     try {
       const mhsId = req.user.user_id;
-      const { npm, nama_lengkap } = req.user;
+      const { npm, nama_lengkap, ipk, curr_code } = req.user;
       const {
         prodi_id,
         skema_id,
@@ -87,6 +88,8 @@ class PengajuanController {
         pembimbing_2,
         pembimbing_luar,
         kepala_lab,
+        lokasi_kegiatan,
+        semester,
       } = req.body;
 
       if (!prodi_id || !skema_id || !judul || !pembimbing_1 || !kepala_lab) {
@@ -97,6 +100,61 @@ class PengajuanController {
           null,
           400
         );
+      }
+
+      const skema = await TaSkema.findOne({ where: { id: skema_id } });
+      if (!skema) {
+        return response(res, false, "Skema tidak ditemukan", null, 400);
+      }
+
+      // Skema lama (is_legacy) = masuk ke pipeline kolokium/sidang yang sudah ada
+      // (tabel ta_pengajuan_sk), bukan Pelaksanaan TA dinamis. Lihat
+      // lib/masterTa/legacyBridge.js.
+      if (skema.is_legacy) {
+        if (!pembimbing_2 || !lokasi_kegiatan || !semester) {
+          return response(
+            res,
+            false,
+            "Untuk skema ini, pembimbing 2, lokasi kegiatan, dan semester wajib diisi",
+            null,
+            400
+          );
+        }
+
+        const legacyRow = await createLegacyPengajuanSk({
+          mhsId,
+          npm,
+          namaLengkap: nama_lengkap,
+          ipk,
+          currCode: curr_code,
+          judulSkripsi: judul,
+          lokasiKegiatan: lokasi_kegiatan,
+          semester,
+          skPembimbing1: pembimbing_1,
+          skPembimbing2: pembimbing_2,
+          skPembimbing3: null,
+          kepalaLab: kepala_lab,
+        });
+
+        const save = await TaPengajuan.create({
+          mhs_id: mhsId,
+          nama: nama_lengkap,
+          npm,
+          prodi_id,
+          skema_id,
+          judul,
+          pembimbing_1,
+          pembimbing_2,
+          pembimbing_luar: pembimbing_luar || null,
+          kepala_lab,
+          lokasi_kegiatan,
+          semester,
+          legacy_pengajuan_sk_id: legacyRow.id,
+          status: "disetujui",
+          created_at: new Date(),
+        });
+
+        return response(res, true, "success", save);
       }
 
       const save = await TaPengajuan.create({

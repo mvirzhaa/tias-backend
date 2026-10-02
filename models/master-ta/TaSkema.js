@@ -19,6 +19,10 @@ TaSkema.init(
       type: DataTypes.BOOLEAN,
       defaultValue: true,
     },
+    is_legacy: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
     created_at: {
       type: DataTypes.DATE,
     },
