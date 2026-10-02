@@ -42,6 +42,15 @@ TaPengajuan.init(
     kepala_lab: {
       type: DataTypes.UUID,
     },
+    lokasi_kegiatan: {
+      type: DataTypes.STRING,
+    },
+    semester: {
+      type: DataTypes.STRING,
+    },
+    legacy_pengajuan_sk_id: {
+      type: DataTypes.INTEGER,
+    },
     status: {
       type: DataTypes.STRING,
       defaultValue: "diajukan",
