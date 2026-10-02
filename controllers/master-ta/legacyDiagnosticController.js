@@ -18,6 +18,19 @@ const LEGACY_TABLES = [
   "ta_progres",
 ];
 
+// Status lama (SK sudah disetujui) -> nama tahapan baru yang akan jadi tujuan
+// backfill. "pengajuan-sk" sengaja TIDAK ada di sini - mahasiswa yang SK-nya
+// belum disetujui tidak dibackfill (sama seperti aturan sistem baru: Pelaksanaan
+// baru dibuat setelah disetujui).
+const STATUS_TO_TAHAPAN = {
+  "menuju-kolokium": "Kolokium",
+  "menuju-sidang": "Sidang",
+  "menyelesaikan-revisi": "Pengumpulan Revisi",
+  selesai: "Pengumpulan Revisi",
+};
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 class LegacyDiagnosticController {
   static legacySchema = async (req, res) => {
     try {
@@ -51,9 +64,6 @@ class LegacyDiagnosticController {
         };
       }
 
-      // Sebaran status ta_pengajuan_sk - penting buat tahu apakah ada mahasiswa
-      // yang BETULAN sedang aktif di pipeline lama (menuju-kolokium/sidang/dst)
-      // sebelum memutuskan cara penyatuan.
       if (result.ta_pengajuan_sk?.exists) {
         try {
           const statusBreakdown = await DB.query(
@@ -67,9 +77,6 @@ class LegacyDiagnosticController {
           result.ta_pengajuan_sk.status_breakdown_error = e.message;
         }
 
-        // Kolom `status` bertipe USER-DEFINED (ENUM Postgres) - cari nama tipe +
-        // SEMUA nilai yang diizinkan (bukan cuma yang kepakai sekarang), penting
-        // buat tahu apakah bisa nambah 1 nilai baru tanpa bentrok.
         try {
           const enumInfo = await DB.query(`
             SELECT t.typname, e.enumlabel
@@ -92,6 +99,74 @@ class LegacyDiagnosticController {
       }
 
       return response(res, true, "success", result);
+    } catch (error) {
+      return response(res, false, error.message, null, 500);
+    }
+  };
+
+  // SIMULASI backfill 335 mahasiswa lama ke struktur Skema/Tahapan TA baru.
+  // MURNI BACA - tidak INSERT/UPDATE/DELETE apa pun, cuma menghitung & melaporkan
+  // apa yang AKAN terjadi kalau backfill sungguhan dijalankan, supaya bisa dicek
+  // dulu sebelum ada satu baris pun ditulis.
+  static legacyBackfillSimulation = async (req, res) => {
+    try {
+      const report = { prodi: {}, kandidat: {}, masalah_data: [] };
+
+      // 1. Cari prodi Teknik Informatika (dikonfirmasi user: semua 335 mhs dari sini)
+      const prodiRows = await DB.query(
+        `SELECT "siakProgramStudiId", nama_prodi, kode_prodi FROM siak_v2_program_studi WHERE nama_prodi ILIKE '%teknik informatika%'`
+      );
+      report.prodi.ditemukan = prodiRows.rows;
+      if (prodiRows.rows.length !== 1) {
+        report.prodi.peringatan = `Ditemukan ${prodiRows.rows.length} baris prodi yang cocok dgn "teknik informatika" (idealnya persis 1) - perlu dipastikan manual yang mana dipakai.`;
+      }
+
+      // 2. Ambil semua ta_pengajuan_sk yang SK-nya sudah disetujui (status != pengajuan-sk)
+      const candidates = await DB.query(`
+        SELECT id, mhs_id, judul_skripsi, status, sk_pembimbing_1, sk_pembimbing_2, sk_pembimbing_3, kepala_lab
+        FROM ta_pengajuan_sk
+        WHERE status != 'pengajuan-sk' AND deleted_at IS NULL
+        ORDER BY id
+      `);
+
+      report.kandidat.total_akan_dibackfill = candidates.rows.length;
+
+      const perTahapan = {};
+      const dataIssues = [];
+      for (const row of candidates.rows) {
+        const tahapanTarget = STATUS_TO_TAHAPAN[row.status] || `(status tak dikenal: ${row.status})`;
+        const statusPelaksanaan = row.status === "selesai" ? "selesai" : "berjalan";
+        const key = `${tahapanTarget} (${statusPelaksanaan})`;
+        perTahapan[key] = (perTahapan[key] || 0) + 1;
+
+        const issues = [];
+        if (!row.sk_pembimbing_1 || !UUID_RE.test(row.sk_pembimbing_1)) {
+          issues.push("sk_pembimbing_1 kosong/bukan format UUID valid");
+        }
+        if (!row.kepala_lab || !UUID_RE.test(row.kepala_lab)) {
+          issues.push("kepala_lab kosong/bukan format UUID valid");
+        }
+        if (!row.judul_skripsi) {
+          issues.push("judul_skripsi kosong");
+        }
+        if (issues.length) {
+          dataIssues.push({ id: row.id, mhs_id: row.mhs_id, status: row.status, issues });
+        }
+      }
+
+      report.kandidat.per_tahapan_tujuan = perTahapan;
+      report.masalah_data = {
+        jumlah_baris_bermasalah: dataIssues.length,
+        contoh: dataIssues.slice(0, 15),
+      };
+
+      // 3. Tidak dibackfill sama sekali (SK belum disetujui)
+      const skipped = await DB.query(
+        `SELECT count(*) FROM ta_pengajuan_sk WHERE status = 'pengajuan-sk' AND deleted_at IS NULL`
+      );
+      report.kandidat.tidak_dibackfill_belum_acc_sk = parseInt(skipped.rows[0].count, 10);
+
+      return response(res, true, "success (simulasi, tidak ada yang ditulis)", report);
     } catch (error) {
       return response(res, false, error.message, null, 500);
     }
