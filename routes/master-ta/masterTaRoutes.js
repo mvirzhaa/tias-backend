@@ -1,5 +1,5 @@
 const express = require("express");
-const { protected, adminOnly, mhsOnly } = require("../../middleware/authMiddleware");
+const { protected, adminOnly, mhsOnly, dosenOnly } = require("../../middleware/authMiddleware");
 const SkemaController = require("../../controllers/master-ta/skemaController");
 const TahapanController = require("../../controllers/master-ta/tahapanController");
 const PenilaianController = require("../../controllers/master-ta/penilaianController");
@@ -49,6 +49,8 @@ router.put(
   mhsOnly,
   PelaksanaanController.submitKelengkapan
 );
+router.get("/pelaksanaan/dosen", protected, dosenOnly, PelaksanaanController.indexForDosen);
+router.get("/pelaksanaan/dosen/:id", protected, dosenOnly, PelaksanaanController.detailForDosen);
 router.get("/pelaksanaan", protected, adminOnly, PelaksanaanController.index);
 router.get("/pelaksanaan/:id", protected, adminOnly, PelaksanaanController.detail);
 router.put("/pelaksanaan/:id/advance", protected, adminOnly, PelaksanaanController.advance);
