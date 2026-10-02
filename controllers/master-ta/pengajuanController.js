@@ -3,6 +3,9 @@ const { response } = require("../../lib/response");
 const { getPagination } = require("../../lib/pagination-parser");
 const TaPengajuan = require("../../models/TugasAkhir/TaPengajuan");
 const TaSkema = require("../../models/master-ta/TaSkema");
+const TaTahapan = require("../../models/master-ta/TaTahapan");
+const TaPelaksanaan = require("../../models/master-ta/TaPelaksanaan");
+const SiakV2ProgramStudi = require("../../models/lms/SiakV2ProgramStudi");
 const User = require("../../models/User");
 const DataPribadi = require("../../models/DataPribadi");
 
@@ -13,6 +16,7 @@ const STATUS_OPTIONS = ["diajukan", "disetujui", "ditolak"];
 // setiap kali pembimbing_2 NULL (field opsional) atau dosen/skema terkait tidak match.
 const includeRelations = [
   { model: TaSkema, as: "skema", required: false },
+  { model: SiakV2ProgramStudi, as: "prodi", required: false },
   {
     model: User,
     as: "dosen_pembimbing_1",
@@ -33,12 +37,50 @@ const includeRelations = [
   },
 ];
 
+// Saat pengajuan disetujui, otomatis buka Pelaksanaan TA di tahapan pertama (id
+// terkecil) untuk (prodi_id, skema_id) pengajuan itu — "alur sepenuhnya dinamis
+// sesuai Tahapan TA" (bukan dipaksa ke alur kolokium/sidang lama). Idempoten: tidak
+// dobel-create kalau endpoint ini terpanggil ulang (klik 2x / re-approve).
+// Best-effort: kalau skema belum punya tahapan sama sekali, approval tetap jalan,
+// hanya dikembalikan sebagai warning (data master belum lengkap bukan salah user).
+async function provisionPelaksanaan(pengajuan) {
+  const existing = await TaPelaksanaan.findOne({
+    where: { pengajuan_id: pengajuan.id },
+  });
+  if (existing) return null;
+
+  if (!pengajuan.prodi_id) {
+    return "Status disetujui, tapi Pelaksanaan TA tidak otomatis dibuat karena pengajuan ini belum punya Prodi (data lama).";
+  }
+
+  const firstTahapan = await TaTahapan.findOne({
+    where: { prodi_id: pengajuan.prodi_id, skema_id: pengajuan.skema_id },
+    order: [["id", "ASC"]],
+  });
+
+  if (!firstTahapan) {
+    return "Status disetujui, tapi Pelaksanaan TA tidak otomatis dibuat karena skema ini belum punya Tahapan TA. Tambahkan Tahapan TA dulu lalu buat Pelaksanaan secara manual.";
+  }
+
+  await TaPelaksanaan.create({
+    pengajuan_id: pengajuan.id,
+    mhs_id: pengajuan.mhs_id,
+    tahapan_id: firstTahapan.id,
+    status: "berjalan",
+    created_at: new Date(),
+    updated_at: new Date(),
+  });
+
+  return null;
+}
+
 class PengajuanController {
   static create = async (req, res) => {
     try {
       const mhsId = req.user.user_id;
       const { npm, nama_lengkap } = req.user;
       const {
+        prodi_id,
         skema_id,
         judul,
         pembimbing_1,
@@ -47,11 +89,11 @@ class PengajuanController {
         kepala_lab,
       } = req.body;
 
-      if (!skema_id || !judul || !pembimbing_1 || !kepala_lab) {
+      if (!prodi_id || !skema_id || !judul || !pembimbing_1 || !kepala_lab) {
         return response(
           res,
           false,
-          "Skema, judul, pembimbing 1, dan kepala lab wajib diisi",
+          "Prodi, skema, judul, pembimbing 1, dan kepala lab wajib diisi",
           null,
           400
         );
@@ -61,6 +103,7 @@ class PengajuanController {
         mhs_id: mhsId,
         nama: nama_lengkap,
         npm,
+        prodi_id,
         skema_id,
         judul,
         pembimbing_1,
@@ -159,6 +202,7 @@ class PengajuanController {
       }
 
       const {
+        prodi_id,
         skema_id,
         judul,
         pembimbing_1,
@@ -167,11 +211,11 @@ class PengajuanController {
         kepala_lab,
       } = req.body;
 
-      if (!skema_id || !judul || !pembimbing_1 || !kepala_lab) {
+      if (!prodi_id || !skema_id || !judul || !pembimbing_1 || !kepala_lab) {
         return response(
           res,
           false,
-          "Skema, judul, pembimbing 1, dan kepala lab wajib diisi",
+          "Prodi, skema, judul, pembimbing 1, dan kepala lab wajib diisi",
           null,
           400
         );
@@ -179,6 +223,7 @@ class PengajuanController {
 
       const update = await TaPengajuan.update(
         {
+          prodi_id,
           skema_id,
           judul,
           pembimbing_1,
@@ -218,6 +263,7 @@ class PengajuanController {
       }
 
       const {
+        prodi_id,
         skema_id,
         judul,
         pembimbing_1,
@@ -226,11 +272,11 @@ class PengajuanController {
         kepala_lab,
       } = req.body;
 
-      if (!skema_id || !judul || !pembimbing_1 || !kepala_lab) {
+      if (!prodi_id || !skema_id || !judul || !pembimbing_1 || !kepala_lab) {
         return response(
           res,
           false,
-          "Skema, judul, pembimbing 1, dan kepala lab wajib diisi",
+          "Prodi, skema, judul, pembimbing 1, dan kepala lab wajib diisi",
           null,
           400
         );
@@ -238,6 +284,7 @@ class PengajuanController {
 
       const update = await TaPengajuan.update(
         {
+          prodi_id,
           skema_id,
           judul,
           pembimbing_1,
@@ -280,7 +327,12 @@ class PengajuanController {
         { where: { id } }
       );
 
-      return response(res, true, "success", update);
+      let pelaksanaanWarning = null;
+      if (status === "disetujui") {
+        pelaksanaanWarning = await provisionPelaksanaan(check);
+      }
+
+      return response(res, true, pelaksanaanWarning || "success", update);
     } catch (error) {
       return response(res, false, error.message, null, 500);
     }
