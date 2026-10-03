@@ -181,7 +181,7 @@ async function upsertMeta(pelaksanaanId, tahapanId, fields) {
 // (getForAdmin/getForDosen) - bukan memanggilnya - supaya endpoint lama itu
 // sendiri nol diubah/berisiko. Pakai parameterized query (bukan interpolasi
 // string spt kode lama) utk dosenId.
-async function fetchLegacyRowsGabungan(dosenId = null) {
+async function fetchLegacyRowsGabungan(dosenId = null, mhsId = null) {
   let query = `
     SELECT
       ta_pengajuan_sk.id,
@@ -247,6 +247,11 @@ async function fetchLegacyRowsGabungan(dosenId = null) {
       ta_pendaftaran_sidang.penguji_1 = $1 OR
       ta_pendaftaran_sidang.penguji_2 = $1
     )`;
+  }
+
+  if (mhsId) {
+    params.push(mhsId);
+    query += ` AND ta_pengajuan_sk.mhs_id = $${params.length}`;
   }
 
   const result = await DB.query(query, params);
@@ -335,7 +340,7 @@ async function fetchLegacyRowsGabungan(dosenId = null) {
 // SENGAJA tidak difilter by status - baris yang sudah 'selesai' tetap harus
 // tampil (jadi rekap riwayat akademik), beda dgn index()/indexForDosen() di
 // bawah yang default-nya cuma 'berjalan' (dipakai di tempat lain).
-async function fetchDynamicRowsGabungan(dosenId = null) {
+async function fetchDynamicRowsGabungan(dosenId = null, mhsId = null) {
   const condition = {};
   if (dosenId) {
     condition[Op.or] = [
@@ -343,6 +348,9 @@ async function fetchDynamicRowsGabungan(dosenId = null) {
       { "$pengajuan.pembimbing_2$": dosenId },
       { "$pengajuan.kepala_lab$": dosenId },
     ];
+  }
+  if (mhsId) {
+    condition.mhs_id = mhsId;
   }
 
   const allRows = await TaPelaksanaan.findAll({
@@ -657,6 +665,76 @@ class PelaksanaanController {
             { "$pengajuan.kepala_lab$": dosenId },
           ],
         },
+        include: includeRelations,
+      });
+
+      if (!data) {
+        return response(res, false, "Data tidak ditemukan", null, 404);
+      }
+
+      const tahapan = await TaTahapan.findOne({ where: { id: tahapanId } });
+      if (!tahapan) {
+        return response(res, false, "Tahapan tidak ditemukan", null, 404);
+      }
+
+      const kelengkapan = await getKelengkapanWithIsian(tahapan.id, data.id);
+      const meta = await getMetaOrDefault(data.id, tahapan.id);
+
+      const namesMap = await getDosenNamesMap([
+        data.pengajuan?.pembimbing_1,
+        data.pengajuan?.pembimbing_2,
+        data.pengajuan?.kepala_lab,
+        meta.evaluator_1,
+        meta.evaluator_2,
+      ]);
+
+      return response(res, true, "success", {
+        pelaksanaan_id: data.id,
+        pelaksanaan_status: data.status,
+        tahapan: { id: tahapan.id, nama_tahapan: tahapan.nama_tahapan },
+        is_current_tahapan: Number(data.tahapan_id) === Number(tahapanId),
+        can_advance: false,
+        mahasiswa: data.mahasiswa,
+        pengajuan: data.pengajuan,
+        pembimbing_names: {
+          pembimbing_1: namesMap[data.pengajuan?.pembimbing_1] || null,
+          pembimbing_2: namesMap[data.pengajuan?.pembimbing_2] || null,
+          kepala_lab: namesMap[data.pengajuan?.kepala_lab] || null,
+        },
+        kelengkapan,
+        meta: {
+          jadwal_pelaksanaan: meta.jadwal_pelaksanaan,
+          evaluator_1: meta.evaluator_1,
+          evaluator_1_nama: namesMap[meta.evaluator_1] || null,
+          evaluator_2: meta.evaluator_2,
+          evaluator_2_nama: namesMap[meta.evaluator_2] || null,
+          acc_pembimbing_1: meta.acc_pembimbing_1,
+          acc_pembimbing_2: meta.acc_pembimbing_2,
+          acc_kepala_lab: meta.acc_kepala_lab,
+          status_kp: meta.status_kp,
+          status_sks_ipk: meta.status_sks_ipk,
+          jumlah_sks: meta.jumlah_sks,
+          ipk: meta.ipk,
+        },
+        penilaian: await getPenilaianWithNilai(tahapan.id, data.id),
+      });
+    } catch (error) {
+      return response(res, false, error.message, null, 500);
+    }
+  };
+
+  // Mahasiswa lihat SATU tahapan miliknya sendiri - sama persis bentuknya dgn
+  // tahapanDetailForDosen (jadwal/evaluator/checklist/ACC/penilaian read-only),
+  // bedanya kelengkapan BOLEH diisi mahasiswa lewat submitKelengkapan yang
+  // sudah ada kalau ini tahapan yang sedang berjalan (is_current_tahapan) -
+  // FE yang menentukan form kelengkapan editable atau read-only berdasar flag
+  // itu. IDOR-safe: scoped ke mhs_id = req.user.user_id, bukan ke pembimbing.
+  static tahapanDetailForMahasiswa = async (req, res) => {
+    try {
+      const mhsId = req.user.user_id;
+      const { tahapanId } = req.params;
+      const data = await TaPelaksanaan.findOne({
+        where: { id: req.params.id, mhs_id: mhsId },
         include: includeRelations,
       });
 
@@ -1064,6 +1142,28 @@ class PelaksanaanController {
         total_page: Math.ceil(total / limit),
         rows,
       });
+    } catch (error) {
+      return response(res, false, error.message, null, 500);
+    }
+  };
+
+  // Daftar TA milik mahasiswa SENDIRI - satu mahasiswa bisa punya lebih dari
+  // satu baris sekaligus (mis. sedang nyoba skema dinamis sambil masih punya
+  // riwayat/baris di sistem lama) - makanya ini tabel+gerigi juga, bukan
+  // langsung ambil "yang aktif" terus render 1 form (asumsi lama itu salah,
+  // kebukti dari data production). Tidak dipaginasi - jumlah baris per
+  // mahasiswa kecil (1-3), beda dgn indexGabungan/indexGabunganForDosen yang
+  // lintas-mahasiswa.
+  static indexGabunganForMahasiswa = async (req, res) => {
+    try {
+      const mhsId = req.user.user_id;
+
+      const [legacyRows, dynamicRows] = await Promise.all([
+        settledRows(fetchLegacyRowsGabungan(null, mhsId), "lama"),
+        settledRows(fetchDynamicRowsGabungan(null, mhsId), "dinamis"),
+      ]);
+
+      return response(res, true, "success", { rows: [...dynamicRows, ...legacyRows] });
     } catch (error) {
       return response(res, false, error.message, null, 500);
     }

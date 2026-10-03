@@ -63,6 +63,12 @@ router.put(
   mhsOnly,
   PelaksanaanController.submitKelengkapan
 );
+router.get(
+  "/pelaksanaan/me/:id/tahapan/:tahapanId",
+  protected,
+  mhsOnly,
+  PelaksanaanController.tahapanDetailForMahasiswa
+);
 router.get("/pelaksanaan/dosen", protected, dosenOnly, PelaksanaanController.indexForDosen);
 router.get("/pelaksanaan/dosen/:id", protected, dosenOnly, PelaksanaanController.detailForDosen);
 router.get(
@@ -107,6 +113,12 @@ router.get(
   protected,
   dosenOnly,
   PelaksanaanController.indexGabunganForDosen
+);
+router.get(
+  "/pelaksanaan-gabungan/me",
+  protected,
+  mhsOnly,
+  PelaksanaanController.indexGabunganForMahasiswa
 );
 
 // Pengajuan TA
