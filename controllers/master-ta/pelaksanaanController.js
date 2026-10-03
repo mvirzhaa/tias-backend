@@ -203,8 +203,11 @@ async function fetchLegacyRowsGabungan(dosenId = null) {
 }
 
 // Baris dari sistem DINAMIS (Tahapan TA baru) disusun ke bentuk yang sama.
+// SENGAJA tidak difilter by status - baris yang sudah 'selesai' tetap harus
+// tampil (jadi rekap riwayat akademik), beda dgn index()/indexForDosen() di
+// bawah yang default-nya cuma 'berjalan' (dipakai di tempat lain).
 async function fetchDynamicRowsGabungan(dosenId = null) {
-  const condition = { status: "berjalan" };
+  const condition = {};
   if (dosenId) {
     condition[Op.or] = [
       { "$pengajuan.pembimbing_1$": dosenId },
@@ -225,7 +228,28 @@ async function fetchDynamicRowsGabungan(dosenId = null) {
   // di semua kolom.
   const rows = allRows.filter((r) => r.pengajuan);
 
-  return rows.map((r) => {
+  // Daftar tahapan per (prodi, skema) - dipakai FE utk dropdown aksi (gerigi)
+  // persis spt baris lama, isinya nama2 tahapan bukan status tetap. Dibatch
+  // per pasangan unik supaya tidak query berulang utk mahasiswa di skema yg
+  // sama.
+  const tahapanCache = new Map();
+  async function getTahapanList(prodiId, skemaId) {
+    const key = `${prodiId}|${skemaId}`;
+    if (!tahapanCache.has(key)) {
+      const list = await TaTahapan.findAll({
+        where: { prodi_id: prodiId, skema_id: skemaId },
+        order: [["id", "ASC"]],
+      });
+      tahapanCache.set(
+        key,
+        list.map((t) => ({ id: t.id, nama_tahapan: t.nama_tahapan }))
+      );
+    }
+    return tahapanCache.get(key);
+  }
+
+  const mapped = [];
+  for (const r of rows) {
     let peran = null;
     if (dosenId) {
       const peranList = [];
@@ -235,7 +259,11 @@ async function fetchDynamicRowsGabungan(dosenId = null) {
       peran = peranList.join(" | ");
     }
 
-    return {
+    const tahapanList = r.tahapan
+      ? await getTahapanList(r.tahapan.prodi_id, r.tahapan.skema_id)
+      : [];
+
+    mapped.push({
       id: r.id,
       source: "dinamis",
       nama_lengkap: r.mahasiswa?.personal_data?.nama_lengkap || "-",
@@ -246,8 +274,13 @@ async function fetchDynamicRowsGabungan(dosenId = null) {
       judul: r.pengajuan?.judul || "-",
       status_dospem: "-",
       peran,
-    };
-  });
+      pelaksanaan_status: r.status,
+      tahapan_id: r.tahapan_id,
+      tahapan_list: tahapanList,
+    });
+  }
+
+  return mapped;
 }
 
 // Kalau salah satu sisi gagal (mis. skema tabel lama berubah lagi), tabel
@@ -401,6 +434,100 @@ class PelaksanaanController {
       const kelengkapan = await getKelengkapanWithIsian(data.tahapan_id, data.id);
 
       return response(res, true, "success", { ...data.toJSON(), kelengkapan });
+    } catch (error) {
+      return response(res, false, error.message, null, 500);
+    }
+  };
+
+  // Kelengkapan utk SATU tahapan tertentu, boleh bukan tahapan yang sedang
+  // berjalan (mis. tahapan yang sudah lewat, utk audit/rekap). Dipakai halaman
+  // detail tahapan di tabel gabungan (gerigi -> pilih nama tahapan -> halaman
+  // ini), menggantikan modal "Lihat Kelengkapan" yang cuma bisa tahapan
+  // berjalan.
+  static tahapanDetail = async (req, res) => {
+    try {
+      const { id, tahapanId } = req.params;
+      const data = await TaPelaksanaan.findOne({
+        where: { id },
+        include: includeRelations,
+      });
+
+      if (!data) {
+        return response(res, false, "Data tidak ditemukan", null, 404);
+      }
+
+      const tahapan = await TaTahapan.findOne({ where: { id: tahapanId } });
+      if (!tahapan) {
+        return response(res, false, "Tahapan tidak ditemukan", null, 404);
+      }
+
+      const kelengkapan = await getKelengkapanWithIsian(tahapan.id, data.id);
+      const isCurrentTahapan = Number(data.tahapan_id) === Number(tahapanId);
+
+      return response(res, true, "success", {
+        pelaksanaan_id: data.id,
+        pelaksanaan_status: data.status,
+        tahapan: { id: tahapan.id, nama_tahapan: tahapan.nama_tahapan },
+        is_current_tahapan: isCurrentTahapan,
+        can_advance: isCurrentTahapan && data.status === "berjalan",
+        mahasiswa: data.mahasiswa,
+        pengajuan: data.pengajuan,
+        kelengkapan,
+      });
+    } catch (error) {
+      return response(res, false, error.message, null, 500);
+    }
+  };
+
+  static tahapanDetailForDosen = async (req, res) => {
+    try {
+      const dosenId = req.user.user_id;
+      const { id, tahapanId } = req.params;
+      const data = await TaPelaksanaan.findOne({
+        where: {
+          id,
+          [Op.or]: [
+            { "$pengajuan.pembimbing_1$": dosenId },
+            { "$pengajuan.pembimbing_2$": dosenId },
+            { "$pengajuan.kepala_lab$": dosenId },
+          ],
+        },
+        include: includeRelations,
+      });
+
+      if (!data) {
+        return response(res, false, "Data tidak ditemukan", null, 404);
+      }
+
+      const tahapan = await TaTahapan.findOne({ where: { id: tahapanId } });
+      if (!tahapan) {
+        return response(res, false, "Tahapan tidak ditemukan", null, 404);
+      }
+
+      const kelengkapan = await getKelengkapanWithIsian(tahapan.id, data.id);
+
+      return response(res, true, "success", {
+        pelaksanaan_id: data.id,
+        pelaksanaan_status: data.status,
+        tahapan: { id: tahapan.id, nama_tahapan: tahapan.nama_tahapan },
+        is_current_tahapan: Number(data.tahapan_id) === Number(tahapanId),
+        can_advance: false,
+        mahasiswa: data.mahasiswa,
+        pengajuan: data.pengajuan,
+        kelengkapan,
+      });
+    } catch (error) {
+      return response(res, false, error.message, null, 500);
+    }
+  };
+
+  // Soft-delete - data Pelaksanaan TA jadi rekap akademik, jadi dihapus harus
+  // sengaja (lewat tombol ini), bukan otomatis hilang begitu status='selesai'.
+  static destroy = async (req, res) => {
+    try {
+      const { id } = req.params;
+      await TaPelaksanaan.update({ deleted_at: new Date() }, { where: { id } });
+      return response(res, true, "berhasil");
     } catch (error) {
       return response(res, false, error.message, null, 500);
     }

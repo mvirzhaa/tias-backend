@@ -31,8 +31,16 @@ TaPelaksanaan.init(
     updated_at: {
       type: DataTypes.DATE,
     },
+    deleted_at: {
+      type: DataTypes.DATE,
+    },
   },
   {
+    defaultScope: {
+      where: {
+        deleted_at: null,
+      },
+    },
     timestamps: false,
     tableName: "ta_pelaksanaan",
     modelName: "TaPelaksanaan",

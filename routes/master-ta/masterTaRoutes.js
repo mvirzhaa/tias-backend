@@ -65,9 +65,22 @@ router.put(
 );
 router.get("/pelaksanaan/dosen", protected, dosenOnly, PelaksanaanController.indexForDosen);
 router.get("/pelaksanaan/dosen/:id", protected, dosenOnly, PelaksanaanController.detailForDosen);
+router.get(
+  "/pelaksanaan/dosen/:id/tahapan/:tahapanId",
+  protected,
+  dosenOnly,
+  PelaksanaanController.tahapanDetailForDosen
+);
 router.get("/pelaksanaan", protected, adminOnly, PelaksanaanController.index);
 router.get("/pelaksanaan/:id", protected, adminOnly, PelaksanaanController.detail);
+router.get(
+  "/pelaksanaan/:id/tahapan/:tahapanId",
+  protected,
+  adminOnly,
+  PelaksanaanController.tahapanDetail
+);
 router.put("/pelaksanaan/:id/advance", protected, adminOnly, PelaksanaanController.advance);
+router.delete("/pelaksanaan/:id", protected, adminOnly, PelaksanaanController.destroy);
 
 // Tabel gabungan (sistem lama + dinamis, dgn kolom skema) - menggantikan tab
 // "Dinamis" terpisah di halaman Pelaksanaan TA admin & dosen.
