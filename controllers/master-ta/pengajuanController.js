@@ -56,7 +56,7 @@ async function provisionPelaksanaan(pengajuan) {
 
   const firstTahapan = await TaTahapan.findOne({
     where: { prodi_id: pengajuan.prodi_id, skema_id: pengajuan.skema_id },
-    order: [["id", "ASC"]],
+    order: [["urutan", "ASC"]],
   });
 
   if (!firstTahapan) {
@@ -164,6 +164,7 @@ class PengajuanController {
         prodi_id,
         skema_id,
         judul,
+        semester: semester || null,
         pembimbing_1,
         pembimbing_2: pembimbing_2 || null,
         pembimbing_luar: pembimbing_luar || null,
