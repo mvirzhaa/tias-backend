@@ -79,6 +79,12 @@ router.get(
   adminOnly,
   PelaksanaanController.tahapanDetail
 );
+router.put(
+  "/pelaksanaan/:id/tahapan/:tahapanId/meta",
+  protected,
+  adminOnly,
+  PelaksanaanController.updateMeta
+);
 router.put("/pelaksanaan/:id/advance", protected, adminOnly, PelaksanaanController.advance);
 router.delete("/pelaksanaan/:id", protected, adminOnly, PelaksanaanController.destroy);
 

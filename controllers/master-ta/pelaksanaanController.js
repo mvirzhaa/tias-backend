@@ -7,6 +7,7 @@ const TaTahapan = require("../../models/master-ta/TaTahapan");
 const TaSkema = require("../../models/master-ta/TaSkema");
 const TaKelengkapan = require("../../models/master-ta/TaKelengkapan");
 const TaPelaksanaanKelengkapan = require("../../models/master-ta/TaPelaksanaanKelengkapan");
+const TaPelaksanaanTahapanMeta = require("../../models/master-ta/TaPelaksanaanTahapanMeta");
 const TaPengajuan = require("../../models/TugasAkhir/TaPengajuan");
 const User = require("../../models/User");
 const DataPribadi = require("../../models/DataPribadi");
@@ -43,6 +44,64 @@ async function getKelengkapanWithIsian(tahapanId, pelaksanaanId) {
     nama_kelengkapan: def.nama_kelengkapan,
     isian: submittedMap.has(def.id) ? submittedMap.get(def.id) : null,
   }));
+}
+
+// Nama dosen utk sekumpulan user_id (dipakai menampilkan nama Pembimbing
+// 1/2/Kepala Lab dari Pengajuan TA & Evaluator 1/2 dari meta tahapan) - query
+// terpisah drpd nambah include dalam2 ke includeRelations yang dipakai banyak
+// method lain.
+async function getDosenNamesMap(userIds) {
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (ids.length < 1) return {};
+
+  const users = await User.findAll({
+    where: { user_id: ids },
+    include: { model: DataPribadi, as: "personal_data", required: false },
+  });
+
+  return Object.fromEntries(
+    users.map((u) => [u.user_id, u.personal_data?.nama_lengkap || null])
+  );
+}
+
+const EMPTY_META = {
+  jadwal_pelaksanaan: null,
+  evaluator_1: null,
+  evaluator_2: null,
+  acc_pembimbing_1: false,
+  acc_pembimbing_2: false,
+  acc_kepala_lab: false,
+};
+
+// GET murni baca - kalau belum pernah disentuh admin, baris memang belum ada
+// di DB sama sekali, jadi dikembalikan nilai kosong tanpa menulis apa pun.
+async function getMetaOrDefault(pelaksanaanId, tahapanId) {
+  const meta = await TaPelaksanaanTahapanMeta.findOne({
+    where: { pelaksanaan_id: pelaksanaanId, tahapan_id: tahapanId },
+  });
+  return meta ? meta.toJSON() : { ...EMPTY_META, pelaksanaan_id: pelaksanaanId, tahapan_id: tahapanId };
+}
+
+// Dipakai PUT /meta - baris baru dibuat on-demand saat admin pertama kali
+// menyimpan sesuatu utk (pelaksanaan, tahapan) itu.
+async function upsertMeta(pelaksanaanId, tahapanId, fields) {
+  const existing = await TaPelaksanaanTahapanMeta.findOne({
+    where: { pelaksanaan_id: pelaksanaanId, tahapan_id: tahapanId },
+  });
+  if (existing) {
+    await TaPelaksanaanTahapanMeta.update(
+      { ...fields, updated_at: new Date() },
+      { where: { id: existing.id } }
+    );
+    return TaPelaksanaanTahapanMeta.findOne({ where: { id: existing.id } });
+  }
+  return TaPelaksanaanTahapanMeta.create({
+    pelaksanaan_id: pelaksanaanId,
+    tahapan_id: tahapanId,
+    ...fields,
+    created_at: new Date(),
+    updated_at: new Date(),
+  });
 }
 
 // Baca-saja, mengambil baris dari sistem LAMA (ta_pengajuan_sk) dan menyusunnya
@@ -464,16 +523,46 @@ class PelaksanaanController {
 
       const kelengkapan = await getKelengkapanWithIsian(tahapan.id, data.id);
       const isCurrentTahapan = Number(data.tahapan_id) === Number(tahapanId);
+      const meta = await getMetaOrDefault(data.id, tahapan.id);
+
+      const namesMap = await getDosenNamesMap([
+        data.pengajuan?.pembimbing_1,
+        data.pengajuan?.pembimbing_2,
+        data.pengajuan?.kepala_lab,
+        meta.evaluator_1,
+        meta.evaluator_2,
+      ]);
+
+      const accComplete =
+        !!meta.acc_pembimbing_1 &&
+        !!meta.acc_kepala_lab &&
+        (!data.pengajuan?.pembimbing_2 || !!meta.acc_pembimbing_2);
 
       return response(res, true, "success", {
         pelaksanaan_id: data.id,
         pelaksanaan_status: data.status,
         tahapan: { id: tahapan.id, nama_tahapan: tahapan.nama_tahapan },
         is_current_tahapan: isCurrentTahapan,
-        can_advance: isCurrentTahapan && data.status === "berjalan",
+        can_advance: isCurrentTahapan && data.status === "berjalan" && accComplete,
+        acc_complete: accComplete,
         mahasiswa: data.mahasiswa,
         pengajuan: data.pengajuan,
+        pembimbing_names: {
+          pembimbing_1: namesMap[data.pengajuan?.pembimbing_1] || null,
+          pembimbing_2: namesMap[data.pengajuan?.pembimbing_2] || null,
+          kepala_lab: namesMap[data.pengajuan?.kepala_lab] || null,
+        },
         kelengkapan,
+        meta: {
+          jadwal_pelaksanaan: meta.jadwal_pelaksanaan,
+          evaluator_1: meta.evaluator_1,
+          evaluator_1_nama: namesMap[meta.evaluator_1] || null,
+          evaluator_2: meta.evaluator_2,
+          evaluator_2_nama: namesMap[meta.evaluator_2] || null,
+          acc_pembimbing_1: meta.acc_pembimbing_1,
+          acc_pembimbing_2: meta.acc_pembimbing_2,
+          acc_kepala_lab: meta.acc_kepala_lab,
+        },
       });
     } catch (error) {
       return response(res, false, error.message, null, 500);
@@ -506,6 +595,15 @@ class PelaksanaanController {
       }
 
       const kelengkapan = await getKelengkapanWithIsian(tahapan.id, data.id);
+      const meta = await getMetaOrDefault(data.id, tahapan.id);
+
+      const namesMap = await getDosenNamesMap([
+        data.pengajuan?.pembimbing_1,
+        data.pengajuan?.pembimbing_2,
+        data.pengajuan?.kepala_lab,
+        meta.evaluator_1,
+        meta.evaluator_2,
+      ]);
 
       return response(res, true, "success", {
         pelaksanaan_id: data.id,
@@ -515,7 +613,22 @@ class PelaksanaanController {
         can_advance: false,
         mahasiswa: data.mahasiswa,
         pengajuan: data.pengajuan,
+        pembimbing_names: {
+          pembimbing_1: namesMap[data.pengajuan?.pembimbing_1] || null,
+          pembimbing_2: namesMap[data.pengajuan?.pembimbing_2] || null,
+          kepala_lab: namesMap[data.pengajuan?.kepala_lab] || null,
+        },
         kelengkapan,
+        meta: {
+          jadwal_pelaksanaan: meta.jadwal_pelaksanaan,
+          evaluator_1: meta.evaluator_1,
+          evaluator_1_nama: namesMap[meta.evaluator_1] || null,
+          evaluator_2: meta.evaluator_2,
+          evaluator_2_nama: namesMap[meta.evaluator_2] || null,
+          acc_pembimbing_1: meta.acc_pembimbing_1,
+          acc_pembimbing_2: meta.acc_pembimbing_2,
+          acc_kepala_lab: meta.acc_kepala_lab,
+        },
       });
     } catch (error) {
       return response(res, false, error.message, null, 500);
@@ -552,6 +665,28 @@ class PelaksanaanController {
         return response(res, false, "Tahapan saat ini tidak ditemukan", null, 404);
       }
 
+      // Gerbang ACC: admin cuma boleh lanjut tahapan kalau Pembimbing 1,
+      // Pembimbing 2 (kalau ada), dan Kepala Lab sudah dicentang ACC utk
+      // tahapan SAAT INI - sama spt dosen harus ACC dulu sebelum sistem lama
+      // lanjut ke kolokium/sidang berikutnya, cuma di sini dicentang admin
+      // (bukan dosen sendiri) krn ACC-nya berupa surat fisik.
+      const pengajuan = await TaPengajuan.findOne({ where: { id: pelaksanaan.pengajuan_id } });
+      const meta = await getMetaOrDefault(pelaksanaan.id, currentTahapan.id);
+      const accComplete =
+        !!meta.acc_pembimbing_1 &&
+        !!meta.acc_kepala_lab &&
+        (!pengajuan?.pembimbing_2 || !!meta.acc_pembimbing_2);
+
+      if (!accComplete) {
+        return response(
+          res,
+          false,
+          "Belum bisa lanjut - ACC Pembimbing 1/2 & Kepala Lab utk tahapan ini belum lengkap",
+          null,
+          400
+        );
+      }
+
       const nextTahapan = await TaTahapan.findOne({
         where: {
           prodi_id: currentTahapan.prodi_id,
@@ -579,6 +714,45 @@ class PelaksanaanController {
       return response(res, true, "Tahapan terakhir selesai, pelaksanaan TA ditandai selesai", {
         status: "selesai",
       });
+    } catch (error) {
+      return response(res, false, error.message, null, 500);
+    }
+  };
+
+  // Admin isi Jadwal Pelaksanaan, Evaluator 1/2, dan centang ACC Pembimbing
+  // 1/2/Kepala Lab utk tahapan tertentu - partial update (field yang tidak
+  // dikirim tidak ikut berubah), supaya form Jadwal/Evaluator dan checkbox
+  // ACC bisa disimpan terpisah tanpa saling menimpa.
+  static updateMeta = async (req, res) => {
+    try {
+      const { id, tahapanId } = req.params;
+      const pelaksanaan = await TaPelaksanaan.findOne({ where: { id } });
+      if (!pelaksanaan) {
+        return response(res, false, "Data tidak ditemukan", null, 404);
+      }
+
+      const tahapan = await TaTahapan.findOne({ where: { id: tahapanId } });
+      if (!tahapan) {
+        return response(res, false, "Tahapan tidak ditemukan", null, 404);
+      }
+
+      const booleanFields = ["acc_pembimbing_1", "acc_pembimbing_2", "acc_kepala_lab"];
+      const nullableFields = ["jadwal_pelaksanaan", "evaluator_1", "evaluator_2"];
+      const fields = {};
+      for (const key of booleanFields) {
+        if (Object.prototype.hasOwnProperty.call(req.body, key)) {
+          fields[key] = !!req.body[key];
+        }
+      }
+      for (const key of nullableFields) {
+        if (Object.prototype.hasOwnProperty.call(req.body, key)) {
+          fields[key] = req.body[key] || null;
+        }
+      }
+
+      const meta = await upsertMeta(pelaksanaan.id, tahapan.id, fields);
+
+      return response(res, true, "success", meta);
     } catch (error) {
       return response(res, false, error.message, null, 500);
     }
