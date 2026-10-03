@@ -164,6 +164,7 @@ class PengajuanController {
         prodi_id,
         skema_id,
         judul,
+        semester: semester || null,
         pembimbing_1,
         pembimbing_2: pembimbing_2 || null,
         pembimbing_luar: pembimbing_luar || null,

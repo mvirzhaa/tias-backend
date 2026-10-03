@@ -36,6 +36,20 @@ TaPelaksanaanTahapanMeta.init(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
+    status_kp: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    status_sks_ipk: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    jumlah_sks: {
+      type: DataTypes.INTEGER,
+    },
+    ipk: {
+      type: DataTypes.DECIMAL(4, 2),
+    },
     created_at: {
       type: DataTypes.DATE,
     },

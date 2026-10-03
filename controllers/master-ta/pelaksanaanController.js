@@ -8,6 +8,8 @@ const TaSkema = require("../../models/master-ta/TaSkema");
 const TaKelengkapan = require("../../models/master-ta/TaKelengkapan");
 const TaPelaksanaanKelengkapan = require("../../models/master-ta/TaPelaksanaanKelengkapan");
 const TaPelaksanaanTahapanMeta = require("../../models/master-ta/TaPelaksanaanTahapanMeta");
+const TaKomponenPenilaian = require("../../models/master-ta/TaKomponenPenilaian");
+const TaPelaksanaanPenilaian = require("../../models/master-ta/TaPelaksanaanPenilaian");
 const TaPengajuan = require("../../models/TugasAkhir/TaPengajuan");
 const User = require("../../models/User");
 const DataPribadi = require("../../models/DataPribadi");
@@ -71,7 +73,75 @@ const EMPTY_META = {
   acc_pembimbing_1: false,
   acc_pembimbing_2: false,
   acc_kepala_lab: false,
+  status_kp: false,
+  status_sks_ipk: false,
+  jumlah_sks: null,
+  ipk: null,
 };
+
+// Komponen penilaian (TaKomponenPenilaian) berbobot per tahapan sudah admin-configurable
+// (lihat penilaianController.js). Di sini kita gabungkan dengan nilai yang sudah diisi
+// dosen (TaPelaksanaanPenilaian) untuk satu (pelaksanaan, tahapan), dan hitung nilai
+// akhir berbobot per dosen on-the-fly (tidak disimpan) — tidak ada agregasi lintas-dosen,
+// itu keputusan bisnis yang belum diminta.
+async function getPenilaianWithNilai(tahapanId, pelaksanaanId) {
+  const komponen = await TaKomponenPenilaian.findAll({
+    where: { tahapan_id: tahapanId },
+    order: [["id", "ASC"]],
+  });
+
+  const nilaiRows = await TaPelaksanaanPenilaian.findAll({
+    where: { pelaksanaan_id: pelaksanaanId, tahapan_id: tahapanId },
+    include: [
+      {
+        model: User,
+        as: "dosen",
+        required: false,
+        include: { model: DataPribadi, as: "personal_data", required: false },
+      },
+    ],
+  });
+
+  const byDosen = new Map();
+  for (const row of nilaiRows) {
+    if (!byDosen.has(row.dosen_id)) {
+      byDosen.set(row.dosen_id, {
+        dosen_id: row.dosen_id,
+        nama: row.dosen?.personal_data?.nama_lengkap || null,
+        items: [],
+      });
+    }
+    byDosen.get(row.dosen_id).items.push({
+      komponen_id: row.komponen_id,
+      nilai: Number(row.nilai),
+    });
+  }
+
+  const nilai_per_dosen = Array.from(byDosen.values()).map((d) => {
+    const nilai_akhir = komponen.reduce((sum, k) => {
+      const item = d.items.find((i) => i.komponen_id === k.id);
+      return item ? sum + (item.nilai * Number(k.bobot)) / 100 : sum;
+    }, 0);
+    return { ...d, nilai_akhir };
+  });
+
+  return { komponen, nilai_per_dosen };
+}
+
+// Dosen boleh isi Penilaian kalau dia pembimbing_1/2/kepala_lab di Pengajuan TA
+// terkait, ATAU evaluator_1/2 yang ditugaskan admin utk tahapan ini secara khusus
+// (lihat TaPelaksanaanTahapanMeta) — lebih longgar drpd gerbang ACC yang cuma
+// pembimbing_1/2/kepala_lab.
+function isDosenTerkaitTahapan(pengajuan, meta, userId) {
+  if (!userId) return false;
+  return [
+    pengajuan?.pembimbing_1,
+    pengajuan?.pembimbing_2,
+    pengajuan?.kepala_lab,
+    meta?.evaluator_1,
+    meta?.evaluator_2,
+  ].includes(userId);
+}
 
 // GET murni baca - kalau belum pernah disentuh admin, baris memang belum ada
 // di DB sama sekali, jadi dikembalikan nilai kosong tanpa menulis apa pun.
@@ -562,7 +632,12 @@ class PelaksanaanController {
           acc_pembimbing_1: meta.acc_pembimbing_1,
           acc_pembimbing_2: meta.acc_pembimbing_2,
           acc_kepala_lab: meta.acc_kepala_lab,
+          status_kp: meta.status_kp,
+          status_sks_ipk: meta.status_sks_ipk,
+          jumlah_sks: meta.jumlah_sks,
+          ipk: meta.ipk,
         },
+        penilaian: await getPenilaianWithNilai(tahapan.id, data.id),
       });
     } catch (error) {
       return response(res, false, error.message, null, 500);
@@ -628,7 +703,12 @@ class PelaksanaanController {
           acc_pembimbing_1: meta.acc_pembimbing_1,
           acc_pembimbing_2: meta.acc_pembimbing_2,
           acc_kepala_lab: meta.acc_kepala_lab,
+          status_kp: meta.status_kp,
+          status_sks_ipk: meta.status_sks_ipk,
+          jumlah_sks: meta.jumlah_sks,
+          ipk: meta.ipk,
         },
+        penilaian: await getPenilaianWithNilai(tahapan.id, data.id),
       });
     } catch (error) {
       return response(res, false, error.message, null, 500);
@@ -736,8 +816,20 @@ class PelaksanaanController {
         return response(res, false, "Tahapan tidak ditemukan", null, 404);
       }
 
-      const booleanFields = ["acc_pembimbing_1", "acc_pembimbing_2", "acc_kepala_lab"];
-      const nullableFields = ["jadwal_pelaksanaan", "evaluator_1", "evaluator_2"];
+      const booleanFields = [
+        "acc_pembimbing_1",
+        "acc_pembimbing_2",
+        "acc_kepala_lab",
+        "status_kp",
+        "status_sks_ipk",
+      ];
+      const nullableFields = [
+        "jadwal_pelaksanaan",
+        "evaluator_1",
+        "evaluator_2",
+        "jumlah_sks",
+        "ipk",
+      ];
       const fields = {};
       for (const key of booleanFields) {
         if (Object.prototype.hasOwnProperty.call(req.body, key)) {
@@ -753,6 +845,72 @@ class PelaksanaanController {
       const meta = await upsertMeta(pelaksanaan.id, tahapan.id, fields);
 
       return response(res, true, "success", meta);
+    } catch (error) {
+      return response(res, false, error.message, null, 500);
+    }
+  };
+
+  // Dosen isi nilai per komponen (TaKomponenPenilaian) utk tahapan tertentu —
+  // dosen_id SELALU dari token (req.user.user_id), tidak pernah dari body, jadi
+  // tiap dosen cuma bisa menulis baris nilainya sendiri (isolasi by construction,
+  // bukan whitelist kolom).
+  static submitPenilaianTahapan = async (req, res) => {
+    try {
+      const dosenId = req.user.user_id;
+      const { id, tahapanId } = req.params;
+      const items = Array.isArray(req.body.items) ? req.body.items : [];
+
+      const pelaksanaan = await TaPelaksanaan.findOne({ where: { id }, include: includeRelations });
+      if (!pelaksanaan) {
+        return response(res, false, "Data tidak ditemukan", null, 404);
+      }
+
+      const tahapan = await TaTahapan.findOne({ where: { id: tahapanId } });
+      if (!tahapan) {
+        return response(res, false, "Tahapan tidak ditemukan", null, 404);
+      }
+
+      const meta = await getMetaOrDefault(pelaksanaan.id, tahapan.id);
+      if (!isDosenTerkaitTahapan(pelaksanaan.pengajuan, meta, dosenId)) {
+        return response(res, false, "Anda tidak terkait dengan pengajuan ini", null, 403);
+      }
+
+      const now = new Date();
+      for (const item of items) {
+        const komponen = await TaKomponenPenilaian.findOne({
+          where: { id: item.komponen_id, tahapan_id: tahapan.id },
+        });
+        if (!komponen) continue;
+
+        const existing = await TaPelaksanaanPenilaian.findOne({
+          where: {
+            pelaksanaan_id: pelaksanaan.id,
+            tahapan_id: tahapan.id,
+            komponen_id: item.komponen_id,
+            dosen_id: dosenId,
+          },
+        });
+
+        if (existing) {
+          await TaPelaksanaanPenilaian.update(
+            { nilai: item.nilai, updated_at: now },
+            { where: { id: existing.id } }
+          );
+        } else {
+          await TaPelaksanaanPenilaian.create({
+            pelaksanaan_id: pelaksanaan.id,
+            tahapan_id: tahapan.id,
+            komponen_id: item.komponen_id,
+            dosen_id: dosenId,
+            nilai: item.nilai,
+            created_at: now,
+            updated_at: now,
+          });
+        }
+      }
+
+      const penilaian = await getPenilaianWithNilai(tahapan.id, pelaksanaan.id);
+      return response(res, true, "Penilaian berhasil disimpan", penilaian);
     } catch (error) {
       return response(res, false, error.message, null, 500);
     }
