@@ -238,11 +238,11 @@ async function fetchDynamicRowsGabungan(dosenId = null) {
     if (!tahapanCache.has(key)) {
       const list = await TaTahapan.findAll({
         where: { prodi_id: prodiId, skema_id: skemaId },
-        order: [["id", "ASC"]],
+        order: [["urutan", "ASC"]],
       });
       tahapanCache.set(
         key,
-        list.map((t) => ({ id: t.id, nama_tahapan: t.nama_tahapan }))
+        list.map((t) => ({ id: t.id, nama_tahapan: t.nama_tahapan, urutan: t.urutan }))
       );
     }
     return tahapanCache.get(key);
@@ -276,6 +276,7 @@ async function fetchDynamicRowsGabungan(dosenId = null) {
       peran,
       pelaksanaan_status: r.status,
       tahapan_id: r.tahapan_id,
+      current_urutan: r.tahapan?.urutan ?? null,
       tahapan_list: tahapanList,
     });
   }
@@ -555,9 +556,9 @@ class PelaksanaanController {
         where: {
           prodi_id: currentTahapan.prodi_id,
           skema_id: currentTahapan.skema_id,
-          id: { [Op.gt]: currentTahapan.id },
+          urutan: { [Op.gt]: currentTahapan.urutan },
         },
-        order: [["id", "ASC"]],
+        order: [["urutan", "ASC"]],
       });
 
       if (nextTahapan) {

@@ -20,6 +20,9 @@ TaTahapan.init(
     nama_tahapan: {
       type: DataTypes.STRING,
     },
+    urutan: {
+      type: DataTypes.INTEGER,
+    },
     is_active: {
       type: DataTypes.BOOLEAN,
       defaultValue: true,
