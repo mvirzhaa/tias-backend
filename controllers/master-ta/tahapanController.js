@@ -7,6 +7,8 @@ const SiakV2ProgramStudi = require("../../models/lms/SiakV2ProgramStudi");
 const PENGUMPULAN_REVISI = "Pengumpulan Revisi";
 const isPengumpulanRevisi = (nama) =>
   (nama || "").trim().toLowerCase() === PENGUMPULAN_REVISI.toLowerCase();
+const isPengajuanTahapan = (nama) =>
+  (nama || "").trim().toLowerCase().startsWith("pengajuan ");
 
 class TahapanController {
   static index = async (req, res) => {
@@ -53,16 +55,16 @@ class TahapanController {
     }
   };
 
-  // Aturan sistem: tiap (prodi, skema) yang punya Tahapan TA WAJIB diakhiri
-  // tahapan "Pengumpulan Revisi" - admin tidak perlu ingat menambahkannya
-  // sendiri. Dijaga di sini (bukan cuma lewat migrasi sekali jalan) supaya
-  // tetap berlaku utk skema yang dibuat kapan pun ke depannya:
-  // - Tahapan baru BUKAN "Pengumpulan Revisi": kalau grup ini belum punya
-  //   "Pengumpulan Revisi", otomatis dibuatkan satu lagi tepat setelah
-  //   tahapan baru ini. Kalau sudah ada, tahapan baru disisipkan SEBELUM
-  //   "Pengumpulan Revisi" (urutannya digeser ke paling akhir lagi).
-  // - Tahapan baru namanya "Pengumpulan Revisi": dibuat apa adanya di akhir
-  //   (jalur ini juga yang dipakai migrasi seed, sama persis logikanya).
+  // Aturan sistem (dijaga di sini, bukan cuma lewat migrasi sekali jalan, supaya
+  // tetap berlaku utk skema yang dibuat kapan pun ke depannya):
+  // 1. Tiap (prodi, skema) yang punya Tahapan TA WAJIB diakhiri "Pengumpulan
+  //    Revisi" - admin tidak perlu ingat menambahkannya sendiri.
+  // 2. Tiap tahapan substantif baru (bukan "Pengumpulan Revisi", bukan sudah
+  //    berupa "Pengajuan ...") otomatis dapat pasangan "Pengajuan {nama}"
+  //    TEPAT SEBELUMNYA - menyamai pola sistem lama (mis. "Pengajuan
+  //    Kolokium" sebelum "Pelaksanaan Kolokium"). Kalau admin memang bikin
+  //    tahapan yang namanya sendiri sudah diawali "Pengajuan ", tidak
+  //    dipasangkan lagi (supaya tidak "Pengajuan Pengajuan X").
   static create = async (req, res) => {
     try {
       const { prodi_id, skema_id, nama_tahapan } = req.body;
@@ -86,42 +88,51 @@ class TahapanController {
       const maxUrutan = existing.reduce((max, t) => Math.max(max, t.urutan || 0), 0);
       const pengumpulanRevisi = existing.find((t) => isPengumpulanRevisi(t.nama_tahapan));
 
-      if (isPengumpulanRevisi(nama_tahapan) || !pengumpulanRevisi) {
-        // Normal: tambah di akhir. Kalau ini BUKAN "Pengumpulan Revisi" dan
-        // grup belum punya satu pun, sekalian buatkan setelahnya.
-        const save = await TaTahapan.create({
-          ...casting,
-          urutan: maxUrutan + 1,
-          created_at: new Date(),
+      const needsPengajuanPair =
+        !isPengumpulanRevisi(nama_tahapan) && !isPengajuanTahapan(nama_tahapan);
+
+      // Baris yang mau disisipkan berurutan: [Pengajuan {nama}?, {nama},
+      // Pengumpulan Revisi?] - 2 yang pertama/terakhir cuma muncul kalau
+      // relevan (lihat needsPengajuanPair & cek pengumpulanRevisi di bawah).
+      const rowsToInsert = [];
+      if (needsPengajuanPair) {
+        rowsToInsert.push({
+          prodi_id,
+          skema_id,
+          nama_tahapan: `Pengajuan ${nama_tahapan}`,
         });
+      }
+      rowsToInsert.push({ ...casting });
+      const mainIndex = rowsToInsert.length - 1;
 
-        if (!isPengumpulanRevisi(nama_tahapan) && !pengumpulanRevisi) {
-          await TaTahapan.create({
-            prodi_id,
-            skema_id,
-            nama_tahapan: PENGUMPULAN_REVISI,
-            urutan: maxUrutan + 2,
-            created_at: new Date(),
-          });
-        }
-
-        return response(res, true, "success", save);
+      if (!isPengumpulanRevisi(nama_tahapan) && !pengumpulanRevisi) {
+        rowsToInsert.push({
+          prodi_id,
+          skema_id,
+          nama_tahapan: PENGUMPULAN_REVISI,
+        });
       }
 
-      // Sudah ada "Pengumpulan Revisi" - sisipkan tahapan baru tepat di
-      // slotnya (ambil alih urutannya), lalu dorong "Pengumpulan Revisi" ke
-      // urutan paling akhir supaya tetap jadi tahapan terakhir.
-      const save = await TaTahapan.create({
-        ...casting,
-        urutan: pengumpulanRevisi.urutan,
-        created_at: new Date(),
-      });
-      await TaTahapan.update(
-        { urutan: maxUrutan + 1, updated_at: new Date() },
-        { where: { id: pengumpulanRevisi.id } }
-      );
+      const now = new Date();
+      // Kalau "Pengumpulan Revisi" sudah ada, semua baris baru disisipkan
+      // TEPAT di slot urutannya (ambil alih), lalu dia didorong ke paling
+      // akhir lagi. Kalau belum ada, baris baru ditambah di akhir seperti
+      // biasa.
+      let urutan = pengumpulanRevisi ? pengumpulanRevisi.urutan : maxUrutan + 1;
+      const created = [];
+      for (const row of rowsToInsert) {
+        created.push(await TaTahapan.create({ ...row, urutan, created_at: now }));
+        urutan += 1;
+      }
 
-      return response(res, true, "success", save);
+      if (pengumpulanRevisi) {
+        await TaTahapan.update(
+          { urutan, updated_at: now },
+          { where: { id: pengumpulanRevisi.id } }
+        );
+      }
+
+      return response(res, true, "success", created[mainIndex]);
     } catch (error) {
       return response(res, false, error.message, null, 500);
     }
