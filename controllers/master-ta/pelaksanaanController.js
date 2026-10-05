@@ -66,6 +66,29 @@ async function getDosenNamesMap(userIds) {
   );
 }
 
+// Versi lebih lengkap dari getDosenNamesMap - dipakai Berita Acara (FE butuh
+// nip & ttd dosen jg utk blok tanda-tangan per dosen, bukan cuma nama).
+async function getDosenDetailMap(userIds) {
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (ids.length < 1) return {};
+
+  const users = await User.findAll({
+    where: { user_id: ids },
+    include: { model: DataPribadi, as: "personal_data", required: false },
+  });
+
+  return Object.fromEntries(
+    users.map((u) => [
+      u.user_id,
+      {
+        nama: u.personal_data?.nama_lengkap || null,
+        nip: u.personal_data?.nip || null,
+        ttd: u.personal_data?.ttd || null,
+      },
+    ])
+  );
+}
+
 const EMPTY_META = {
   jadwal_pelaksanaan: null,
   evaluator_1: null,
@@ -1086,6 +1109,13 @@ class PelaksanaanController {
         meta.evaluator_1,
         meta.evaluator_2,
       ]);
+      const detailMap = await getDosenDetailMap([
+        pelaksanaan.pengajuan?.pembimbing_1,
+        pelaksanaan.pengajuan?.pembimbing_2,
+        pelaksanaan.pengajuan?.kepala_lab,
+        meta.evaluator_1,
+        meta.evaluator_2,
+      ]);
 
       const penilaian = await getPenilaianWithNilai(tahapan.id, pelaksanaan.id);
 
@@ -1121,6 +1151,16 @@ class PelaksanaanController {
         nama_kepala_lab: namesMap[pelaksanaan.pengajuan?.kepala_lab] || null,
         nama_evaluator_1: namesMap[meta.evaluator_1] || null,
         nama_evaluator_2: namesMap[meta.evaluator_2] || null,
+        // Dipakai FE menyusun blok tanda-tangan per dosen (role + nip + ttd) -
+        // dosen_id di sini cocok dgn dosen_id pada nilai_per_dosen di bawah.
+        peran_dosen: [
+          { role: "pembimbing_1", label: "Pembimbing I", dosen_id: pelaksanaan.pengajuan?.pembimbing_1 || null },
+          { role: "pembimbing_2", label: "Pembimbing II", dosen_id: pelaksanaan.pengajuan?.pembimbing_2 || null },
+          { role: "kepala_lab", label: "Kepala Lab", dosen_id: pelaksanaan.pengajuan?.kepala_lab || null },
+          { role: "evaluator_1", label: "Evaluator I", dosen_id: meta.evaluator_1 || null },
+          { role: "evaluator_2", label: "Evaluator II", dosen_id: meta.evaluator_2 || null },
+        ].filter((p) => p.dosen_id),
+        dosen_detail: detailMap,
         komponen: penilaian.komponen,
         nilai_per_dosen: penilaian.nilai_per_dosen,
         kaprodi: kaprodiData,
