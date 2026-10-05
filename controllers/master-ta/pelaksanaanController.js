@@ -10,6 +10,7 @@ const TaPelaksanaanKelengkapan = require("../../models/master-ta/TaPelaksanaanKe
 const TaPelaksanaanTahapanMeta = require("../../models/master-ta/TaPelaksanaanTahapanMeta");
 const TaKomponenPenilaian = require("../../models/master-ta/TaKomponenPenilaian");
 const TaPelaksanaanPenilaian = require("../../models/master-ta/TaPelaksanaanPenilaian");
+const TaPelaksanaanPenilaianKomentar = require("../../models/master-ta/TaPelaksanaanPenilaianKomentar");
 const TaPengajuan = require("../../models/TugasAkhir/TaPengajuan");
 const User = require("../../models/User");
 const DataPribadi = require("../../models/DataPribadi");
@@ -102,12 +103,45 @@ const EMPTY_META = {
   ipk: null,
 };
 
+// Threshold huruf mutu - sama persis spt sistem lama (lihat
+// getBeritaAcaraKolo/Sidang di controllers/bimbingan/tugasAkhirController.js)
+// - satu fungsi di backend supaya admin/dosen/mahasiswa semua dapat huruf
+// mutu yang sama dari API, bukan masing2 FE ngitung ulang beda2.
+function hurufMutu(nilai) {
+  if (nilai === null || nilai === undefined) return null;
+  const n = Number(nilai);
+  if (n >= 80) return "A";
+  if (n >= 73) return "AB";
+  if (n >= 65) return "B";
+  if (n >= 60) return "BC";
+  if (n >= 55) return "C";
+  if (n >= 50) return "CD";
+  if (n >= 45) return "D";
+  return "E";
+}
+
+// Roster dosen yang BERHAK menilai tahapan ini - Pembimbing 1/2 (dari
+// Pengajuan TA) & Evaluator 1/2 (ditugaskan admin di meta tahapan "Pengajuan
+// X"). Kepala Lab SENGAJA tidak dimasukkan - sama spt sistem lama, Kepala Lab
+// cuma ACC/tanda-tangan, tidak ikut menilai dgn komponen penilaian.
+function buildPeranDosenRoster(pengajuan, meta) {
+  return [
+    { role: "pembimbing_1", label: "Pembimbing I", dosen_id: pengajuan?.pembimbing_1 || null },
+    { role: "pembimbing_2", label: "Pembimbing II", dosen_id: pengajuan?.pembimbing_2 || null },
+    { role: "evaluator_1", label: "Evaluator I", dosen_id: meta?.evaluator_1 || null },
+    { role: "evaluator_2", label: "Evaluator II", dosen_id: meta?.evaluator_2 || null },
+  ].filter((p) => p.dosen_id);
+}
+
 // Komponen penilaian (TaKomponenPenilaian) berbobot per tahapan sudah admin-configurable
 // (lihat penilaianController.js). Di sini kita gabungkan dengan nilai yang sudah diisi
-// dosen (TaPelaksanaanPenilaian) untuk satu (pelaksanaan, tahapan), dan hitung nilai
-// akhir berbobot per dosen on-the-fly (tidak disimpan) — tidak ada agregasi lintas-dosen,
-// itu keputusan bisnis yang belum diminta.
-async function getPenilaianWithNilai(tahapanId, pelaksanaanId) {
+// dosen (TaPelaksanaanPenilaian) untuk satu (pelaksanaan, tahapan). Penting: daftar
+// komponen (rubrik) HARUS tetap tampil walau belum ada satu dosen pun yang menilai -
+// jadi nilai_per_dosen dibangun dari `roster` (siapa yang BERHAK menilai), bukan dari
+// baris nilai yang sudah ada - dosen yang belum submit apa pun tetap muncul dgn
+// items kosong, supaya FE bisa tampilkan tab "siap dinilai" utk semua pembimbing/
+// evaluator, bukan cuma yang sudah selesai menilai.
+async function getPenilaianWithNilai(tahapanId, pelaksanaanId, roster = [], komentarMap = {}) {
   const komponen = await TaKomponenPenilaian.findAll({
     where: { tahapan_id: tahapanId },
     order: [["id", "ASC"]],
@@ -115,40 +149,68 @@ async function getPenilaianWithNilai(tahapanId, pelaksanaanId) {
 
   const nilaiRows = await TaPelaksanaanPenilaian.findAll({
     where: { pelaksanaan_id: pelaksanaanId, tahapan_id: tahapanId },
-    include: [
-      {
-        model: User,
-        as: "dosen",
-        required: false,
-        include: { model: DataPribadi, as: "personal_data", required: false },
-      },
-    ],
   });
 
-  const byDosen = new Map();
-  for (const row of nilaiRows) {
-    if (!byDosen.has(row.dosen_id)) {
-      byDosen.set(row.dosen_id, {
-        dosen_id: row.dosen_id,
-        nama: row.dosen?.personal_data?.nama_lengkap || null,
-        items: [],
-      });
-    }
-    byDosen.get(row.dosen_id).items.push({
-      komponen_id: row.komponen_id,
-      nilai: Number(row.nilai),
-    });
-  }
+  const namesMap = await getDosenNamesMap(roster.map((r) => r.dosen_id));
 
-  const nilai_per_dosen = Array.from(byDosen.values()).map((d) => {
-    const nilai_akhir = komponen.reduce((sum, k) => {
-      const item = d.items.find((i) => i.komponen_id === k.id);
-      return item ? sum + (item.nilai * Number(k.bobot)) / 100 : sum;
-    }, 0);
-    return { ...d, nilai_akhir };
+  const nilai_per_dosen = roster.map((r) => {
+    const items = nilaiRows
+      .filter((row) => row.dosen_id === r.dosen_id)
+      .map((row) => ({ komponen_id: row.komponen_id, nilai: Number(row.nilai) }));
+    const nilai_akhir = komponen.length
+      ? komponen.reduce((sum, k) => {
+          const item = items.find((i) => i.komponen_id === k.id);
+          return item ? sum + (item.nilai * Number(k.bobot)) / 100 : sum;
+        }, 0)
+      : null;
+    return {
+      dosen_id: r.dosen_id,
+      role: r.role,
+      label: r.label,
+      nama: namesMap[r.dosen_id] || null,
+      items,
+      nilai_akhir: items.length ? nilai_akhir : null,
+      huruf_mutu: items.length ? hurufMutu(nilai_akhir) : null,
+      komentar_singkat: komentarMap[r.dosen_id] || null,
+    };
   });
 
-  return { komponen, nilai_per_dosen };
+  // Rekapitulasi - rata2 tiap komponen lintas semua dosen yang SUDAH menilai
+  // (abaikan yang belum), lalu Nilai Akhir & Huruf Mutu dari rata2 itu. Dipakai
+  // tabel "Rekapitulasi" yang selalu tampil di atas tab per-dosen.
+  const sudahMenilai = nilai_per_dosen.filter((d) => d.items.length > 0);
+  const komponenRekap = komponen.map((k) => {
+    const nilaiList = sudahMenilai
+      .map((d) => d.items.find((i) => i.komponen_id === k.id)?.nilai)
+      .filter((v) => v !== undefined && v !== null);
+    const rata2 = nilaiList.length
+      ? nilaiList.reduce((sum, v) => sum + v, 0) / nilaiList.length
+      : null;
+    return { id: k.id, nama_komponen: k.nama_komponen, bobot: k.bobot, rata2 };
+  });
+  const rekapNilaiAkhir = komponenRekap.every((k) => k.rata2 !== null) && komponenRekap.length
+    ? komponenRekap.reduce((sum, k) => sum + (k.rata2 * Number(k.bobot)) / 100, 0)
+    : null;
+
+  return {
+    komponen,
+    nilai_per_dosen,
+    rekap: {
+      komponen: komponenRekap,
+      nilai_akhir: rekapNilaiAkhir,
+      huruf_mutu: hurufMutu(rekapNilaiAkhir),
+    },
+  };
+}
+
+// Komentar Singkat per dosen utk satu (pelaksanaan, tahapan) - dipakai
+// getPenilaianWithNilai di atas, disimpan terpisah dari baris nilai per
+// komponen (lihat migration 20261005000007 utk alasan tabel terpisah).
+async function getKomentarMap(pelaksanaanId, tahapanId) {
+  const rows = await TaPelaksanaanPenilaianKomentar.findAll({
+    where: { pelaksanaan_id: pelaksanaanId, tahapan_id: tahapanId },
+  });
+  return Object.fromEntries(rows.map((r) => [r.dosen_id, r.komentar_singkat]));
 }
 
 const isPengajuanNama = (nama) => (nama || "").trim().toLowerCase().startsWith("pengajuan ");
@@ -174,16 +236,17 @@ async function resolveKelengkapanTahapan(tahapan) {
   return pasangan || tahapan;
 }
 
-// Dosen boleh isi Penilaian kalau dia pembimbing_1/2/kepala_lab di Pengajuan TA
-// terkait, ATAU evaluator_1/2 yang ditugaskan admin utk tahapan ini secara khusus
-// (lihat TaPelaksanaanTahapanMeta) — lebih longgar drpd gerbang ACC yang cuma
-// pembimbing_1/2/kepala_lab.
+// Dosen boleh isi Penilaian / cetak Berita Acara kalau dia pembimbing_1/2 di
+// Pengajuan TA terkait, ATAU evaluator_1/2 yang ditugaskan admin utk tahapan
+// ini secara khusus (lihat TaPelaksanaanTahapanMeta). Kepala Lab SENGAJA tidak
+// disertakan - sama spt sistem lama, Kepala Lab cuma ACC/tanda-tangan, tidak
+// ikut menilai dgn komponen penilaian atau cetak Berita Acara (lih. juga
+// buildPeranDosenRoster yang pakai daftar peran sama).
 function isDosenTerkaitTahapan(pengajuan, meta, userId) {
   if (!userId) return false;
   return [
     pengajuan?.pembimbing_1,
     pengajuan?.pembimbing_2,
-    pengajuan?.kepala_lab,
     meta?.evaluator_1,
     meta?.evaluator_2,
   ].includes(userId);
@@ -699,7 +762,12 @@ class PelaksanaanController {
           jumlah_sks: meta.jumlah_sks,
           ipk: meta.ipk,
         },
-        penilaian: await getPenilaianWithNilai(tahapan.id, data.id),
+        penilaian: await getPenilaianWithNilai(
+          tahapan.id,
+          data.id,
+          buildPeranDosenRoster(data.pengajuan, meta),
+          await getKomentarMap(data.id, tahapan.id)
+        ),
       });
     } catch (error) {
       return response(res, false, error.message, null, 500);
@@ -773,7 +841,12 @@ class PelaksanaanController {
           jumlah_sks: meta.jumlah_sks,
           ipk: meta.ipk,
         },
-        penilaian: await getPenilaianWithNilai(tahapan.id, data.id),
+        penilaian: await getPenilaianWithNilai(
+          tahapan.id,
+          data.id,
+          buildPeranDosenRoster(data.pengajuan, meta),
+          await getKomentarMap(data.id, tahapan.id)
+        ),
       });
     } catch (error) {
       return response(res, false, error.message, null, 500);
@@ -846,7 +919,12 @@ class PelaksanaanController {
           jumlah_sks: meta.jumlah_sks,
           ipk: meta.ipk,
         },
-        penilaian: await getPenilaianWithNilai(tahapan.id, data.id),
+        penilaian: await getPenilaianWithNilai(
+          tahapan.id,
+          data.id,
+          buildPeranDosenRoster(data.pengajuan, meta),
+          await getKomentarMap(data.id, tahapan.id)
+        ),
       });
     } catch (error) {
       return response(res, false, error.message, null, 500);
@@ -1000,6 +1078,8 @@ class PelaksanaanController {
       const dosenId = req.user.user_id;
       const { id, tahapanId } = req.params;
       const items = Array.isArray(req.body.items) ? req.body.items : [];
+      const hasKomentar = Object.prototype.hasOwnProperty.call(req.body, "komentar_singkat");
+      const komentarSingkat = hasKomentar ? req.body.komentar_singkat || null : undefined;
 
       const pelaksanaan = await TaPelaksanaan.findOne({ where: { id }, include: includeRelations });
       if (!pelaksanaan) {
@@ -1054,7 +1134,36 @@ class PelaksanaanController {
         }
       }
 
-      const penilaian = await getPenilaianWithNilai(tahapan.id, pelaksanaan.id);
+      // Komentar Singkat disimpan terpisah dari nilai per komponen (lihat
+      // getKomentarMap) - cuma ditulis kalau field-nya memang dikirim, supaya
+      // PUT yang cuma ngirim items tidak ikut nge-null-kan komentar lama.
+      if (hasKomentar) {
+        const existingKomentar = await TaPelaksanaanPenilaianKomentar.findOne({
+          where: { pelaksanaan_id: pelaksanaan.id, tahapan_id: tahapan.id, dosen_id: dosenId },
+        });
+        if (existingKomentar) {
+          await TaPelaksanaanPenilaianKomentar.update(
+            { komentar_singkat: komentarSingkat, updated_at: now },
+            { where: { id: existingKomentar.id } }
+          );
+        } else {
+          await TaPelaksanaanPenilaianKomentar.create({
+            pelaksanaan_id: pelaksanaan.id,
+            tahapan_id: tahapan.id,
+            dosen_id: dosenId,
+            komentar_singkat: komentarSingkat,
+            created_at: now,
+            updated_at: now,
+          });
+        }
+      }
+
+      const penilaian = await getPenilaianWithNilai(
+        tahapan.id,
+        pelaksanaan.id,
+        buildPeranDosenRoster(pelaksanaan.pengajuan, meta),
+        await getKomentarMap(pelaksanaan.id, tahapan.id)
+      );
       return response(res, true, "Penilaian berhasil disimpan", penilaian);
     } catch (error) {
       return response(res, false, error.message, null, 500);
@@ -1109,6 +1218,9 @@ class PelaksanaanController {
         meta.evaluator_1,
         meta.evaluator_2,
       ]);
+      // Tetap butuh nip/ttd per dosen utk blok tanda-tangan di dokumen cetak -
+      // termasuk Kepala Lab (dia ttd ACC walau tidak ikut menilai/di
+      // nilai_per_dosen di bawah).
       const detailMap = await getDosenDetailMap([
         pelaksanaan.pengajuan?.pembimbing_1,
         pelaksanaan.pengajuan?.pembimbing_2,
@@ -1117,7 +1229,12 @@ class PelaksanaanController {
         meta.evaluator_2,
       ]);
 
-      const penilaian = await getPenilaianWithNilai(tahapan.id, pelaksanaan.id);
+      const penilaian = await getPenilaianWithNilai(
+        tahapan.id,
+        pelaksanaan.id,
+        buildPeranDosenRoster(pelaksanaan.pengajuan, meta),
+        await getKomentarMap(pelaksanaan.id, tahapan.id)
+      );
 
       let kaprodiData = null;
       try {
@@ -1151,18 +1268,13 @@ class PelaksanaanController {
         nama_kepala_lab: namesMap[pelaksanaan.pengajuan?.kepala_lab] || null,
         nama_evaluator_1: namesMap[meta.evaluator_1] || null,
         nama_evaluator_2: namesMap[meta.evaluator_2] || null,
-        // Dipakai FE menyusun blok tanda-tangan per dosen (role + nip + ttd) -
-        // dosen_id di sini cocok dgn dosen_id pada nilai_per_dosen di bawah.
-        peran_dosen: [
-          { role: "pembimbing_1", label: "Pembimbing I", dosen_id: pelaksanaan.pengajuan?.pembimbing_1 || null },
-          { role: "pembimbing_2", label: "Pembimbing II", dosen_id: pelaksanaan.pengajuan?.pembimbing_2 || null },
-          { role: "kepala_lab", label: "Kepala Lab", dosen_id: pelaksanaan.pengajuan?.kepala_lab || null },
-          { role: "evaluator_1", label: "Evaluator I", dosen_id: meta.evaluator_1 || null },
-          { role: "evaluator_2", label: "Evaluator II", dosen_id: meta.evaluator_2 || null },
-        ].filter((p) => p.dosen_id),
+        // dosen_id di dosen_detail cocok dgn dosen_id pada nilai_per_dosen di
+        // bawah (role/label sudah ikut tiap entry nilai_per_dosen) - dipakai
+        // FE ambil nip/ttd per dosen utk blok tanda-tangan di dokumen cetak.
         dosen_detail: detailMap,
         komponen: penilaian.komponen,
         nilai_per_dosen: penilaian.nilai_per_dosen,
+        rekap: penilaian.rekap,
         kaprodi: kaprodiData,
       });
     } catch (error) {
