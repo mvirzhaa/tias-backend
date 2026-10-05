@@ -83,6 +83,12 @@ router.put(
   dosenOnly,
   PelaksanaanController.submitPenilaianTahapan
 );
+router.get(
+  "/pelaksanaan/dosen/:id/tahapan/:tahapanId/berita-acara",
+  protected,
+  dosenOnly,
+  PelaksanaanController.getBeritaAcaraTahapan
+);
 router.get("/pelaksanaan", protected, adminOnly, PelaksanaanController.index);
 router.get("/pelaksanaan/:id", protected, adminOnly, PelaksanaanController.detail);
 router.get(

@@ -128,6 +128,29 @@ async function getPenilaianWithNilai(tahapanId, pelaksanaanId) {
   return { komponen, nilai_per_dosen };
 }
 
+const isPengajuanNama = (nama) => (nama || "").trim().toLowerCase().startsWith("pengajuan ");
+
+// Tahapan "X" (bukan "Pengajuan X") itu TAMPILAN ULANG dari pasangannya "Pengajuan
+// X" - mahasiswa isi kelengkapan & admin isi jadwal/evaluator/ACC di "Pengajuan X",
+// lalu di "X" data itu ditampilkan lagi (read-only) sementara dosen/evaluator
+// menilai & cetak Berita Acara. Dicari by (prodi_id, skema_id, nama persis
+// "Pengajuan {nama tahapan ini}") - bukan FK eksplisit, krn pasangan ini sepenuhnya
+// konvensi penamaan dari tahapanController#create, bukan relasi di skema DB. Kalau
+// pasangannya tidak ketemu (admin hapus manual / tahapan ini sendiri "Pengajuan X"
+// atau "Pengumpulan Revisi"), fallback ke tahapan itu sendiri - endpoint tidak
+// pernah gagal total krn pasangan ini sifatnya opsional/bisa hilang.
+async function resolveKelengkapanTahapan(tahapan) {
+  if (isPengajuanNama(tahapan.nama_tahapan)) return tahapan;
+  const pasangan = await TaTahapan.findOne({
+    where: {
+      prodi_id: tahapan.prodi_id,
+      skema_id: tahapan.skema_id,
+      nama_tahapan: `Pengajuan ${tahapan.nama_tahapan}`,
+    },
+  });
+  return pasangan || tahapan;
+}
+
 // Dosen boleh isi Penilaian kalau dia pembimbing_1/2/kepala_lab di Pengajuan TA
 // terkait, ATAU evaluator_1/2 yang ditugaskan admin utk tahapan ini secara khusus
 // (lihat TaPelaksanaanTahapanMeta) — lebih longgar drpd gerbang ACC yang cuma
@@ -599,9 +622,10 @@ class PelaksanaanController {
         return response(res, false, "Tahapan tidak ditemukan", null, 404);
       }
 
-      const kelengkapan = await getKelengkapanWithIsian(tahapan.id, data.id);
+      const kelengkapanTahapan = await resolveKelengkapanTahapan(tahapan);
+      const kelengkapan = await getKelengkapanWithIsian(kelengkapanTahapan.id, data.id);
       const isCurrentTahapan = Number(data.tahapan_id) === Number(tahapanId);
-      const meta = await getMetaOrDefault(data.id, tahapan.id);
+      const meta = await getMetaOrDefault(data.id, kelengkapanTahapan.id);
 
       const namesMap = await getDosenNamesMap([
         data.pengajuan?.pembimbing_1,
@@ -611,15 +635,22 @@ class PelaksanaanController {
         meta.evaluator_2,
       ]);
 
-      const accComplete =
-        !!meta.acc_pembimbing_1 &&
-        !!meta.acc_kepala_lab &&
-        (!data.pengajuan?.pembimbing_2 || !!meta.acc_pembimbing_2);
+      // ACC cuma relevan di tahapan "Pengajuan X" (gerbang masuk ke pasangannya).
+      // Pas lagi lihat "X" sendiri, ACC sudah lunas dari pasangannya - tidak perlu
+      // digerbang ulang, sama seperti advance() (lihat di bawah).
+      const isPengajuanStage = isPengajuanNama(tahapan.nama_tahapan);
+      const accComplete = !isPengajuanStage
+        ? true
+        : !!meta.acc_pembimbing_1 &&
+          !!meta.acc_kepala_lab &&
+          (!data.pengajuan?.pembimbing_2 || !!meta.acc_pembimbing_2);
 
       return response(res, true, "success", {
         pelaksanaan_id: data.id,
         pelaksanaan_status: data.status,
         tahapan: { id: tahapan.id, nama_tahapan: tahapan.nama_tahapan },
+        kelengkapan_tahapan: { id: kelengkapanTahapan.id, nama_tahapan: kelengkapanTahapan.nama_tahapan },
+        is_kelengkapan_tahapan_sendiri: kelengkapanTahapan.id === tahapan.id,
         is_current_tahapan: isCurrentTahapan,
         can_advance: isCurrentTahapan && data.status === "berjalan" && accComplete,
         acc_complete: accComplete,
@@ -677,8 +708,9 @@ class PelaksanaanController {
         return response(res, false, "Tahapan tidak ditemukan", null, 404);
       }
 
-      const kelengkapan = await getKelengkapanWithIsian(tahapan.id, data.id);
-      const meta = await getMetaOrDefault(data.id, tahapan.id);
+      const kelengkapanTahapan = await resolveKelengkapanTahapan(tahapan);
+      const kelengkapan = await getKelengkapanWithIsian(kelengkapanTahapan.id, data.id);
+      const meta = await getMetaOrDefault(data.id, kelengkapanTahapan.id);
 
       const namesMap = await getDosenNamesMap([
         data.pengajuan?.pembimbing_1,
@@ -692,6 +724,8 @@ class PelaksanaanController {
         pelaksanaan_id: data.id,
         pelaksanaan_status: data.status,
         tahapan: { id: tahapan.id, nama_tahapan: tahapan.nama_tahapan },
+        kelengkapan_tahapan: { id: kelengkapanTahapan.id, nama_tahapan: kelengkapanTahapan.nama_tahapan },
+        is_kelengkapan_tahapan_sendiri: kelengkapanTahapan.id === tahapan.id,
         is_current_tahapan: Number(data.tahapan_id) === Number(tahapanId),
         can_advance: false,
         mahasiswa: data.mahasiswa,
@@ -747,8 +781,9 @@ class PelaksanaanController {
         return response(res, false, "Tahapan tidak ditemukan", null, 404);
       }
 
-      const kelengkapan = await getKelengkapanWithIsian(tahapan.id, data.id);
-      const meta = await getMetaOrDefault(data.id, tahapan.id);
+      const kelengkapanTahapan = await resolveKelengkapanTahapan(tahapan);
+      const kelengkapan = await getKelengkapanWithIsian(kelengkapanTahapan.id, data.id);
+      const meta = await getMetaOrDefault(data.id, kelengkapanTahapan.id);
 
       const namesMap = await getDosenNamesMap([
         data.pengajuan?.pembimbing_1,
@@ -762,6 +797,8 @@ class PelaksanaanController {
         pelaksanaan_id: data.id,
         pelaksanaan_status: data.status,
         tahapan: { id: tahapan.id, nama_tahapan: tahapan.nama_tahapan },
+        kelengkapan_tahapan: { id: kelengkapanTahapan.id, nama_tahapan: kelengkapanTahapan.nama_tahapan },
+        is_kelengkapan_tahapan_sendiri: kelengkapanTahapan.id === tahapan.id,
         is_current_tahapan: Number(data.tahapan_id) === Number(tahapanId),
         can_advance: false,
         mahasiswa: data.mahasiswa,
@@ -823,26 +860,29 @@ class PelaksanaanController {
         return response(res, false, "Tahapan saat ini tidak ditemukan", null, 404);
       }
 
-      // Gerbang ACC: admin cuma boleh lanjut tahapan kalau Pembimbing 1,
-      // Pembimbing 2 (kalau ada), dan Kepala Lab sudah dicentang ACC utk
-      // tahapan SAAT INI - sama spt dosen harus ACC dulu sebelum sistem lama
-      // lanjut ke kolokium/sidang berikutnya, cuma di sini dicentang admin
-      // (bukan dosen sendiri) krn ACC-nya berupa surat fisik.
-      const pengajuan = await TaPengajuan.findOne({ where: { id: pelaksanaan.pengajuan_id } });
-      const meta = await getMetaOrDefault(pelaksanaan.id, currentTahapan.id);
-      const accComplete =
-        !!meta.acc_pembimbing_1 &&
-        !!meta.acc_kepala_lab &&
-        (!pengajuan?.pembimbing_2 || !!meta.acc_pembimbing_2);
+      // Gerbang ACC: cuma relevan pas tahapan SAAT INI itu "Pengajuan X" (gerbang
+      // masuk ke pasangannya "X"/Pelaksanaan) - Pembimbing 1, Pembimbing 2 (kalau
+      // ada), dan Kepala Lab harus sudah dicentang ACC admin dulu (ACC-nya berupa
+      // surat fisik, bukan dosen yang centang sendiri). Pas tahapan SAAT INI itu
+      // "X" atau "Pengumpulan Revisi", ACC sudah lunas dari pasangannya waktu masuk
+      // ke sini - tidak digerbang ulang saat KELUAR dari "X".
+      if (isPengajuanNama(currentTahapan.nama_tahapan)) {
+        const pengajuan = await TaPengajuan.findOne({ where: { id: pelaksanaan.pengajuan_id } });
+        const meta = await getMetaOrDefault(pelaksanaan.id, currentTahapan.id);
+        const accComplete =
+          !!meta.acc_pembimbing_1 &&
+          !!meta.acc_kepala_lab &&
+          (!pengajuan?.pembimbing_2 || !!meta.acc_pembimbing_2);
 
-      if (!accComplete) {
-        return response(
-          res,
-          false,
-          "Belum bisa lanjut - ACC Pembimbing 1/2 & Kepala Lab utk tahapan ini belum lengkap",
-          null,
-          400
-        );
+        if (!accComplete) {
+          return response(
+            res,
+            false,
+            "Belum bisa lanjut - ACC Pembimbing 1/2 & Kepala Lab utk tahapan ini belum lengkap",
+            null,
+            400
+          );
+        }
       }
 
       const nextTahapan = await TaTahapan.findOne({
@@ -948,7 +988,11 @@ class PelaksanaanController {
         return response(res, false, "Tahapan tidak ditemukan", null, 404);
       }
 
-      const meta = await getMetaOrDefault(pelaksanaan.id, tahapan.id);
+      // Evaluator/pembimbing ditentukan admin di tahapan "Pengajuan X" (pasangan
+      // tahapan ini) - gerbang terkait harus cek meta di situ, bukan di "X" sendiri
+      // yang hampir pasti kosong.
+      const kelengkapanTahapan = await resolveKelengkapanTahapan(tahapan);
+      const meta = await getMetaOrDefault(pelaksanaan.id, kelengkapanTahapan.id);
       if (!isDosenTerkaitTahapan(pelaksanaan.pengajuan, meta, dosenId)) {
         return response(res, false, "Anda tidak terkait dengan pengajuan ini", null, 403);
       }
@@ -989,6 +1033,98 @@ class PelaksanaanController {
 
       const penilaian = await getPenilaianWithNilai(tahapan.id, pelaksanaan.id);
       return response(res, true, "Penilaian berhasil disimpan", penilaian);
+    } catch (error) {
+      return response(res, false, error.message, null, 500);
+    }
+  };
+
+  // Data utk cetak Berita Acara (dosen) di tahapan "X"/Pelaksanaan - meniru
+  // getBeritaAcaraKolo/Sidang legacy (controllers/bimbingan/tugasAkhirController.js)
+  // tapi sumbernya sistem dinamis: identitas mahasiswa dari pelaksanaan.mahasiswa/
+  // pengajuan, jadwal+nama pembimbing/evaluator dari meta tahapan "Pengajuan X"
+  // pasangannya, nilai dari tahapan ini sendiri. Kaprodi dicari query yang SAMA
+  // PERSIS dgn legacy - filter m_unit.code di-hardcode 'FT_TI' sama spt legacy krn
+  // belum ada mapping bersih dari prodi SIAK (kode_prodi) ke kode m_unit lawas;
+  // kalau skema dinamis sudah dipakai prodi lain di luar FT/TI, filter ini perlu
+  // diganti jadi resolve dari pengajuan.prodi_id.
+  static getBeritaAcaraTahapan = async (req, res) => {
+    try {
+      const dosenId = req.user.user_id;
+      const { id, tahapanId } = req.params;
+
+      const pelaksanaan = await TaPelaksanaan.findOne({
+        where: {
+          id,
+          [Op.or]: [
+            { "$pengajuan.pembimbing_1$": dosenId },
+            { "$pengajuan.pembimbing_2$": dosenId },
+            { "$pengajuan.kepala_lab$": dosenId },
+          ],
+        },
+        include: includeRelations,
+      });
+      if (!pelaksanaan) {
+        return response(res, false, "Data tidak ditemukan", null, 404);
+      }
+
+      const tahapan = await TaTahapan.findOne({ where: { id: tahapanId } });
+      if (!tahapan) {
+        return response(res, false, "Tahapan tidak ditemukan", null, 404);
+      }
+
+      const kelengkapanTahapan = await resolveKelengkapanTahapan(tahapan);
+      const meta = await getMetaOrDefault(pelaksanaan.id, kelengkapanTahapan.id);
+
+      if (!isDosenTerkaitTahapan(pelaksanaan.pengajuan, meta, dosenId)) {
+        return response(res, false, "Anda tidak terkait dengan pengajuan ini", null, 403);
+      }
+
+      const namesMap = await getDosenNamesMap([
+        pelaksanaan.pengajuan?.pembimbing_1,
+        pelaksanaan.pengajuan?.pembimbing_2,
+        pelaksanaan.pengajuan?.kepala_lab,
+        meta.evaluator_1,
+        meta.evaluator_2,
+      ]);
+
+      const penilaian = await getPenilaianWithNilai(tahapan.id, pelaksanaan.id);
+
+      let kaprodiData = null;
+      try {
+        const kaprodiResult = await DB.query(
+          `SELECT tb_data_pribadi.nama_lengkap, tb_data_pribadi.nip, tb_data_pribadi.ttd
+           FROM trx_user_jabatan_unit
+           JOIN m_jabatan ON trx_user_jabatan_unit.jabatan_id = m_jabatan.id
+           JOIN m_unit ON trx_user_jabatan_unit.unit_id = m_unit.id
+           JOIN tb_data_pribadi ON trx_user_jabatan_unit.user_id = tb_data_pribadi.user_id
+           WHERE trx_user_jabatan_unit.deleted_at IS NULL
+             AND LOWER(m_jabatan.nama_jabatan) LIKE '%ketua program studi%'
+             AND m_unit.code = 'FT_TI'
+           LIMIT 1`
+        );
+        if (kaprodiResult.rows.length) kaprodiData = kaprodiResult.rows[0];
+      } catch (err) {
+        // kaprodi tidak ketemu - lanjut tanpa itu, sama spt legacy.
+      }
+
+      return response(res, true, "success", {
+        nama_lengkap: pelaksanaan.mahasiswa?.personal_data?.nama_lengkap || null,
+        npm: pelaksanaan.mahasiswa?.npm || pelaksanaan.pengajuan?.npm || null,
+        email: pelaksanaan.mahasiswa?.email || null,
+        no_hp: pelaksanaan.mahasiswa?.personal_data?.no_hp || null,
+        judul_skripsi: pelaksanaan.pengajuan?.judul || null,
+        semester: pelaksanaan.pengajuan?.semester || null,
+        nama_tahapan: tahapan.nama_tahapan,
+        jadwal_pelaksanaan: meta.jadwal_pelaksanaan,
+        nama_pembimbing_1: namesMap[pelaksanaan.pengajuan?.pembimbing_1] || null,
+        nama_pembimbing_2: namesMap[pelaksanaan.pengajuan?.pembimbing_2] || null,
+        nama_kepala_lab: namesMap[pelaksanaan.pengajuan?.kepala_lab] || null,
+        nama_evaluator_1: namesMap[meta.evaluator_1] || null,
+        nama_evaluator_2: namesMap[meta.evaluator_2] || null,
+        komponen: penilaian.komponen,
+        nilai_per_dosen: penilaian.nilai_per_dosen,
+        kaprodi: kaprodiData,
+      });
     } catch (error) {
       return response(res, false, error.message, null, 500);
     }
