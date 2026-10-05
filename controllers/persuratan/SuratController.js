@@ -12,6 +12,7 @@ const Parents = require("../../models/Parents");
 
 const { generateSuratPengunduranDiri, generateSuratCutiAkademik } = require("../../utils/pdfGenerator");
 const DB = require("../../database");
+const { getCurrentSemester, getNextSemester } = require("../../helper/getCurrentSemester");
 
 const getTtdBase64 = (ttdFilename) => {
   if (!ttdFilename) return null;
@@ -38,13 +39,9 @@ const safeJsonParse = (data) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────
-// Rate limiter in-memory untuk endpoint publik (tanpa package eksternal)
-// Struktur: Map<ip, { count, resetAt }>
-// ─────────────────────────────────────────────────────────────────────────
 const _qrRateLimitMap = new Map();
-const QR_RATE_LIMIT = 30;          // maks request per window per IP
-const QR_RATE_WINDOW_MS = 60_000;  // window 1 menit
+const QR_RATE_LIMIT = 30;
+const QR_RATE_WINDOW_MS = 60_000;
 
 const checkQrRateLimit = (ip) => {
   const now = Date.now();
@@ -52,15 +49,14 @@ const checkQrRateLimit = (ip) => {
 
   if (!entry || now > entry.resetAt) {
     _qrRateLimitMap.set(ip, { count: 1, resetAt: now + QR_RATE_WINDOW_MS });
-    return false; // tidak kena limit
+    return false;
   }
 
   entry.count += 1;
-  if (entry.count > QR_RATE_LIMIT) return true; // kena limit
+  if (entry.count > QR_RATE_LIMIT) return true;
   return false;
 };
 
-// Bersihkan Map setiap 5 menit agar tidak bocor memori
 setInterval(() => {
   const now = Date.now();
   for (const [ip, entry] of _qrRateLimitMap.entries()) {
@@ -121,7 +117,6 @@ class SuratController {
       };
 
       if (adminRoles.includes(userRole) && req.user.department_code && mode !== "inbox" && mode !== "outbox") {
-        // Ambil semua user_id yang department_code-nya sama dengan user yang login
         const deptUsers = await User.findAll({
           where: { department_code: req.user.department_code },
           attributes: ["user_id"],
@@ -131,9 +126,9 @@ class SuratController {
         condition[Op.and] = [
           {
             [Op.or]: [
-              { user_id: { [Op.in]: deptUserIds } }, // surat dari mahasiswa di dept yang sama
-              { user_id: req.user.user_id },          // surat yang dikirim oleh pegawai ini sendiri
-              { penerima_id: req.user.user_id },      // surat yang ditujukan langsung ke pegawai ini
+              { user_id: { [Op.in]: deptUserIds } },
+              { user_id: req.user.user_id },
+              { penerima_id: req.user.user_id },
             ],
           },
         ];
@@ -216,10 +211,23 @@ class SuratController {
           parsedFormData.nama_ortu_wali = parentRelation.parent.nama_lengkap;
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        // VALIDASI 1: Surat Pengunduran Diri hanya boleh diajukan 1 kali
-        // (dikecualikan jika pengajuan sebelumnya berstatus 'Ditolak')
-        // ─────────────────────────────────────────────────────────────────
+        if (jenis_surat?.toLowerCase() === "surat pengajuan cuti") {
+          const [semesterAktif, semesterCuti] = await Promise.all([
+            getCurrentSemester(),
+            getNextSemester(),
+          ]);
+
+          parsedFormData.semester_aktif       = semesterAktif.semester;
+          parsedFormData.tahun_akademik_aktif = semesterAktif.tahun_akademik;
+          parsedFormData.semester_cuti        = semesterCuti.semester;
+          parsedFormData.tahun_akademik_cuti  = semesterCuti.tahun_akademik;
+
+          console.log(
+            `[SuratController] Auto-fill cuti: aktif=${semesterAktif.semester} ${semesterAktif.tahun_akademik} (${semesterAktif.source}),`,
+            `cuti=${semesterCuti.semester} ${semesterCuti.tahun_akademik}`
+          );
+        }
+
         if (jenis_surat?.toLowerCase() === "surat pengunduran diri") {
           const sudahAda = await Surat.findOne({
             where: {
@@ -240,22 +248,6 @@ class SuratController {
           }
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        // VALIDASI 2: Cegah duplikat pengajuan — dua lapisan
-        //
-        // Lapisan A → surat masih aktif/proses (Sent/Read/Replied):
-        //   Langsung blok. Tidak perlu cek isi field — satu mahasiswa tidak
-        //   boleh punya dua pengajuan sejenis yang sedang berjalan bersamaan.
-        //
-        // Lapisan B → surat sudah Selesai/Archived:
-        //   Blok hanya kalau field kunci identik. Kalau beda semester/tahun
-        //   → izinkan (mahasiswa boleh ajukan cuti semester berikutnya).
-        //
-        // "Ditolak" dikecualikan dari kedua lapisan — mahasiswa boleh
-        // mengajukan ulang setelah ditolak.
-        // ─────────────────────────────────────────────────────────────────
-
-        // ── Lapisan A: ada surat sejenis yang masih dalam proses? ────────
         const suratSedangProses = await Surat.findOne({
           where: {
             user_id: req.user.user_id,
@@ -296,8 +288,6 @@ class SuratController {
           const existingFd = safeJsonParse(suratSelesaiSebelumnya.form_data);
           const incomingFd = parsedFormData;
 
-          // Semua field kunci harus ada dan tidak kosong di DB,
-          // baru bandingkan — cegah false-negative akibat inkonsistensi key.
           const existingFieldsValid = fieldsToCheck.every(
             (f) => existingFd[f] !== undefined && String(existingFd[f]).trim() !== ""
           );
@@ -317,7 +307,58 @@ class SuratController {
             );
           }
         }
+
+        if (jenis_surat?.toLowerCase() === "surat pengajuan cuti") {
+          const toSemesterIndex = (semester, tahunAkademik) => {
+            if (!semester || !tahunAkademik) return null;
+            const tahunAwal = parseInt(String(tahunAkademik).split("/")[0], 10);
+            if (isNaN(tahunAwal)) return null;
+            return tahunAwal * 2 + (semester.toLowerCase() === "ganjil" ? 0 : 1);
+          };
+
+          const riwayatCuti = await Surat.findAll({
+            where: {
+              user_id: req.user.user_id,
+              jenis_surat: { [Op.iLike]: "surat pengajuan cuti" },
+              status: { [Op.in]: ["Selesai", "Archived"] },
+              deleted_at: null,
+            },
+            order: [["updated_at", "ASC"]],
+            transaction: t,
+          });
+
+          const indeksRiwayat = riwayatCuti
+            .map((s) => {
+              const fd = safeJsonParse(s.form_data);
+              return toSemesterIndex(fd.semester_cuti, fd.tahun_akademik_cuti);
+            })
+            .filter((idx) => idx !== null)
+            .sort((a, b) => a - b);
+
+          const indeksBaru = toSemesterIndex(
+            parsedFormData.semester_cuti,
+            parsedFormData.tahun_akademik_cuti
+          );
+
+          if (indeksBaru !== null && indeksRiwayat.length >= 2) {
+            const last = indeksRiwayat[indeksRiwayat.length - 1];
+            const secondLast = indeksRiwayat[indeksRiwayat.length - 2];
+
+            const duaAkhirBerurutan = last - secondLast === 1;
+            const baruBerurutan = indeksBaru - last === 1;
+
+            if (duaAkhirBerurutan && baruBerurutan) {
+              await t.rollback();
+              return response(
+                res,
+                false,
+                "Pengajuan ditolak: Anda telah mengambil cuti akademik 2 semester berturut-turut. Sesuai aturan akademik, mahasiswa tidak diperkenankan mengajukan cuti lebih dari 2 semester secara berurutan."
+              );
+            }
+          }
+        }
      
+
         const userDept = req.user.department_code || "informatika";
 
         const [adminUsers, stafTuRecords] = await Promise.all([        
@@ -730,10 +771,6 @@ class SuratController {
         });
       }
 
-      // ── 3. Query DB — hanya ambil field yang diperlukan ──────────────────
-      //    attributes:[] pada User = JOIN untuk personal_data tapi tidak
-      //    menarik npm/email/role dari tabel users sama sekali.
-      //    form_data tidak pernah di-query (bukan sekadar disembunyikan).
       const data = await Surat.findOne({
         where: { id, deleted_at: null },
         attributes: ["id", "jenis_surat", "status", "created_at", "updated_at"],
@@ -753,7 +790,6 @@ class SuratController {
         ],
       });
 
-      // ── 4. HTTP 404 jika tidak ditemukan ─────────────────────────────────
       if (!data) {
         return res.status(404).json({
           isSuccess: false,
@@ -763,7 +799,6 @@ class SuratController {
         });
       }
 
-      // ── 5. Whitelist response — hanya field yang boleh publik ─────────────
       const plain = data.toJSON();
       const safeData = {
         id: plain.id,
@@ -775,12 +810,10 @@ class SuratController {
         nama_penerima: plain.Penerima?.personal_data?.nama_lengkap || null,
       };
 
-      // ── 6. Cache header — data jarang berubah, cache 60 detik di browser ─
       res.set("Cache-Control", "public, max-age=60");
 
       return response(res, true, "Data QR berhasil dimuat", safeData);
     } catch (error) {
-      // Log detail di server, jangan expose ke client publik
       console.error("[getQr Error]:", error);
       return res.status(500).json({
         isSuccess: false,
@@ -838,7 +871,6 @@ class SuratController {
         });
 
         if (kaprodiRecords.length === 0) {
-          // Fallback manual to hersanto as last resort if seeder didn't set Jabatan properly
           const fallbackKaprodi = await User.findOne({
             where: { email: { [Op.iLike]: "%hersanto%" } },
             transaction: t,
