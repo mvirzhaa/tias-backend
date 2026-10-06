@@ -5,6 +5,7 @@ const storage = require("../../lib/lms/storage");
 const { matchesType, pptVariant } = require("../../lib/lms/fileType");
 const officeConvert = require("../../lib/lms/officeConvert");
 const LmsContentItem = require("../../models/lms/LmsContentItem");
+const { isStorageKeyInUse } = require("../../lib/lms/contentDuplication");
 
 /**
  * Upload & serve file LMS (SPEC v8 §5; reusable utk PPT & Assignment nanti).
@@ -208,15 +209,25 @@ exports.replaceUploadItem = asyncHandler(async (req, res) => {
 
   // Hapus berkas lama SETELAH update DB sukses (hindari orphan bila update gagal duluan).
   // Best-effort: kegagalan hapus berkas lama tidak menggagalkan request (sudah tergantikan).
+  //
+  // WAJIB cek dulu apakah key lama masih dipakai item LAIN sebelum hapus fisik — sejak
+  // ada fitur "Duplikat dari Kelas Lain" (lib/lms/contentDuplication.js), satu storage_key
+  // bisa dipakai bersama oleh item di kelas lain hasil duplikasi (file TIDAK digandakan,
+  // cuma referensinya). Tanpa cek ini, ganti file di SATU kelas bisa mematikan materi
+  // yang sama di kelas lain (storage.exists() jadi false, serveFile 404).
   if (oldStorageKey && oldStorageKey !== storage_key) {
-    storage.remove(oldStorageKey).catch((err) => {
-      console.error("replaceUploadItem: gagal hapus berkas lama:", err.message);
-    });
+    isStorageKeyInUse(oldStorageKey, { excludeItemId: item.id })
+      .then((inUse) => (inUse ? null : storage.remove(oldStorageKey)))
+      .catch((err) => {
+        console.error("replaceUploadItem: gagal hapus berkas lama:", err.message);
+      });
   }
   if (oldPreviewKey && oldPreviewKey !== preview_storage_key) {
-    storage.remove(oldPreviewKey).catch((err) => {
-      console.error("replaceUploadItem: gagal hapus preview lama:", err.message);
-    });
+    isStorageKeyInUse(oldPreviewKey, { excludeItemId: item.id })
+      .then((inUse) => (inUse ? null : storage.remove(oldPreviewKey)))
+      .catch((err) => {
+        console.error("replaceUploadItem: gagal hapus preview lama:", err.message);
+      });
   }
 
   return response(res, true, "Berkas berhasil diganti.", item);

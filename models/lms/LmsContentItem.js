@@ -55,6 +55,13 @@ LmsContentItem.init(
     payload: {
       type: DataTypes.JSONB,
     },
+    duplicated_from_item_id: {
+      // Jejak provenance bila item ini dibuat lewat "Duplikat dari Kelas Lain"
+      // (lib/lms/contentDuplication.js). NULL = dibuat manual. Tipe 'attendance' tidak
+      // pernah punya nilai di sini karena selalu dikecualikan dari duplikasi.
+      type: DataTypes.UUID,
+      allowNull: true,
+    },
     created_at: {
       type: DataTypes.DATE,
     },

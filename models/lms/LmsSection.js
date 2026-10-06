@@ -47,6 +47,12 @@ LmsSection.init(
     available_from: {
       type: DataTypes.DATE,
     },
+    duplicated_from_section_id: {
+      // Jejak provenance bila topik ini dibuat lewat "Duplikat dari Kelas Lain"
+      // (lib/lms/contentDuplication.js). NULL = dibuat manual.
+      type: DataTypes.UUID,
+      allowNull: true,
+    },
     created_at: {
       type: DataTypes.DATE,
     },
