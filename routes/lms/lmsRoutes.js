@@ -58,6 +58,13 @@ const {
   deactivateRoleScope,
   listAcademicUnits,
 } = require("../../controllers/lms/roleScopeController");
+const {
+  listDuplicationSources,
+  getDuplicationSourceContent,
+  executeDuplication,
+  listDuplicationLogs,
+} = require("../../controllers/lms/contentDuplicationController");
+const { lecturerOwnsTargetForDuplication } = require("../../middleware/lms/duplicationAccess");
 
 const router = express.Router();
 
@@ -177,5 +184,19 @@ router.get("/submissions/:submissionId", protected, submissionViewAccess, getSub
 router.get("/submissions/:submissionId/file", protected, submissionViewAccess, serveSubmissionFile);
 // Menilai (dosen pengampu/admin; boleh re-grade).
 router.patch("/submissions/:submissionId/grade", protected, lecturerGradesSubmission, gradeSubmission);
+
+// --- Duplikasi materi antar kelas paralel mata kuliah sama (permintaan Pak Fitrah) ---
+//     Arah PULL: dosen kelas KOSONG (tujuan) menarik dari kelas lain yg sudah ada isinya.
+//     type 'attendance' selalu dikecualikan. Lihat lib/lms/contentDuplication.js.
+router.get("/duplication/sources", protected, lecturerOwnsTargetForDuplication, listDuplicationSources);
+router.get(
+  "/duplication/source-content",
+  protected,
+  lecturerOwnsTargetForDuplication,
+  getDuplicationSourceContent
+);
+router.post("/duplication/execute", protected, lecturerOwnsTargetForDuplication, executeDuplication);
+// Riwayat duplikasi (Admin: semua; Dosen/Dosen_Ext: hanya kelas yg dia ampu sbg sumber/tujuan).
+router.get("/duplication/logs", protected, listDuplicationLogs);
 
 module.exports = router;
