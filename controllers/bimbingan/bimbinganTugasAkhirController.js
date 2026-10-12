@@ -8,6 +8,7 @@ const { CastObject } = require("../../lib/general");
 const SiakLecturer = require("../../models/Siak/Lecturer");
 const User = require("../../models/User");
 const DataPribadi = require("../../models/DataPribadi");
+const { resolveDepartmentScope } = require("../../middleware/departmentScope");
 
 exports.getProgesTaForDosen = asyncHandler(async (req, res) => {
   const userLoginId = req.user.user_id;
@@ -303,6 +304,8 @@ WHERE
 
 exports.getListAdminProgresTa = asyncHandler(async (req, res) => {
   try {
+    const departmentCode = resolveDepartmentScope(req, res);
+
     let { limit, page, order, orderBy, search, filter, filterValue } =
       req.query;
     limit = parseInt(limit) > 0 ? parseInt(limit) : 10;
@@ -312,6 +315,9 @@ exports.getListAdminProgresTa = asyncHandler(async (req, res) => {
     const pagelimit = getPagination(limit, page);
 
     let whereCondition = { role: "Dosen" };
+    if (departmentCode) {
+      whereCondition.department_code = departmentCode;
+    }
 
     if (filter && filterValue) {
       const filters = Array.isArray(filter) ? filter : [filter];
@@ -442,6 +448,7 @@ exports.getListAdminProgresTa = asyncHandler(async (req, res) => {
 });
 
 exports.getListAdminProgresTaDosen = asyncHandler(async (req, res) => {
+  const departmentCode = resolveDepartmentScope(req, res);
   const userLoginId = req.params.userId;
   const { dataTable, orderField, orderValue, page, perPage, search } =
     req.query;
@@ -538,6 +545,12 @@ WHERE
   ta_pendaftaran_sidang.penguji_2 = '${userLoginId}') AND ta_pengajuan_sk.deleted_at IS NULL
 `;
 
+  const queryParams = [];
+  if (departmentCode) {
+    queryParams.push(departmentCode);
+    query += ` AND tb_users.department_code = $${queryParams.length}`;
+  }
+
   if (search) {
     query += ` AND LOWER(tb_data_pribadi.nama_lengkap) LIKE '%${search.toLowerCase()}%'`;
   }
@@ -555,7 +568,7 @@ WHERE
 
   query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
 
-  const result = await DB.query(query);
+  const result = await DB.query(query, queryParams);
 
   let responseData = [];
   let dataWithStatusLate = [];
@@ -597,11 +610,15 @@ WHERE
       ta_pendaftaran_sidang.penguji_2 = '${userLoginId}') AND ta_pengajuan_sk.deleted_at IS NULL
   `;
 
+    if (departmentCode) {
+      totalRecordsQuery += ` AND tb_users.department_code = $${queryParams.length}`;
+    }
+
     if (search) {
       totalRecordsQuery += ` AND LOWER(tb_data_pribadi.nama_lengkap) LIKE '%${search.toLowerCase()}%'`;
     }
 
-    const totalRecordsResult = await DB.query(totalRecordsQuery);
+    const totalRecordsResult = await DB.query(totalRecordsQuery, queryParams);
     totalRecords = totalRecordsResult.rows[0].total;
 
     dataWithStatusLate = responseData.map((row) => {

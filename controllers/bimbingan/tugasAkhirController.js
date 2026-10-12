@@ -5,6 +5,7 @@ const fs = require("fs-extra");
 const { getMatkulKp, getAllMatkulByMhs } = require("../../helper/informatics");
 const { unixTimestamp, convertDate } = require("../../utils");
 const ExcelJS = require("exceljs");
+const { resolveDepartmentScope } = require("../../middleware/departmentScope");
 
 exports.pengajuanSk = asyncHandler(async (req, res) => {
   const data = req.body;
@@ -221,30 +222,38 @@ exports.getForAdmin = asyncHandler(async (req, res) => {
   const { dataTable, orderField, orderValue, page, perPage, search, status } =
     req.query;
 
+  const departmentCode = resolveDepartmentScope(req, res);
+
   const pageNumber = parseInt(page, 10) || 1;
   const itemsPerPage = parseInt(perPage, 10) || 10;
   const offset = (pageNumber - 1) * itemsPerPage;
 
   let query = `
-    SELECT 
-      ta_pengajuan_sk.*, 
-      tb_data_pribadi.nama_lengkap, 
-      tb_users.npm, 
-      ta_pendaftaran_kolokium.id AS kolo_id, 
-      ta_pendaftaran_kolokium.kolo_status_pem_1, 
-      ta_pendaftaran_kolokium.kolo_status_pem_2, 
-      ta_pendaftaran_kolokium.kolo_status_pem_3, 
-      ta_pendaftaran_sidang.jadwal_pelaksanaan, 
-      ta_pendaftaran_sidang.sidang_status_pem_1, 
-      ta_pendaftaran_sidang.sidang_status_pem_2, 
-      ta_pendaftaran_sidang.sidang_status_pem_3, 
-      ta_pendaftaran_sidang.id AS sidang_id 
-    FROM ta_pengajuan_sk 
-    JOIN tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id 
-    JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id 
-    LEFT JOIN ta_pendaftaran_kolokium ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id 
-    LEFT JOIN ta_pendaftaran_sidang ON ta_pendaftaran_sidang.pengajuan_sk_id = ta_pengajuan_sk.id 
+    SELECT
+      ta_pengajuan_sk.*,
+      tb_data_pribadi.nama_lengkap,
+      tb_users.npm,
+      ta_pendaftaran_kolokium.id AS kolo_id,
+      ta_pendaftaran_kolokium.kolo_status_pem_1,
+      ta_pendaftaran_kolokium.kolo_status_pem_2,
+      ta_pendaftaran_kolokium.kolo_status_pem_3,
+      ta_pendaftaran_sidang.jadwal_pelaksanaan,
+      ta_pendaftaran_sidang.sidang_status_pem_1,
+      ta_pendaftaran_sidang.sidang_status_pem_2,
+      ta_pendaftaran_sidang.sidang_status_pem_3,
+      ta_pendaftaran_sidang.id AS sidang_id
+    FROM ta_pengajuan_sk
+    JOIN tb_data_pribadi ON ta_pengajuan_sk.mhs_id = tb_data_pribadi.user_id
+    JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id
+    LEFT JOIN ta_pendaftaran_kolokium ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id
+    LEFT JOIN ta_pendaftaran_sidang ON ta_pendaftaran_sidang.pengajuan_sk_id = ta_pengajuan_sk.id
     WHERE ta_pengajuan_sk.deleted_at IS NULL`;
+
+  const queryParams = [];
+  if (departmentCode) {
+    queryParams.push(departmentCode);
+    query += ` AND tb_users.department_code = $${queryParams.length}`;
+  }
 
   if (status) {
     query += ` AND ta_pengajuan_sk.status = '${status}'`;
@@ -268,7 +277,7 @@ exports.getForAdmin = asyncHandler(async (req, res) => {
   query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
 
   try {
-    const result = await DB.query(query);
+    const result = await DB.query(query, queryParams);
 
     let responseData = [];
     let dataWithStatusPenilaian = [];
@@ -277,16 +286,23 @@ exports.getForAdmin = asyncHandler(async (req, res) => {
     if (result.rows.length > 0) {
       responseData = result.rows;
 
+      const totalParams = [];
       let totalRecordsQuery = `
-  SELECT COUNT(*) AS total 
-  FROM ta_pengajuan_sk 
+  SELECT COUNT(*) AS total
+  FROM ta_pengajuan_sk
+  JOIN tb_users ON ta_pengajuan_sk.mhs_id = tb_users.user_id
   WHERE ta_pengajuan_sk.deleted_at IS NULL`;
+
+      if (departmentCode) {
+        totalParams.push(departmentCode);
+        totalRecordsQuery += ` AND tb_users.department_code = $${totalParams.length}`;
+      }
 
       if (status) {
         totalRecordsQuery += ` AND ta_pengajuan_sk.status = '${status}'`;
       }
 
-      const totalRecordsResult = await DB.query(totalRecordsQuery);
+      const totalRecordsResult = await DB.query(totalRecordsQuery, totalParams);
       totalRecords = totalRecordsResult.rows[0].total;
 
       const koloIds = responseData.map((row) => row.kolo_id).filter(Boolean);
@@ -2780,13 +2796,15 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
     search,
   } = req.query;
 
+  const departmentCode = resolveDepartmentScope(req, res);
+
   const pageNumber = parseInt(page, 10) || 1;
   const itemsPerPage = parseInt(perPage, 10) || 10;
   const offset = (pageNumber - 1) * itemsPerPage;
 
   let baseQuery = `
-    SELECT 
-      ta_pendaftaran_kolokium.id, 
+    SELECT
+      ta_pendaftaran_kolokium.id,
       ta_pendaftaran_kolokium.mhs_id, 
       ta_pendaftaran_kolokium.kolo_pembimbing_1,
       ta_pendaftaran_kolokium.kolo_pembimbing_2,
@@ -2811,10 +2829,16 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
       tb_data_pribadi ON ta_pendaftaran_kolokium.mhs_id = tb_data_pribadi.user_id 
     JOIN
       tb_users ON ta_pendaftaran_kolokium.mhs_id = tb_users.user_id
-    WHERE 
-      ta_pengajuan_sk.deleted_at IS NULL AND ta_pengajuan_sk.status = 'menuju-sidang' OR ta_pengajuan_sk.status = 'menyelesaikan-revisi' OR ta_pengajuan_sk.status = 'selesai'`;
+    WHERE
+      (ta_pengajuan_sk.deleted_at IS NULL AND ta_pengajuan_sk.status = 'menuju-sidang' OR ta_pengajuan_sk.status = 'menyelesaikan-revisi' OR ta_pengajuan_sk.status = 'selesai')`;
 
   let whereClause = "";
+  const queryParams = [];
+
+  if (departmentCode) {
+    queryParams.push(departmentCode);
+    whereClause += ` AND tb_users.department_code = $${queryParams.length}`;
+  }
 
   if (filter && filterValue) {
     if (Array.isArray(filter) && Array.isArray(filterValue)) {
@@ -2834,15 +2858,16 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
   }
 
   const totalRecordsQuery = `
-    SELECT COUNT(DISTINCT ta_pendaftaran_kolokium.id) AS total 
-    FROM ta_pendaftaran_kolokium 
-    LEFT JOIN ta_pengajuan_sk ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id 
-    JOIN tb_data_pribadi ON ta_pendaftaran_kolokium.mhs_id = tb_data_pribadi.user_id 
-    WHERE ta_pengajuan_sk.deleted_at IS NULL AND ta_pengajuan_sk.status = 'menuju-sidang' OR ta_pengajuan_sk.status = 'menyelesaikan-revisi' OR ta_pengajuan_sk.status = 'selesai'
+    SELECT COUNT(DISTINCT ta_pendaftaran_kolokium.id) AS total
+    FROM ta_pendaftaran_kolokium
+    LEFT JOIN ta_pengajuan_sk ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id
+    JOIN tb_data_pribadi ON ta_pendaftaran_kolokium.mhs_id = tb_data_pribadi.user_id
+    JOIN tb_users ON ta_pendaftaran_kolokium.mhs_id = tb_users.user_id
+    WHERE (ta_pengajuan_sk.deleted_at IS NULL AND ta_pengajuan_sk.status = 'menuju-sidang' OR ta_pengajuan_sk.status = 'menyelesaikan-revisi' OR ta_pengajuan_sk.status = 'selesai')
     ${whereClause}`;
 
   try {
-    const totalRecordsResult = await DB.query(totalRecordsQuery);
+    const totalRecordsResult = await DB.query(totalRecordsQuery, queryParams);
     const totalRecords = totalRecordsResult.rows[0].total;
 
     let query = baseQuery + whereClause;
@@ -2860,7 +2885,7 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
 
     query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
 
-    const result = await DB.query(query);
+    const result = await DB.query(query, queryParams);
     const rows = result.rows;
 
     const koloIds = rows.map((row) => row.id);
@@ -2926,39 +2951,47 @@ exports.getRekapPenilaianKolokium = asyncHandler(async (req, res) => {
 });
 
 exports.exportsRekapPenilainKolokium = asyncHandler(async (req, res) => {
-  const baseQuery = `
-    SELECT 
-      ta_pendaftaran_kolokium.id, 
-      ta_pendaftaran_kolokium.mhs_id, 
+  const departmentCode = resolveDepartmentScope(req, res);
+  const queryParams = [];
+
+  let baseQuery = `
+    SELECT
+      ta_pendaftaran_kolokium.id,
+      ta_pendaftaran_kolokium.mhs_id,
       ta_pendaftaran_kolokium.kolo_pembimbing_1,
       ta_pendaftaran_kolokium.kolo_pembimbing_2,
       ta_pendaftaran_kolokium.kolo_pembimbing_3,
       ta_pendaftaran_kolokium.evaluator_1,
       ta_pendaftaran_kolokium.evaluator_2,
-      ta_pengajuan_sk.deleted_at, 
-      ta_pengajuan_sk.id AS sk_id, 
-      tb_data_pribadi.user_id, 
-      tb_data_pribadi.nama_lengkap, 
+      ta_pengajuan_sk.deleted_at,
+      ta_pengajuan_sk.id AS sk_id,
+      tb_data_pribadi.user_id,
+      tb_data_pribadi.nama_lengkap,
       tb_users.user_id,
       tb_users.npm,
       ta_nilai_akhir_kolo.nilai_akhir as nilai_akhir_kolo,
       ta_nilai_akhir_kolo.huruf_mutu as huruf_mutu_akhir_kolo
-    FROM 
-      ta_pendaftaran_kolokium 
-    LEFT JOIN 
-      ta_pengajuan_sk ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id 
-    JOIN 
-      ta_nilai_akhir_kolo ON ta_pendaftaran_kolokium.id = ta_nilai_akhir_kolo.kolo_id 
-    JOIN 
-      tb_data_pribadi ON ta_pendaftaran_kolokium.mhs_id = tb_data_pribadi.user_id 
+    FROM
+      ta_pendaftaran_kolokium
+    LEFT JOIN
+      ta_pengajuan_sk ON ta_pendaftaran_kolokium.pengajuan_sk_id = ta_pengajuan_sk.id
+    JOIN
+      ta_nilai_akhir_kolo ON ta_pendaftaran_kolokium.id = ta_nilai_akhir_kolo.kolo_id
+    JOIN
+      tb_data_pribadi ON ta_pendaftaran_kolokium.mhs_id = tb_data_pribadi.user_id
     JOIN
       tb_users ON ta_pendaftaran_kolokium.mhs_id = tb_users.user_id
-    WHERE 
-      ta_pengajuan_sk.deleted_at IS NULL AND ta_pengajuan_sk.status = 'menuju-sidang' OR ta_pengajuan_sk.status = 'menyelesaikan-revisi' OR ta_pengajuan_sk.status = 'selesai'
+    WHERE
+      (ta_pengajuan_sk.deleted_at IS NULL AND ta_pengajuan_sk.status = 'menuju-sidang' OR ta_pengajuan_sk.status = 'menyelesaikan-revisi' OR ta_pengajuan_sk.status = 'selesai')
   `;
 
+  if (departmentCode) {
+    queryParams.push(departmentCode);
+    baseQuery += ` AND tb_users.department_code = $${queryParams.length}`;
+  }
+
   try {
-    const result = await DB.query(baseQuery);
+    const result = await DB.query(baseQuery, queryParams);
     const rows = result.rows;
 
     const koloIds = rows.map((row) => row.id);
@@ -3098,13 +3131,15 @@ exports.getRekapPenilaianSidang = asyncHandler(async (req, res) => {
     search,
   } = req.query;
 
+  const departmentCode = resolveDepartmentScope(req, res);
+
   const pageNumber = parseInt(page, 10) || 1;
   const itemsPerPage = parseInt(perPage, 10) || 10;
   const offset = (pageNumber - 1) * itemsPerPage;
 
   let baseQuery = `
-    SELECT 
-      ta_pendaftaran_sidang.id, 
+    SELECT
+      ta_pendaftaran_sidang.id,
       ta_pendaftaran_sidang.mhs_id, 
       ta_pengajuan_sk.deleted_at, 
       ta_pengajuan_sk.id AS sk_id, 
@@ -3124,10 +3159,16 @@ exports.getRekapPenilaianSidang = asyncHandler(async (req, res) => {
       tb_data_pribadi ON ta_pendaftaran_sidang.mhs_id = tb_data_pribadi.user_id 
     JOIN
       tb_users ON ta_pendaftaran_sidang.mhs_id = tb_users.user_id
-    WHERE 
-      ta_pengajuan_sk.deleted_at IS NULL AND ta_pengajuan_sk.status = 'menyelesaikan-revisi' OR  ta_pengajuan_sk.status = 'selesai'`;
+    WHERE
+      (ta_pengajuan_sk.deleted_at IS NULL AND ta_pengajuan_sk.status = 'menyelesaikan-revisi' OR  ta_pengajuan_sk.status = 'selesai')`;
 
   let whereClause = "";
+  const queryParams = [];
+
+  if (departmentCode) {
+    queryParams.push(departmentCode);
+    whereClause += ` AND tb_users.department_code = $${queryParams.length}`;
+  }
 
   if (filter && filterValue) {
     if (Array.isArray(filter) && Array.isArray(filterValue)) {
@@ -3147,15 +3188,16 @@ exports.getRekapPenilaianSidang = asyncHandler(async (req, res) => {
   }
 
   const totalRecordsQuery = `
-    SELECT COUNT(DISTINCT ta_pendaftaran_sidang.id) AS total 
-    FROM ta_pendaftaran_sidang 
-    LEFT JOIN ta_pengajuan_sk ON ta_pendaftaran_sidang.pengajuan_sk_id = ta_pengajuan_sk.id 
-    JOIN tb_data_pribadi ON ta_pendaftaran_sidang.mhs_id = tb_data_pribadi.user_id 
-    WHERE ta_pengajuan_sk.deleted_at IS NULL AND ta_pengajuan_sk.status = 'menyelesaikan-revisi' OR  ta_pengajuan_sk.status = 'selesai'
+    SELECT COUNT(DISTINCT ta_pendaftaran_sidang.id) AS total
+    FROM ta_pendaftaran_sidang
+    LEFT JOIN ta_pengajuan_sk ON ta_pendaftaran_sidang.pengajuan_sk_id = ta_pengajuan_sk.id
+    JOIN tb_data_pribadi ON ta_pendaftaran_sidang.mhs_id = tb_data_pribadi.user_id
+    JOIN tb_users ON ta_pendaftaran_sidang.mhs_id = tb_users.user_id
+    WHERE (ta_pengajuan_sk.deleted_at IS NULL AND ta_pengajuan_sk.status = 'menyelesaikan-revisi' OR  ta_pengajuan_sk.status = 'selesai')
     ${whereClause}`;
 
   try {
-    const totalRecordsResult = await DB.query(totalRecordsQuery);
+    const totalRecordsResult = await DB.query(totalRecordsQuery, queryParams);
     const totalRecords = totalRecordsResult.rows[0].total;
 
     let query = baseQuery + whereClause;
@@ -3173,7 +3215,7 @@ exports.getRekapPenilaianSidang = asyncHandler(async (req, res) => {
 
     query += ` LIMIT ${itemsPerPage} OFFSET ${offset}`;
 
-    const result = await DB.query(query);
+    const result = await DB.query(query, queryParams);
     const rows = result.rows;
 
     const sidangIds = rows.map((row) => row.id);
@@ -3239,8 +3281,11 @@ exports.getRekapPenilaianSidang = asyncHandler(async (req, res) => {
 });
 
 exports.exportRekapPenilaianSidang = asyncHandler(async (req, res) => {
+  const departmentCode = resolveDepartmentScope(req, res);
+  const queryParams = [];
+
   let baseQuery = `
-    SELECT 
+    SELECT
       ta_pendaftaran_sidang.id, 
       ta_pendaftaran_sidang.mhs_id, 
       ta_pengajuan_sk.deleted_at, 
@@ -3265,12 +3310,17 @@ exports.exportRekapPenilaianSidang = asyncHandler(async (req, res) => {
       tb_data_pribadi ON ta_pendaftaran_sidang.mhs_id = tb_data_pribadi.user_id 
     JOIN
       tb_users ON ta_pendaftaran_sidang.mhs_id = tb_users.user_id
-    WHERE 
+    WHERE
       ta_pengajuan_sk.deleted_at IS NULL AND (ta_pengajuan_sk.status = 'menyelesaikan-revisi' OR ta_pengajuan_sk.status = 'selesai')
   `;
 
+  if (departmentCode) {
+    queryParams.push(departmentCode);
+    baseQuery += ` AND tb_users.department_code = $${queryParams.length}`;
+  }
+
   try {
-    const result = await DB.query(baseQuery);
+    const result = await DB.query(baseQuery, queryParams);
     const rows = result.rows;
 
     const sidangIds = rows.map((row) => row.id);

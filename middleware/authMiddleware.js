@@ -151,6 +151,27 @@ exports.adminOnly = asyncHandler(async (req, res, next) => {
   }
 });
 
+// Superadmin = allowlist email (bukan role baru), supaya tidak perlu ubah skema `role`
+// yang dipakai di mana-mana. Satu akun ini yang masih bisa akses lintas-prodi; semua
+// akun Admin lainnya (termasuk tiasteknikinformatika@gmail.com) dibatasi per-prodi lewat
+// department_code / LmsRoleScope. Lihat plan "Pembatasan Akses Admin per Prodi".
+const SUPERADMIN_EMAILS = (process.env.SUPERADMIN_EMAILS || "")
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+
+exports.isSuperAdmin = (user) =>
+  !!user && SUPERADMIN_EMAILS.includes(String(user.email || "").toLowerCase());
+
+exports.superAdminOnly = asyncHandler(async (req, res, next) => {
+  if (exports.isSuperAdmin(req.user)) {
+    next();
+  } else {
+    res.status(403);
+    throw new Error("Hanya superadmin yang boleh mengakses fitur ini.");
+  }
+});
+
 exports.dosenOnly = asyncHandler(async (req, res, next) => {
   if (
     (req.user && req.user.role === "Dosen") ||

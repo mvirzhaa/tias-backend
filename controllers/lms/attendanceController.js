@@ -15,6 +15,8 @@ const faceApiClient = require("../../lib/lms/faceApi/client");
 const { getRekapByClass } = require("../../lib/lms/attendanceRekapService");
 const { lecturerOwns, studentIsEnrolled } = require("../../middleware/lms/lecturerOwnsClass");
 const { createLegacyPembelajaran } = require("../../lib/lms/legacyAttendanceBridge");
+const { isSuperAdmin } = require("../../middleware/authMiddleware");
+const { userCanViewClassByScope } = require("../../lib/lms/roleScopeService");
 
 const HARI_ID = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
@@ -445,6 +447,12 @@ exports.rekap = asyncHandler(async (req, res) => {
   if (!kelasKuliahId) {
     return response(res, false, "Parameter kelasKuliahId wajib diisi.", null, 400);
   }
+  if (!isSuperAdmin(req.user)) {
+    const check = await userCanViewClassByScope(req.user, kelasKuliahId);
+    if (!check.allowed) {
+      return response(res, false, check.reason || "Anda tidak berwenang melihat kelas ini.", null, 403);
+    }
+  }
   const rekap = await getRekapByClass({ kelasKuliahId });
   return response(res, true, "success", rekap);
 });
@@ -463,7 +471,7 @@ exports.getCurrentSession = asyncHandler(async (req, res) => {
   // di LMS sendiri, tanpa perlu tanya manual ke dosen — permintaan user, lihat
   // MahasiswaPanel di fe-ucl PresensiRenderer.jsx).
   const allowed =
-    req.user.role === "Admin" ||
+    isSuperAdmin(req.user) ||
     (await lecturerOwns(req, kelasKuliahId)) ||
     (req.user.role === "Mahasiswa" && (await studentIsEnrolled(req, kelasKuliahId)));
   if (!allowed) {

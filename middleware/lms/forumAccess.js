@@ -4,7 +4,9 @@ const {
   lecturerOwns,
   studentIsEnrolled,
   userCanViewClassByScope,
+  scopedAdminCanManageContent,
 } = require("./lecturerOwnsClass");
+const { isSuperAdmin } = require("../authMiddleware");
 const LmsSection = require("../../models/lms/LmsSection");
 const LmsContentItem = require("../../models/lms/LmsContentItem");
 const LmsForumThread = require("../../models/lms/LmsForumThread");
@@ -87,7 +89,7 @@ exports.forumViewer = asyncHandler(async (req, res, next) => {
   const kelasKuliahId = await loadForumContext(req, res);
   if (kelasKuliahId === undefined) return;
 
-  if (req.user && req.user.role === "Admin") {
+  if (isSuperAdmin(req.user)) {
     req.lmsIsModerator = true;
     return next();
   }
@@ -114,12 +116,21 @@ exports.forumMember = asyncHandler(async (req, res, next) => {
   const kelasKuliahId = await loadForumContext(req, res);
   if (kelasKuliahId === undefined) return;
 
-  if (req.user && req.user.role === "Admin") {
+  if (isSuperAdmin(req.user)) {
+    req.lmsIsModerator = true;
+    return next();
+  }
+  if (await scopedAdminCanManageContent(req.user, kelasKuliahId)) {
     req.lmsIsModerator = true;
     return next();
   }
   if (isLecturer(req) && (await lecturerOwns(req, kelasKuliahId))) {
     req.lmsIsModerator = true;
+    return next();
+  }
+  const scopedAdminView = await userCanViewClassByScope(req.user, kelasKuliahId);
+  if (scopedAdminView.allowed) {
+    req.lmsIsModerator = false;
     return next();
   }
   if (req.user && req.user.role === "Mahasiswa" && (await studentIsEnrolled(req, kelasKuliahId))) {
@@ -129,12 +140,16 @@ exports.forumMember = asyncHandler(async (req, res, next) => {
   return response(res, false, "Anda tidak punya akses ke forum kelas ini.", null, 403);
 });
 
-// Moderator forum (pin/lock): hanya dosen pengampu / admin.
+// Moderator forum (pin/lock): hanya dosen pengampu / admin dgn izin lms_manage_content.
 exports.forumModerator = asyncHandler(async (req, res, next) => {
   const kelasKuliahId = await loadForumContext(req, res);
   if (kelasKuliahId === undefined) return;
 
-  if (req.user && req.user.role === "Admin") {
+  if (isSuperAdmin(req.user)) {
+    req.lmsIsModerator = true;
+    return next();
+  }
+  if (await scopedAdminCanManageContent(req.user, kelasKuliahId)) {
     req.lmsIsModerator = true;
     return next();
   }
