@@ -5,6 +5,16 @@ const LmsContentItem = require("../../models/lms/LmsContentItem");
 const SiakV2ClassLecturer = require("../../models/lms/SiakV2ClassLecturer");
 const SiakV2Participant = require("../../models/lms/SiakV2Participant");
 const { userCanViewClassByScope } = require("../../lib/lms/roleScopeService");
+const { isSuperAdmin } = require("../../middleware/authMiddleware");
+
+// Admin prodi/fakultas (LmsRoleScope) boleh WRITE konten kelas yg masuk scope-nya hanya
+// kalau scope itu punya permission lms_manage_content=true (lihat DEFAULT_PERMISSIONS di
+// roleScopeService.js) — beda dari sekadar "boleh lihat" (userCanViewClassByScope.allowed).
+const scopedAdminCanManageContent = async (user, kelasKuliahId) => {
+  if (!user || user.role !== "Admin") return false;
+  const access = await userCanViewClassByScope(user, kelasKuliahId);
+  return !!(access.allowed && access.scope && access.scope.permissions && access.scope.permissions.lms_manage_content);
+};
 
 /**
  * Otorisasi LMS. SEMUA pengecekan membaca tabel LOKAL
@@ -101,8 +111,14 @@ const makeOwnsMiddleware = (resolver) =>
     const kelasKuliahId = await resolver(req, res);
     if (kelasKuliahId === undefined) return; // respons sudah dikirim resolver
 
-    // Admin: bypass.
-    if (req.user && req.user.role === "Admin") {
+    // Superadmin: bypass penuh.
+    if (isSuperAdmin(req.user)) {
+      req.lmsLecturerId = req.user.user_id;
+      return next();
+    }
+    // Admin prodi/fakultas: hanya kalau scope LMS-nya mencakup kelas ini DAN
+    // punya izin lms_manage_content (bukan admin otomatis boleh tulis di mana saja).
+    if (await scopedAdminCanManageContent(req.user, kelasKuliahId)) {
       req.lmsLecturerId = req.user.user_id;
       return next();
     }
@@ -127,8 +143,8 @@ const makeViewMiddleware = (resolver) =>
     const kelasKuliahId = await resolver(req, res);
     if (kelasKuliahId === undefined) return;
 
-    if (req.user && req.user.role === "Admin") return next();
-
+    // userCanViewClassByScope sudah menangani superadmin (bypass) & admin
+    // prodi/fakultas (scope LmsRoleScope) — tidak ada lagi bypass role==="Admin" di sini.
     const scopedAdminAccess = await userCanViewClassByScope(req.user, kelasKuliahId);
     if (scopedAdminAccess.allowed) {
       req.lmsRoleScope = scopedAdminAccess.scope;
@@ -158,6 +174,7 @@ exports.classViewContentAccess = makeViewMiddleware(resolveKelasFromContent);
 exports.lecturerOwns = lecturerOwns;
 exports.studentIsEnrolled = studentIsEnrolled;
 exports.userCanViewClassByScope = userCanViewClassByScope;
+exports.scopedAdminCanManageContent = scopedAdminCanManageContent;
 // Resolver konteks dipakai ulang modul lain (mis. submissionAccess) — sumber tunggal
 // penurunan kelasKuliahId server-side (item → section → kelas).
 exports.resolveKelasFromContent = resolveKelasFromContent;
@@ -166,7 +183,11 @@ exports.studentEnrolled = asyncHandler(async (req, res, next) => {
   const kelasKuliahId = await resolveKelasFromSection(req, res);
   if (kelasKuliahId === undefined) return;
 
-  if (req.user && req.user.role === "Admin") return next();
+  if (isSuperAdmin(req.user)) return next();
+  if (req.user && req.user.role === "Admin") {
+    const access = await userCanViewClassByScope(req.user, kelasKuliahId);
+    if (access.allowed) return next();
+  }
   if (req.user && req.user.role === "Mahasiswa" && (await studentIsEnrolled(req, kelasKuliahId))) {
     return next();
   }

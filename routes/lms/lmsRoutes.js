@@ -1,5 +1,5 @@
 const express = require("express");
-const { protected, adminOnly } = require("../../middleware/authMiddleware");
+const { protected, adminOnly, superAdminOnly } = require("../../middleware/authMiddleware");
 const {
   lecturerOwnsClass,
   lecturerOwnsContentSection,
@@ -81,12 +81,15 @@ router.get("/classes", protected, listClasses);
 router.get("/participants", protected, lecturerOwnsClass, listParticipants);
 
 // --- Scope role LMS: Admin Univ/Fakultas/Prodi berbasis data SIAK lokal ---
+// Manajemen LmsRoleScope = menentukan "admin X jatahnya prodi/fakultas apa" — dikunci
+// superAdminOnly (bukan adminOnly), supaya admin prodi manapun tidak bisa kasih dirinya
+// sendiri scope yang lebih luas lewat endpoint ini. Lihat plan "Pembatasan Akses Admin per Prodi".
 router.get("/role-scopes/me", protected, getMyRoleScopes);
-router.get("/role-scopes/academic-units", protected, adminOnly, listAcademicUnits);
-router.get("/role-scopes", protected, adminOnly, listRoleScopes);
-router.post("/role-scopes", protected, adminOnly, createRoleScope);
-router.patch("/role-scopes/:id", protected, adminOnly, updateRoleScope);
-router.delete("/role-scopes/:id", protected, adminOnly, deactivateRoleScope);
+router.get("/role-scopes/academic-units", protected, superAdminOnly, listAcademicUnits);
+router.get("/role-scopes", protected, superAdminOnly, listRoleScopes);
+router.post("/role-scopes", protected, superAdminOnly, createRoleScope);
+router.patch("/role-scopes/:id", protected, superAdminOnly, updateRoleScope);
+router.delete("/role-scopes/:id", protected, superAdminOnly, deactivateRoleScope);
 
 /**
  * Modul Pembelajaran (LMS) — Fase 1: Sections & Content Items (CRUD + reorder).

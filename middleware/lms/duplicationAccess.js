@@ -1,6 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const { response } = require("../../lib/response");
-const { lecturerOwns } = require("./lecturerOwnsClass");
+const { lecturerOwns, scopedAdminCanManageContent } = require("./lecturerOwnsClass");
+const { isSuperAdmin } = require("../authMiddleware");
 
 /**
  * Otorisasi fitur "Duplikat dari Kelas Lain" (lib/lms/contentDuplication.js). Arah PULL:
@@ -19,7 +20,11 @@ exports.lecturerOwnsTargetForDuplication = asyncHandler(async (req, res, next) =
   }
   req.duplicationTargetKelasKuliahId = String(targetKelasKuliahId);
 
-  if (req.user && req.user.role === "Admin") {
+  if (isSuperAdmin(req.user)) {
+    req.lmsLecturerId = req.user.user_id;
+    return next();
+  }
+  if (await scopedAdminCanManageContent(req.user, req.duplicationTargetKelasKuliahId)) {
     req.lmsLecturerId = req.user.user_id;
     return next();
   }
