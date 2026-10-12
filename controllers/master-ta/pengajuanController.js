@@ -9,6 +9,7 @@ const SiakV2ProgramStudi = require("../../models/lms/SiakV2ProgramStudi");
 const User = require("../../models/User");
 const DataPribadi = require("../../models/DataPribadi");
 const { createLegacyPengajuanSk } = require("../../lib/masterTa/legacyBridge");
+const { resolveProdiScope, isProdiAllowed } = require("../../lib/masterTa/prodiScope");
 
 const STATUS_OPTIONS = ["diajukan", "disetujui", "ditolak"];
 
@@ -195,6 +196,8 @@ class PengajuanController {
 
   static index = async (req, res) => {
     try {
+      const prodiScope = await resolveProdiScope(req, res);
+
       let { limit, page, order, orderBy, search, status } = req.query;
       limit = parseInt(limit) > 0 ? parseInt(limit) : 10;
       page = page ? parseInt(page) : 1;
@@ -203,6 +206,7 @@ class PengajuanController {
       const pagelimit = getPagination(limit, page);
 
       const condition = {};
+      if (prodiScope) condition.prodi_id = { [Op.in]: prodiScope };
       if (status) condition.status = status;
       if (search) {
         condition[Op.or] = [
@@ -235,6 +239,8 @@ class PengajuanController {
 
   static detail = async (req, res) => {
     try {
+      const prodiScope = await resolveProdiScope(req, res);
+
       const { id } = req.params;
       const data = await TaPengajuan.findOne({
         where: { id },
@@ -243,6 +249,9 @@ class PengajuanController {
 
       if (!data) {
         return response(res, false, "Data tidak ditemukan", null, 404);
+      }
+      if (!isProdiAllowed(prodiScope, data.prodi_id)) {
+        return response(res, false, "Data ini bukan prodi yang jadi scope akun Anda.", null, 403);
       }
 
       return response(res, true, "success", data);
@@ -253,11 +262,16 @@ class PengajuanController {
 
   static update = async (req, res) => {
     try {
+      const prodiScope = await resolveProdiScope(req, res);
+
       const { id } = req.params;
       const check = await TaPengajuan.findOne({ where: { id } });
 
       if (!check) {
         return response(res, false, "Data tidak ditemukan", null, 404);
+      }
+      if (!isProdiAllowed(prodiScope, check.prodi_id)) {
+        return response(res, false, "Data ini bukan prodi yang jadi scope akun Anda.", null, 403);
       }
 
       const {
@@ -278,6 +292,9 @@ class PengajuanController {
           null,
           400
         );
+      }
+      if (!isProdiAllowed(prodiScope, prodi_id)) {
+        return response(res, false, "Prodi tujuan di luar scope akun Anda.", null, 403);
       }
 
       const update = await TaPengajuan.update(
@@ -363,6 +380,8 @@ class PengajuanController {
 
   static updateStatus = async (req, res) => {
     try {
+      const prodiScope = await resolveProdiScope(req, res);
+
       const { id } = req.params;
       const { status } = req.body;
 
@@ -379,6 +398,9 @@ class PengajuanController {
       const check = await TaPengajuan.findOne({ where: { id } });
       if (!check) {
         return response(res, false, "Data tidak ditemukan", null, 404);
+      }
+      if (!isProdiAllowed(prodiScope, check.prodi_id)) {
+        return response(res, false, "Data ini bukan prodi yang jadi scope akun Anda.", null, 403);
       }
 
       const update = await TaPengajuan.update(
@@ -399,7 +421,16 @@ class PengajuanController {
 
   static destroy = async (req, res) => {
     try {
+      const prodiScope = await resolveProdiScope(req, res);
+
       const { id } = req.params;
+      const check = await TaPengajuan.findOne({ where: { id } });
+      if (!check) {
+        return response(res, false, "Data tidak ditemukan", null, 404);
+      }
+      if (!isProdiAllowed(prodiScope, check.prodi_id)) {
+        return response(res, false, "Data ini bukan prodi yang jadi scope akun Anda.", null, 403);
+      }
 
       await TaPengajuan.update(
         { deleted_at: new Date() },

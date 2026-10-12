@@ -1,8 +1,10 @@
+const { Op } = require("sequelize");
 const { response } = require("../../lib/response");
 const { CastObject } = require("../../lib/general");
 const TaTahapan = require("../../models/master-ta/TaTahapan");
 const TaSkema = require("../../models/master-ta/TaSkema");
 const SiakV2ProgramStudi = require("../../models/lms/SiakV2ProgramStudi");
+const { resolveProdiScope, isProdiAllowed } = require("../../lib/masterTa/prodiScope");
 
 const PENGUMPULAN_REVISI = "Pengumpulan Revisi";
 const isPengumpulanRevisi = (nama) =>
@@ -13,10 +15,19 @@ const isPengajuanTahapan = (nama) =>
 class TahapanController {
   static index = async (req, res) => {
     try {
+      const prodiScope = await resolveProdiScope(req, res);
+
       const { prodi_id, skema_id } = req.query;
 
       const condition = {};
-      if (prodi_id) condition.prodi_id = prodi_id;
+      if (prodi_id) {
+        if (!isProdiAllowed(prodiScope, prodi_id)) {
+          return response(res, false, "Prodi tersebut di luar scope akun Anda.", null, 403);
+        }
+        condition.prodi_id = prodi_id;
+      } else if (prodiScope) {
+        condition.prodi_id = { [Op.in]: prodiScope };
+      }
       if (skema_id) condition.skema_id = skema_id;
 
       const data = await TaTahapan.findAll({
@@ -36,6 +47,8 @@ class TahapanController {
 
   static detail = async (req, res) => {
     try {
+      const prodiScope = await resolveProdiScope(req, res);
+
       const { id } = req.params;
       const data = await TaTahapan.findOne({
         where: { id },
@@ -47,6 +60,9 @@ class TahapanController {
 
       if (!data) {
         return response(res, false, "Data tidak ditemukan", null, 404);
+      }
+      if (!isProdiAllowed(prodiScope, data.prodi_id)) {
+        return response(res, false, "Data ini bukan prodi yang jadi scope akun Anda.", null, 403);
       }
 
       return response(res, true, "success", data);
@@ -67,6 +83,8 @@ class TahapanController {
   //    dipasangkan lagi (supaya tidak "Pengajuan Pengajuan X").
   static create = async (req, res) => {
     try {
+      const prodiScope = await resolveProdiScope(req, res);
+
       const { prodi_id, skema_id, nama_tahapan } = req.body;
 
       if (!prodi_id || !skema_id || !nama_tahapan) {
@@ -77,6 +95,9 @@ class TahapanController {
           null,
           400
         );
+      }
+      if (!isProdiAllowed(prodiScope, prodi_id)) {
+        return response(res, false, "Prodi tersebut di luar scope akun Anda.", null, 403);
       }
 
       const casting = CastObject({ Model: TaTahapan, body: req.body });
@@ -140,15 +161,23 @@ class TahapanController {
 
   static update = async (req, res) => {
     try {
+      const prodiScope = await resolveProdiScope(req, res);
+
       const { id } = req.params;
       const check = await TaTahapan.findOne({ where: { id } });
 
       if (!check) {
         return response(res, false, "Data tidak ditemukan", null, 404);
       }
+      if (!isProdiAllowed(prodiScope, check.prodi_id)) {
+        return response(res, false, "Data ini bukan prodi yang jadi scope akun Anda.", null, 403);
+      }
 
       const casting = CastObject({ Model: TaTahapan, body: req.body });
       delete casting.id;
+      if (casting.prodi_id && !isProdiAllowed(prodiScope, casting.prodi_id)) {
+        return response(res, false, "Prodi tujuan di luar scope akun Anda.", null, 403);
+      }
 
       if (
         isPengumpulanRevisi(check.nama_tahapan) &&
@@ -177,10 +206,18 @@ class TahapanController {
 
   static destroy = async (req, res) => {
     try {
+      const prodiScope = await resolveProdiScope(req, res);
+
       const { id } = req.params;
 
       const check = await TaTahapan.findOne({ where: { id } });
-      if (check && isPengumpulanRevisi(check.nama_tahapan)) {
+      if (!check) {
+        return response(res, false, "Data tidak ditemukan", null, 404);
+      }
+      if (!isProdiAllowed(prodiScope, check.prodi_id)) {
+        return response(res, false, "Data ini bukan prodi yang jadi scope akun Anda.", null, 403);
+      }
+      if (isPengumpulanRevisi(check.nama_tahapan)) {
         return response(
           res,
           false,
