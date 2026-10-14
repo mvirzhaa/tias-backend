@@ -3,6 +3,10 @@ const { getPagination } = require("../../lib/pagination-parser");
 const { response } = require("../../lib/response");
 const SiakV2MataKuliah = require("../../models/lms/SiakV2MataKuliah");
 const Matakuliah = require("../../models/master/Matakuliah");
+// Nama folder "masterTa" historis (helper ini dibuat pertama kali buat Master TA) --
+// logikanya generik (resolve prodi_id dari LmsRoleScope), dipakai ulang di sini apa
+// adanya, bukan scope khusus Master TA.
+const { resolveProdiScope, isProdiAllowed } = require("../../lib/masterTa/prodiScope");
 
 /**
  * Sumber data utk index()/detail() (dipakai tab admin "Matakuliah") dipindah dari
@@ -23,10 +27,20 @@ const Matakuliah = require("../../models/master/Matakuliah");
  * (UUID) tidak cocok di situ. m_matakuliah yang kosong itu bug lain yang sudah
  * ada dari sebelumnya (di luar scope perbaikan ini), bukan disebabkan/diperbaiki
  * di sini.
+ *
+ * index()/detail() juga di-scope per prodi (siakProgramStudiId) lewat
+ * resolveProdiScope/isProdiAllowed, pola sama persis Master TA -- admin prodi cuma
+ * lihat mata kuliah prodinya sendiri, superadmin tetap lihat semua. Sebelumnya
+ * SEMUA 1382 mata kuliah se-universitas kelihatan ke admin manapun (tanpa filter),
+ * bikin admin prodi X bingung lihat matkul prodi lain yang nggak familiar (mis.
+ * "Wrap and Drape" dari Pendidikan Vokasional Desain Fashion) dan sempat dikira data
+ * salah -- padahal datanya benar, cuma belum ke-scope.
  */
 class MatakuliahController {
   static index = async (req, res) => {
     try {
+      const prodiScope = await resolveProdiScope(req, res);
+
       let { limit, page, order, orderBy, search } = req.query;
       limit = parseInt(limit) > 0 ? parseInt(limit) : 10;
       page = page ? parseInt(page) : 1;
@@ -35,6 +49,7 @@ class MatakuliahController {
       const pagelimit = getPagination(limit, page);
 
       const condition = {};
+      if (prodiScope) condition.siakProgramStudiId = { [Op.in]: prodiScope };
       if (search) {
         condition[Op.or] = [
           { kode_matakuliah: { [Op.iLike]: `%${search}%` } },
@@ -77,11 +92,17 @@ class MatakuliahController {
 
   static detail = async (req, res) => {
     try {
+      const prodiScope = await resolveProdiScope(req, res);
+
       const { id } = req.params;
 
       const data = await SiakV2MataKuliah.findOne({
         where: { siakMataKuliahId: id },
       });
+
+      if (data && !isProdiAllowed(prodiScope, data.siakProgramStudiId)) {
+        return response(res, false, "Data ini bukan prodi yang jadi scope akun Anda.", null, 403);
+      }
 
       return response(res, true, "Success", data);
     } catch (error) {
