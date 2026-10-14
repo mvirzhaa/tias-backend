@@ -1,5 +1,11 @@
 const express = require("express");
-const { protected, adminOnly, mhsOnly, dosenOnly } = require("../../middleware/authMiddleware");
+const {
+  protected,
+  adminOnly,
+  superAdminOnly,
+  mhsOnly,
+  dosenOnly,
+} = require("../../middleware/authMiddleware");
 const SkemaController = require("../../controllers/master-ta/skemaController");
 const TahapanController = require("../../controllers/master-ta/tahapanController");
 const PenilaianController = require("../../controllers/master-ta/penilaianController");
@@ -27,13 +33,16 @@ router.get(
 // Prodi (dari data SIAK v2) — dipakai dropdown di layar admin DAN form Pengajuan TA mahasiswa
 router.get("/prodi", protected, ProdiController.index);
 
-// Skema TA
+// Skema TA — data master BERSAMA (dipakai semua prodi, tidak punya prodi_id),
+// jadi tetap kelihatan semua admin (index/detail), tapi bikin/ubah/hapus skema
+// baru dikunci superAdminOnly supaya admin prodi tidak bisa ubah skema yang
+// dipakai prodi lain. Lihat plan "Pembatasan Akses Admin per Prodi".
 router.get("/skema", protected, adminOnly, SkemaController.index);
 router.get("/skema/all", protected, SkemaController.listAll);
 router.get("/skema/:id", protected, adminOnly, SkemaController.detail);
-router.post("/skema", protected, adminOnly, SkemaController.create);
-router.put("/skema/:id", protected, adminOnly, SkemaController.update);
-router.delete("/skema/:id", protected, adminOnly, SkemaController.destroy);
+router.post("/skema", protected, superAdminOnly, SkemaController.create);
+router.put("/skema/:id", protected, superAdminOnly, SkemaController.update);
+router.delete("/skema/:id", protected, superAdminOnly, SkemaController.destroy);
 
 // Tahapan TA
 router.get("/tahapan", protected, adminOnly, TahapanController.index);
