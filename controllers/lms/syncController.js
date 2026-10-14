@@ -1,6 +1,10 @@
 const asyncHandler = require("express-async-handler");
 const { response } = require("../../lib/response");
-const { syncSiakV2, syncProgramStudiFull } = require("../../lib/lms/siakV2/syncService");
+const {
+  syncSiakV2,
+  syncProgramStudiFull,
+  syncMataKuliahFull,
+} = require("../../lib/lms/siakV2/syncService");
 
 /**
  * POST /lms/sync-siak  (sumber: endpoint publik /api/public, tanpa auth)
@@ -41,5 +45,25 @@ exports.syncProgramStudi = asyncHandler(async (req, res) => {
     return response(res, true, "Sinkronisasi master prodi SIAK berhasil.", result);
   } catch (error) {
     return response(res, false, `Sinkronisasi master prodi SIAK gagal: ${error.message}`, null, 502);
+  }
+});
+
+/**
+ * POST /lms/sync-mata-kuliah  (sumber: endpoint publik /api/public/mata-kuliah)
+ *
+ * Backfill LENGKAP master mata kuliah (siak_v2_mata_kuliah) langsung dari SIAK —
+ * gantiin tabel lokal lama m_matakuliah yang sudah orphan (tidak pernah lagi di-sync
+ * sejak migrasi v1 -> v2). Sumber tab "Matakuliah" di admin Pembelajaran.
+ */
+exports.syncMataKuliah = asyncHandler(async (req, res) => {
+  try {
+    const body = req.body || {};
+    const result = await syncMataKuliahFull({
+      pageSize: body.pageSize || req.query.pageSize,
+    });
+
+    return response(res, true, "Sinkronisasi master mata kuliah SIAK berhasil.", result);
+  } catch (error) {
+    return response(res, false, `Sinkronisasi master mata kuliah SIAK gagal: ${error.message}`, null, 502);
   }
 });

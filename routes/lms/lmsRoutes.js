@@ -6,7 +6,7 @@ const {
   classViewAccess,
   classViewContentAccess,
 } = require("../../middleware/lms/lecturerOwnsClass");
-const { syncSiak, syncProgramStudi } = require("../../controllers/lms/syncController");
+const { syncSiak, syncProgramStudi, syncMataKuliah } = require("../../controllers/lms/syncController");
 const { listClasses, listParticipants } = require("../../controllers/lms/classController");
 const { createUploadItem, replaceUploadItem, serveFile, servePreview } = require("../../controllers/lms/fileController");
 const { lmsUpload } = require("../../middleware/lms/lmsUpload");
@@ -73,6 +73,10 @@ router.post("/sync-siak", protected, adminOnly, syncSiak);
 
 // --- Backfill master prodi LENGKAP (independen dari kelas), lihat syncProgramStudiFull ---
 router.post("/sync-program-studi", protected, adminOnly, syncProgramStudi);
+
+// --- Backfill master mata kuliah LENGKAP, lihat syncMataKuliahFull. Sumber tab
+// "Matakuliah" di admin Pembelajaran (gantiin m_matakuliah lama yang orphan). ---
+router.post("/sync-mata-kuliah", protected, adminOnly, syncMataKuliah);
 
 // --- Daftar kelas LMS dari staging SIAK baru, difilter sesuai role/scope user ---
 router.get("/classes", protected, listClasses);
