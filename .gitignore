@@ -7,3 +7,13 @@ package-lock.json
 /.wwebjs_auth
 /storage
 /scratch
+
+# Local tool config (not part of feature code)
+/.claude
+
+# Testing/debug artifacts (not part of feature code)
+/stress-testing
+/docs/testing
+*.xlsx
+/check-admin-pribadi.js
+/export-users-for-eportal.js
