@@ -42,6 +42,28 @@ exports.addDataPenelitian = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error("Pleas fill in all the required fields.");
     }
+
+    // Validasi anggota penelitian wajib minimal 1 orang
+    let anggotaList = [];
+    try {
+      anggotaList = typeof data.anggota_penelitian === "string"
+        ? JSON.parse(data.anggota_penelitian)
+        : data.anggota_penelitian;
+    } catch (err) {
+      anggotaList = [];
+    }
+
+    const validAnggota = Array.isArray(anggotaList)
+      ? anggotaList.filter((a) => a && a.user_id)
+      : [];
+
+    if (validAnggota.length === 0) {
+      fs.unlink(file.path, (err) => {
+        if (err) console.log(err);
+      });
+      res.status(400);
+      throw new Error("Anggota penelitian wajib diisi minimal 1 orang.");
+    }
     // ==============PENELITIAN===================
     const penelitian = {
       kategori_id: data.kategori_id,
@@ -91,22 +113,16 @@ exports.addDataPenelitian = asyncHandler(async (req, res) => {
     const penelitianId = saveDataPenelitian.rows[0].penelitian_id;
 
     // ==============ANGGOTA PENELITIAN===================
-
-    JSON.parse(data.anggota_penelitian).forEach(async (anggota) => {
+    for (const anggota of validAnggota) {
       const anggotaPenelitian = {
+        penelitian_id: penelitianId,
         user_id: anggota.user_id,
-        peran: anggota.peran,
-        status: anggota.status,
+        peran: anggota.peran || "Anggota",
+        status: anggota.status || "Aktif",
       };
 
-      const keysDataAnggota = [
-        "penelitian_id",
-        ...Object.keys(anggotaPenelitian),
-      ];
-      const valuesDataAnggota = [
-        penelitianId,
-        ...Object.values(anggotaPenelitian),
-      ];
+      const keysDataAnggota = Object.keys(anggotaPenelitian);
+      const valuesDataAnggota = Object.values(anggotaPenelitian);
       const placeholdersDataAnggota = keysDataAnggota.map(
         (key, index) => `$${index + 1}`
       );
@@ -117,27 +133,21 @@ exports.addDataPenelitian = asyncHandler(async (req, res) => {
         )}) VALUES (${placeholdersDataAnggota.join(", ")}) returning *`,
         valuesDataAnggota
       );
-    });
+    }
     // ==============END ANGGOTA PENELITIAN===================
 
     // ==============DOKUMEN PENELITIAN===================
     const dokumenPenelitian = {
-      nama_dok: data.nama_dok,
-      keterangan: data.keterangan,
-      tautan_dok: data.tautan_dok,
+      penelitian_id: penelitianId,
+      nama_dok: data.nama_dok || (file ? file.originalname : "Dokumen Penelitian"),
+      keterangan: data.keterangan || "-",
+      tautan_dok: data.tautan_dok || null,
       file: file.filename,
+      created_at: convert,
     };
 
-    const keysDokumen = [
-      "penelitian_id",
-      ...Object.keys(dokumenPenelitian),
-      "created_at",
-    ];
-    const valuesDokumen = [
-      penelitianId,
-      ...Object.values(dokumenPenelitian),
-      convert,
-    ];
+    const keysDokumen = Object.keys(dokumenPenelitian);
+    const valuesDokumen = Object.values(dokumenPenelitian);
     const placeholdersDokumen = keysDokumen.map(
       (key, index) => `$${index + 1}`
     );
@@ -322,21 +332,35 @@ exports.editDataPenelitian = asyncHandler(async (req, res) => {
         [penelitianId]
       );
 
-      JSON.parse(data.anggota_penelitian).forEach(async (anggota) => {
+      let anggotaList = [];
+      try {
+        anggotaList = typeof data.anggota_penelitian === "string"
+          ? JSON.parse(data.anggota_penelitian)
+          : data.anggota_penelitian;
+      } catch (err) {
+        console.warn("Gagal parse anggota_penelitian:", err.message);
+        anggotaList = [];
+      }
+
+      const validAnggota = Array.isArray(anggotaList)
+        ? anggotaList.filter((a) => a && a.user_id)
+        : [];
+
+      if (validAnggota.length === 0) {
+        res.status(400);
+        throw new Error("Anggota penelitian wajib diisi minimal 1 orang.");
+      }
+
+      for (const anggota of validAnggota) {
         const anggotaPenelitian = {
+          penelitian_id: penelitianId,
           user_id: anggota.user_id,
-          peran: anggota.peran,
-          status: anggota.status,
+          peran: anggota.peran || "Anggota",
+          status: anggota.status || "Aktif",
         };
 
-        const keysDataAnggota = [
-          "penelitian_id",
-          ...Object.keys(anggotaPenelitian),
-        ];
-        const valuesDataAnggota = [
-          penelitianId,
-          ...Object.values(anggotaPenelitian),
-        ];
+        const keysDataAnggota = Object.keys(anggotaPenelitian);
+        const valuesDataAnggota = Object.values(anggotaPenelitian);
         const placeholdersDataAnggota = keysDataAnggota.map(
           (key, index) => `$${index + 1}`
         );
@@ -347,7 +371,7 @@ exports.editDataPenelitian = asyncHandler(async (req, res) => {
           )}) VALUES (${placeholdersDataAnggota.join(", ")}) returning *`,
           valuesDataAnggota
         );
-      });
+      }
     }
     // END ANGGOTA PENELITIAN
 

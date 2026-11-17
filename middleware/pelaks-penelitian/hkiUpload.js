@@ -1,10 +1,13 @@
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs-extra");
 
 // Set Up Storage for uploaded files
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "public/dokumen-hki");
+      const dir = "public/dokumen-hki";
+      fs.ensureDirSync(dir);
+      cb(null, dir);
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + "-" + file.originalname);
