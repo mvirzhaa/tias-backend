@@ -18,12 +18,22 @@ const {
   filterDataPenelitian,
   approveStatusPenelitian,
   rejectedStatusPenelitian,
+  getMasterKelompokBidang,
+  getMasterJenisDokumen,
+  getMasterSkimKegiatan,
+  getMasterKolaboratorExternal,
 } = require("../../controllers/pelaks-penelitian/penelitianController");
 const {
   dokumenPenelitianUpload,
 } = require("../../middleware/pelaks-penelitian/dokumenPenelitianUpload");
 
 const router = express.Router();
+
+// ============= MASTER DATA PENELITIAN ===========
+router.get("/master/kelompok-bidang", protected, getMasterKelompokBidang);
+router.get("/master/jenis-dokumen", protected, getMasterJenisDokumen);
+router.get("/master/skim-kegiatan", protected, getMasterSkimKegiatan);
+router.get("/master/kolaborator-external", protected, getMasterKolaboratorExternal);
 
 // ============= PENELITIAN ======================
 router.post(
